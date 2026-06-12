@@ -1,0 +1,136 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import type { Settings } from "@/lib/store/types";
+
+const PROVIDERS = [
+  { id: "openai", label: "OpenAI" },
+  { id: "google", label: "Google (Gemini)" },
+  { id: "ollama", label: "Ollama(ローカル)" },
+  { id: "openrouter", label: "OpenRouter" },
+] as const;
+
+const inputCls =
+  "w-full rounded-lg border border-amber-900/60 bg-black/30 p-3 text-amber-50";
+
+export default function SettingsPage() {
+  const [settings, setSettings] = useState<Settings | null>(null);
+  const [status, setStatus] = useState<string | null>(null);
+
+  useEffect(() => {
+    fetch("/api/settings")
+      .then((r) => r.json())
+      .then(setSettings);
+  }, []);
+
+  if (!settings) {
+    return <main className="p-6 text-amber-300">読み込み中...</main>;
+  }
+  const s = settings;
+
+  async function save() {
+    setStatus(null);
+    const res = await fetch("/api/settings", {
+      method: "PUT",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(s),
+    });
+    setStatus(res.ok ? "保存しました。" : "保存に失敗しました。");
+  }
+
+  async function testConnection() {
+    setStatus("接続テスト中...");
+    const res = await fetch("/api/settings/test", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(s),
+    });
+    const json = await res.json();
+    setStatus(json.ok ? `接続OK: ${json.reply}` : `接続失敗: ${json.error}`);
+  }
+
+  return (
+    <main className="mx-auto max-w-xl p-6">
+      <h1 className="mb-2 text-2xl font-bold text-amber-100">設定</h1>
+      <p className="mb-6 text-sm text-amber-200/70">
+        APIキーはこのPCの data/settings.json にのみ保存され、プロバイダAPI以外に送信されません。
+      </p>
+      <div className="space-y-5">
+        <div>
+          <label htmlFor="provider" className="mb-1 block font-bold text-amber-200">
+            プロバイダ
+          </label>
+          <select
+            id="provider"
+            value={s.provider}
+            onChange={(e) =>
+              setSettings({ ...s, provider: e.target.value as Settings["provider"] })
+            }
+            className={inputCls}
+          >
+            {PROVIDERS.map((p) => (
+              <option key={p.id} value={p.id}>
+                {p.label}
+              </option>
+            ))}
+          </select>
+        </div>
+        {s.provider !== "ollama" && (
+          <div>
+            <label htmlFor="apiKey" className="mb-1 block font-bold text-amber-200">
+              APIキー
+            </label>
+            <input
+              id="apiKey"
+              type="password"
+              value={s.apiKey}
+              onChange={(e) => setSettings({ ...s, apiKey: e.target.value })}
+              className={inputCls}
+            />
+          </div>
+        )}
+        {s.provider === "ollama" && (
+          <div>
+            <label htmlFor="baseUrl" className="mb-1 block font-bold text-amber-200">
+              ベースURL
+            </label>
+            <input
+              id="baseUrl"
+              value={s.baseUrl}
+              onChange={(e) => setSettings({ ...s, baseUrl: e.target.value })}
+              placeholder="http://localhost:11434/v1"
+              className={inputCls}
+            />
+          </div>
+        )}
+        <div>
+          <label htmlFor="model" className="mb-1 block font-bold text-amber-200">
+            モデル名
+          </label>
+          <input
+            id="model"
+            value={s.model}
+            onChange={(e) => setSettings({ ...s, model: e.target.value })}
+            placeholder="例: gpt-5.3 / gemini-2.5-pro / llama3"
+            className={inputCls}
+          />
+        </div>
+        <div className="flex gap-3">
+          <button
+            onClick={save}
+            className="rounded-lg bg-amber-600 px-6 py-3 font-bold text-stone-950 hover:bg-amber-500"
+          >
+            保存
+          </button>
+          <button
+            onClick={testConnection}
+            className="rounded-lg border border-amber-600 px-6 py-3 font-bold text-amber-300 hover:bg-amber-900/40"
+          >
+            接続テスト
+          </button>
+        </div>
+        {status && <p className="text-amber-200">{status}</p>}
+      </div>
+    </main>
+  );
+}
