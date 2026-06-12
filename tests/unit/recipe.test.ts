@@ -48,6 +48,26 @@ test("再発酵すると旧版が history に退避される", async () => {
   expect(readdirSync(path.join(historyRoot, stamps[0]))).toHaveLength(7);
 });
 
+test("生成途中で失敗したら進捗がリセットされて再throwされる", async () => {
+  const { brew, fake } = await readyBrew();
+  let calls = 0;
+  const failing = {
+    ...fake,
+    async generateText(opts: Parameters<typeof fake.generateText>[0]) {
+      calls += 1;
+      if (calls === 4) throw new Error("LLM failure");
+      return fake.generateText(opts);
+    },
+  };
+  const seen: (string | null)[] = [];
+  await expect(
+    generateRecipe(brew, failing, (b) => {
+      seen.push(b.recipeProgress?.file ?? null);
+    }),
+  ).rejects.toThrow("LLM failure");
+  expect(seen[seen.length - 1]).toBeNull(); // 最後の通知は進捗リセット
+});
+
 test("readRecipeFile は許可されたファイル名のみ読める", async () => {
   const { brew, fake } = await readyBrew();
   await generateRecipe(brew, fake);

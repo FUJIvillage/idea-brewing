@@ -92,30 +92,35 @@ export async function generateRecipe(
   let current: Brew = { ...brew, stage: "fermenting" };
   const generated: string[] = [];
 
-  for (let i = 0; i < RECIPE_FILES.length; i++) {
-    const def = RECIPE_FILES[i];
-    current = {
-      ...current,
-      recipeProgress: { current: i + 1, total: RECIPE_FILES.length, file: def.file },
-    };
-    await onProgress?.(current);
+  try {
+    for (let i = 0; i < RECIPE_FILES.length; i++) {
+      const def = RECIPE_FILES[i];
+      current = {
+        ...current,
+        recipeProgress: { current: i + 1, total: RECIPE_FILES.length, file: def.file },
+      };
+      await onProgress?.(current);
 
-    const prompt = [
-      `## 作成する資料`,
-      `ファイル名: ${def.file}`,
-      `タイトル: ${def.title}`,
-      `指示: ${def.instructions}`,
-      `## ブリューシート(確定版)`,
-      sheetDump(current.sheet!),
-      `## グリルでの質疑応答`,
-      qaDump(current.grill.entries),
-      `## 生成済みの資料`,
-      generated.length > 0 ? generated.join(", ") : "(なし)",
-    ].join("\n\n");
+      const prompt = [
+        `## 作成する資料`,
+        `ファイル名: ${def.file}`,
+        `タイトル: ${def.title}`,
+        `指示: ${def.instructions}`,
+        `## ブリューシート(確定版)`,
+        sheetDump(current.sheet!),
+        `## グリルでの質疑応答`,
+        qaDump(current.grill.entries),
+        `## 生成済みの資料`,
+        generated.length > 0 ? generated.join(", ") : "(なし)",
+      ].join("\n\n");
 
-    const text = await client.generateText({ tag: "recipe", system: RECIPE_SYSTEM, prompt });
-    await fs.writeFile(path.join(recipeDir(brew.id), def.file), text, "utf8");
-    generated.push(def.file);
+      const text = await client.generateText({ tag: "recipe", system: RECIPE_SYSTEM, prompt });
+      await fs.writeFile(path.join(recipeDir(brew.id), def.file), text, "utf8");
+      generated.push(def.file);
+    }
+  } catch (err) {
+    await onProgress?.({ ...current, recipeProgress: null });
+    throw err;
   }
 
   return {
