@@ -1,12 +1,18 @@
 import { NextResponse } from "next/server";
 import { readBrew, writeBrew } from "@/lib/store";
+import type { Brew } from "@/lib/store/types";
 import { addFileIngredient, addTextIngredient, addUrlIngredient } from "@/lib/ingredients";
 import { errorResponse } from "@/lib/api";
 
 export async function POST(req: Request, ctx: { params: Promise<{ id: string }> }) {
   const { id } = await ctx.params;
+  let brew: Brew;
   try {
-    let brew = await readBrew(id);
+    brew = await readBrew(id);
+  } catch {
+    return NextResponse.json({ error: "ブリューが見つかりません。" }, { status: 404 });
+  }
+  try {
     if (brew.recipeGeneratedAt) {
       return NextResponse.json(
         { error: "レシピ生成後の原料追加はできません。ブリューシートを編集して再発酵してください。" },
