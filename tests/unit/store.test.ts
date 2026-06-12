@@ -50,7 +50,7 @@ test("ブリューの更新で updatedAt が進む", async () => {
   await writeBrew({ ...brew, stage: "grilling" });
   const loaded = await readBrew(brew.id);
   expect(loaded.stage).toBe("grilling");
-  expect(loaded.updatedAt >= before).toBe(true);
+  expect(loaded.updatedAt > before).toBe(true);
 });
 
 test("brews フォルダが無ければ空一覧", async () => {

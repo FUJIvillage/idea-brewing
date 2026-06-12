@@ -51,8 +51,7 @@ export async function createBrew(name: string): Promise<Brew> {
     recipeGeneratedAt: null,
   };
   await fs.mkdir(path.join(brewDir(brew.id), "ingredients"), { recursive: true });
-  await writeBrew(brew);
-  return brew;
+  return writeBrew(brew);
 }
 
 export async function readBrew(id: string): Promise<Brew> {
@@ -60,7 +59,7 @@ export async function readBrew(id: string): Promise<Brew> {
   return JSON.parse(raw) as Brew;
 }
 
-export async function writeBrew(brew: Brew): Promise<void> {
+export async function writeBrew(brew: Brew): Promise<Brew> {
   const next = { ...brew, updatedAt: new Date().toISOString() };
   await fs.mkdir(brewDir(brew.id), { recursive: true });
   await fs.writeFile(
@@ -68,6 +67,7 @@ export async function writeBrew(brew: Brew): Promise<void> {
     JSON.stringify(next, null, 2),
     "utf8",
   );
+  return next;
 }
 
 export async function listBrews(): Promise<Brew[]> {

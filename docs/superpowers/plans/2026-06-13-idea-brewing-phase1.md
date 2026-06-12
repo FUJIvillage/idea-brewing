@@ -1824,8 +1824,8 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
         );
       }
     }
-    await writeBrew(brew);
-    return NextResponse.json(brew);
+    const saved = await writeBrew(brew);
+    return NextResponse.json(saved);
   } catch (err) {
     return errorResponse(err);
   }
@@ -1888,8 +1888,8 @@ export async function POST(_req: Request, ctx: { params: Promise<{ id: string }>
       }
     }
     const next = await runMash(brew, client, images);
-    await writeBrew(next);
-    return NextResponse.json(next);
+    const saved = await writeBrew(next);
+    return NextResponse.json(saved);
   } catch (err) {
     return errorResponse(err);
   }
@@ -1913,8 +1913,8 @@ export async function PUT(req: Request, ctx: { params: Promise<{ id: string }> }
       return NextResponse.json({ error: `不正な項目です: ${key}` }, { status: 400 });
     }
     const next = editSheetField(await readBrew(id), key, content);
-    await writeBrew(next);
-    return NextResponse.json(next);
+    const saved = await writeBrew(next);
+    return NextResponse.json(saved);
   } catch (err) {
     return errorResponse(err);
   }
@@ -1945,13 +1945,13 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
 
     if (body.action === "auto") {
       const next = setAutoMode(brew, body.auto);
-      await writeBrew(next);
-      return NextResponse.json({ brew: next, entry: null });
+      const saved = await writeBrew(next);
+      return NextResponse.json({ brew: saved, entry: null });
     }
     if (body.action === "finish") {
       const next = finishGrill(brew);
-      await writeBrew(next);
-      return NextResponse.json({ brew: next, entry: null });
+      const saved = await writeBrew(next);
+      return NextResponse.json({ brew: saved, entry: null });
     }
 
     const client = await getConfiguredClient();
@@ -1962,12 +1962,12 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
         asked.grill.finished && asked.stage === "grilling"
           ? { ...asked, stage: "fermenting" }
           : asked;
-      await writeBrew(next);
-      return NextResponse.json({ brew: next, entry });
+      const saved = await writeBrew(next);
+      return NextResponse.json({ brew: saved, entry });
     }
     const next = await applyAnswer(brew, body.entryId, body.answer, body.by, client);
-    await writeBrew(next);
-    return NextResponse.json({ brew: next, entry: null });
+    const saved = await writeBrew(next);
+    return NextResponse.json({ brew: saved, entry: null });
   } catch (err) {
     return errorResponse(err);
   }
@@ -1999,8 +1999,7 @@ export async function POST(_req: Request, ctx: { params: Promise<{ id: string }>
     const done = await generateRecipe(brew, client, async (b) => {
       await writeBrew(b); // 進捗をポーリングで見えるように都度保存する
     });
-    await writeBrew(done);
-    return NextResponse.json(done);
+    return NextResponse.json(await writeBrew(done));
   } catch (err) {
     return errorResponse(err);
   }
