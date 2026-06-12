@@ -1,9 +1,9 @@
 import { beforeEach, expect, test } from "vitest";
-import { mkdtempSync } from "node:fs";
+import { mkdtempSync, promises as fs } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { PDFDocument, StandardFonts } from "pdf-lib";
-import { createBrew } from "@/lib/store";
+import { brewDir, createBrew, readBrew } from "@/lib/store";
 import { extractReadableText } from "@/lib/ingredients/extract-url";
 import { extractPdfText } from "@/lib/ingredients/extract-pdf";
 import {
@@ -61,6 +61,36 @@ test("画像ファイル原料はファイル保存され kind=image になる",
   const next = await addFileIngredient(brew, "ref.png", "image/png", Buffer.from([1, 2, 3]));
   expect(next.ingredients[0]).toMatchObject({ kind: "image", status: "ok" });
   expect(next.ingredients[0].filePath).toContain("ref.png");
+});
+
+test("ファイル名のパストラバーサルは無害化され brew.json を壊せない", async () => {
+  const brew = await createBrew("t");
+  const next = await addFileIngredient(
+    brew,
+    "../../../brew.json",
+    "text/plain",
+    Buffer.from("x"),
+  );
+  expect(next.ingredients[0].filePath).toContain("ingredients");
+  expect(next.ingredients[0].filePath).not.toContain("..");
+  // createBrew が書いた brew.json が上書きされず、そのまま読めること
+  const onDisk = await readBrew(brew.id);
+  expect(onDisk.id).toBe(brew.id);
+  // 保存先は ingredients ディレクトリ配下に存在すること
+  const saved = await fs.readFile(path.join(brewDir(brew.id), next.ingredients[0].filePath!));
+  expect(saved.toString()).toBe("x");
+});
+
+test("テキストファイル原料は kind=document で text が読める", async () => {
+  const brew = await createBrew("t");
+  const next = await addFileIngredient(
+    brew,
+    "memo.txt",
+    "text/plain",
+    Buffer.from("テキスト資料", "utf8"),
+  );
+  expect(next.ingredients[0]).toMatchObject({ kind: "document", status: "ok" });
+  expect(next.ingredients[0].text).toContain("テキスト資料");
 });
 
 test("PDFからテキストを抽出できる", async () => {

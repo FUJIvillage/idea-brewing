@@ -58,12 +58,27 @@ export async function addFileIngredient(
 ): Promise<Brew> {
   const id = randomUUID();
   const addedAt = new Date().toISOString();
-  const relPath = path.join("ingredients", `${id}-${fileName}`);
-  await fs.mkdir(path.join(brewDir(brew.id), "ingredients"), { recursive: true });
-  await fs.writeFile(path.join(brewDir(brew.id), relPath), data);
+  const kind = mimeType.startsWith("image/") ? ("image" as const) : ("document" as const);
+  // パストラバーサル対策: ディレクトリ成分を除去したファイル名のみ保存パスに使う
+  const safeName = path.basename(fileName) || "file";
+  const relPath = path.join("ingredients", `${id}-${safeName}`);
+  try {
+    await fs.mkdir(path.join(brewDir(brew.id), "ingredients"), { recursive: true });
+    await fs.writeFile(path.join(brewDir(brew.id), relPath), data);
+  } catch (err) {
+    return push(brew, {
+      id,
+      kind,
+      title: fileName,
+      mimeType,
+      status: "failed",
+      error: err instanceof Error ? err.message : String(err),
+      addedAt,
+    });
+  }
   const base = { id, title: fileName, filePath: relPath, mimeType, addedAt };
 
-  if (mimeType.startsWith("image/")) {
+  if (kind === "image") {
     return push(brew, { ...base, kind: "image", status: "ok" });
   }
   try {
