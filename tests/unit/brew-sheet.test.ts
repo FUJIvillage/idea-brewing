@@ -39,6 +39,17 @@ test("ユーザー確定済み項目は再マッシュで上書きされない",
   expect(again.sheet!.targetUsers.userEdited).toBe(false);
 });
 
+test("グリル完了後の再マッシュで grill.finished がリセットされ stage が grilling になる", async () => {
+  const fake = createFakeClient();
+  let brew = await createBrew("t");
+  brew = addTextIngredient(brew, "メモ");
+  brew = await runMash(brew, fake);
+  brew = { ...brew, grill: { ...brew.grill, finished: true } };
+  const again = await runMash(brew, fake);
+  expect(again.grill.finished).toBe(false);
+  expect(again.stage).toBe("grilling");
+});
+
 test("シート手動編集は userEdited を立て、充足度を再判定する", async () => {
   const fake = createFakeClient();
   let brew = await createBrew("t");

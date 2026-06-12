@@ -21,11 +21,17 @@ export function RecipePanel({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    let cancelled = false;
-    // 再生成後はファイル名が同一のままなので、古い本文を表示し続けないようクリアする
+  // 再生成後はファイル名が同一のままなので、古い本文を表示し続けないようクリアする
+  // (レンダー中の前回値比較パターン: ポーリングによる recipeProgress 更新では発火しない)
+  const [prevGeneratedAt, setPrevGeneratedAt] = useState(brew.recipeGeneratedAt);
+  if (prevGeneratedAt !== brew.recipeGeneratedAt) {
+    setPrevGeneratedAt(brew.recipeGeneratedAt);
     setSelected(null);
     setContent("");
+  }
+
+  useEffect(() => {
+    let cancelled = false;
     (async () => {
       try {
         const res = await fetch(`/api/brews/${brew.id}/recipe`);

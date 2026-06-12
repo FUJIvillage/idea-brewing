@@ -15,6 +15,12 @@ export async function POST(_req: Request, ctx: { params: Promise<{ id: string }>
     return NextResponse.json({ error: "ブリューが見つかりません。" }, { status: 404 });
   }
   try {
+    if (brew.recipeGeneratedAt) {
+      return NextResponse.json(
+        { error: "レシピ生成後の再マッシュはできません。ブリューシートを編集して再発酵してください。" },
+        { status: 409 },
+      );
+    }
     if (brew.ingredients.filter((i) => i.status === "ok").length === 0) {
       return NextResponse.json(
         { error: "原料がありません。先に原料を投入してください。" },

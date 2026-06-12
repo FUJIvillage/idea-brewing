@@ -3442,6 +3442,14 @@ git add README.md; git commit -m "docs: READMEを整備"
 - **グリルの巻き戻し(5.3)**: 第1版スコープから外し、履歴閲覧のみとする(質問のやり直しは将来拡張)。スペックの「遡って回答をやり直せる」は auto の一時停止と手動回答切替で部分カバー。実装中に余裕があっても追加しないこと(YAGNI)。
 - **型整合**: `Brew`/`BrewSheet`/`Settings`/`GrillEntry` は Task 2 の定義を全タスクで参照。グリルAPIの応答形 `{ brew, entry }` は Task 9 と Task 11 で一致。レシピAPIの応答形(POST=Brew、GET=`{files}`、`[file]`=`{file,content}`)は Task 9 と Task 11 で一致。
 
+## 最終レビュー後修正(2026-06-13)
+
+- lint違反2件を解消: `brews/[id]/page.tsx` の try/catch 内 JSX を分離(`notFound()` の `never` 戻り値で型を絞り込み)、`recipe-panel.tsx` の effect 内同期 setState をレンダー中の前回値比較パターンに置換(再生成時のみ選択をクリアし、ポーリング中は発火しない)
+- 再マッシュ時に `grill.finished` をリセットし、グリル工程を再開できるよう修正(単体テスト追加、計30件)
+- レシピ生成後(`recipeGeneratedAt` あり)の再マッシュを 409 で拒否(原料追加APIと同じガード方針)
+- 未使用のスキャフォールドSVG 5件(`public/file.svg` ほか)を削除
+- README に `npm run dev` 実行中の `npm run e2e` 失敗の注意と `IDEA_BREWING_DATA_DIR` 環境変数を追記
+
 
 
 
