@@ -3212,6 +3212,13 @@ Expected: エラーなし、ビルド成功
 git add src/app/settings; git commit -m "feat: BYOK設定画面(プロバイダ・キー・モデル・接続テスト)を追加"
 ```
 
+**レビュー後修正(2026-06-13):**
+
+- `busy`状態を追加し、保存・接続テスト中は両ボタンを`disabled`に(テスト結果による保存ステータスの上書きとLLMテストの二重発火を防止)
+- 初期GETに`.catch`を追加(失敗時は「読み込み中...」のままにせずエラー表示)、`testConnection`もtry/catchでネットワーク失敗時に「接続失敗: ...」を表示
+- 保存失敗時はAPIの`json.error`があればメッセージに含める
+- ステータス行に`aria-live="polite"`を付与し失敗時は`text-red-400`で表示、APIキー入力に`autoComplete="off"`を追加
+
 ---
 
 ### Task 13: E2E ハッピーパス(Playwright + フェイクLLM)

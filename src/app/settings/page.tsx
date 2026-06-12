@@ -15,38 +15,82 @@ const inputCls =
 
 export default function SettingsPage() {
   const [settings, setSettings] = useState<Settings | null>(null);
-  const [status, setStatus] = useState<string | null>(null);
+  const [loadError, setLoadError] = useState(false);
+  const [status, setStatus] = useState<{ text: string; isError: boolean } | null>(null);
+  const [busy, setBusy] = useState(false);
 
   useEffect(() => {
     fetch("/api/settings")
       .then((r) => r.json())
-      .then(setSettings);
+      .then(setSettings)
+      .catch(() => setLoadError(true));
   }, []);
 
+  if (loadError) {
+    return (
+      <main className="p-6 text-red-400">
+        設定の読み込みに失敗しました。ページを再読み込みしてください。
+      </main>
+    );
+  }
   if (!settings) {
     return <main className="p-6 text-amber-300">読み込み中...</main>;
   }
   const s = settings;
 
   async function save() {
+    setBusy(true);
     setStatus(null);
-    const res = await fetch("/api/settings", {
-      method: "PUT",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify(s),
-    });
-    setStatus(res.ok ? "保存しました。" : "保存に失敗しました。");
+    try {
+      const res = await fetch("/api/settings", {
+        method: "PUT",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(s),
+      });
+      if (res.ok) {
+        setStatus({ text: "保存しました。", isError: false });
+      } else {
+        const json = await res.json().catch(() => null);
+        setStatus({
+          text: json?.error
+            ? `保存に失敗しました: ${json.error}`
+            : "保存に失敗しました。",
+          isError: true,
+        });
+      }
+    } catch (err) {
+      setStatus({
+        text: `保存に失敗しました: ${err instanceof Error ? err.message : String(err)}`,
+        isError: true,
+      });
+    } finally {
+      setBusy(false);
+    }
   }
 
   async function testConnection() {
-    setStatus("接続テスト中...");
-    const res = await fetch("/api/settings/test", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify(s),
-    });
-    const json = await res.json();
-    setStatus(json.ok ? `接続OK: ${json.reply}` : `接続失敗: ${json.error}`);
+    setBusy(true);
+    setStatus({ text: "接続テスト中...", isError: false });
+    try {
+      const res = await fetch("/api/settings/test", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(s),
+      });
+      const json = await res.json();
+      setStatus(
+        json.ok
+          ? { text: `接続OK: ${json.reply}`, isError: false }
+          : { text: `接続失敗: ${json.error}`, isError: true },
+      );
+    } catch (err) {
+      setStatus({
+        text: `接続失敗: ${err instanceof Error ? err.message : String(err)}`,
+        isError: true,
+      });
+    } finally {
+      setBusy(false);
+    }
   }
 
   return (
@@ -83,6 +127,7 @@ export default function SettingsPage() {
             <input
               id="apiKey"
               type="password"
+              autoComplete="off"
               value={s.apiKey}
               onChange={(e) => setSettings({ ...s, apiKey: e.target.value })}
               className={inputCls}
@@ -118,18 +163,24 @@ export default function SettingsPage() {
         <div className="flex gap-3">
           <button
             onClick={save}
-            className="rounded-lg bg-amber-600 px-6 py-3 font-bold text-stone-950 hover:bg-amber-500"
+            disabled={busy}
+            className="rounded-lg bg-amber-600 px-6 py-3 font-bold text-stone-950 hover:bg-amber-500 disabled:opacity-50"
           >
             保存
           </button>
           <button
             onClick={testConnection}
-            className="rounded-lg border border-amber-600 px-6 py-3 font-bold text-amber-300 hover:bg-amber-900/40"
+            disabled={busy}
+            className="rounded-lg border border-amber-600 px-6 py-3 font-bold text-amber-300 hover:bg-amber-900/40 disabled:opacity-50"
           >
             接続テスト
           </button>
         </div>
-        {status && <p className="text-amber-200">{status}</p>}
+        {status && (
+          <p aria-live="polite" className={status.isError ? "text-red-400" : "text-amber-200"}>
+            {status.text}
+          </p>
+        )}
       </div>
     </main>
   );
