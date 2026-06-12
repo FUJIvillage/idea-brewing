@@ -54,7 +54,12 @@ export function BrewWorkbench({ initial }: { initial: Brew }) {
       </nav>
       <div className="mt-6">
         {tab === "ingredients" && (
-          <IngredientsPanel brew={brew} onUpdate={setBrew} onMashed={() => setTab("sheet")} />
+          <IngredientsPanel
+            brew={brew}
+            onUpdate={setBrew}
+            onMashed={() => setTab("sheet")}
+            onBusyChange={setBusy}
+          />
         )}
         {tab === "sheet" && <SheetPanel brew={brew} onUpdate={setBrew} />}
         {tab === "grill" && (

@@ -30,13 +30,14 @@ export function GrillPanel({
   const [auto, setAuto] = useState(brew.grill.auto);
   const [freeText, setFreeText] = useState("");
   const [error, setError] = useState<string | null>(null);
-  const cancelRef = useRef(false);
+  // ループ中断の理由: "auto-off"=ユーザーがチェック解除(サーバーへauto:falseを送る)、"unmount"=画面離脱(送らない)
+  const cancelRef = useRef<false | "auto-off" | "unmount">(false);
   const pending = brew.grill.entries.find((e) => !e.answer) ?? null;
 
-  // アンマウント時はautoループを止める
+  // アンマウント時はautoループを止める(チェック解除済みの場合はその要求を優先)
   useEffect(() => {
     return () => {
-      cancelRef.current = true;
+      if (cancelRef.current === false) cancelRef.current = "unmount";
     };
   }, []);
 
@@ -73,9 +74,9 @@ export function GrillPanel({
       setFreeText("");
     });
 
-  const runAuto = () =>
-    run(async () => {
-      cancelRef.current = false;
+  const runAuto = () => {
+    cancelRef.current = false;
+    return run(async () => {
       let current = (await postGrill(brew.id, { action: "auto", auto: true })).brew;
       onUpdate(current);
       let guard = 0;
@@ -98,7 +99,14 @@ export function GrillPanel({
         }
         onUpdate(current);
       }
+      // チェック解除によるauto:falseの書き込みは、ループ内のanswer/nextの
+      // read-modify-writeと競合しないようループ終了後にここで一度だけ行う
+      if (cancelRef.current === "auto-off") {
+        const { brew: b } = await postGrill(brew.id, { action: "auto", auto: false });
+        onUpdate(b);
+      }
     });
+  };
 
   const finish = () =>
     run(async () => {
@@ -124,11 +132,18 @@ export function GrillPanel({
                 const checked = e.target.checked;
                 setAuto(checked);
                 if (!checked) {
-                  // 実行中のautoループを次の反復で止め、サーバー側の状態も合わせる
-                  cancelRef.current = true;
-                  void postGrill(brew.id, { action: "auto", auto: false })
-                    .then(({ brew: b }) => onUpdate(b))
-                    .catch(() => {});
+                  if (busy) {
+                    // ループ実行中はフラグだけ立て、auto:falseの送信はループ終了後に任せる
+                    cancelRef.current = "auto-off";
+                  } else {
+                    void run(async () => {
+                      const { brew: b } = await postGrill(brew.id, {
+                        action: "auto",
+                        auto: false,
+                      });
+                      onUpdate(b);
+                    });
+                  }
                 }
               }}
             />

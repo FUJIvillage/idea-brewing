@@ -17,10 +17,12 @@ export function IngredientsPanel({
   brew,
   onUpdate,
   onMashed,
+  onBusyChange,
 }: {
   brew: Brew;
   onUpdate: (b: Brew) => void;
   onMashed: () => void;
+  onBusyChange: (busy: boolean) => void;
 }) {
   const [text, setText] = useState("");
   const [urls, setUrls] = useState("");
@@ -30,6 +32,7 @@ export function IngredientsPanel({
 
   async function addIngredients() {
     setBusy(true);
+    onBusyChange(true);
     setError(null);
     try {
       const form = new FormData();
@@ -50,11 +53,13 @@ export function IngredientsPanel({
       setError(err instanceof Error ? err.message : String(err));
     } finally {
       setBusy(false);
+      onBusyChange(false);
     }
   }
 
   async function mash() {
     setBusy(true);
+    onBusyChange(true);
     setError(null);
     try {
       const res = await fetch(`/api/brews/${brew.id}/mash`, { method: "POST" });
@@ -66,6 +71,7 @@ export function IngredientsPanel({
       setError(err instanceof Error ? err.message : String(err));
     } finally {
       setBusy(false);
+      onBusyChange(false);
     }
   }
 

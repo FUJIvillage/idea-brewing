@@ -57,7 +57,11 @@ export function RecipePanel({
       setError(err instanceof Error ? err.message : String(err));
     } finally {
       clearInterval(poll);
-      await refresh();
+      try {
+        await refresh();
+      } catch {
+        // refreshが失敗してもbusy解除は必ず行う(タブが永久ロックされるのを防ぐ)
+      }
       setBusy(false);
       onBusyChange(false);
     }
