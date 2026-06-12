@@ -3342,6 +3342,11 @@ Expected: 1 passed
 git add playwright.config.ts tests/e2e; git commit -m "test: フェイクLLMによるE2Eハッピーパスを追加"
 ```
 
+**レビュー後修正(2026-06-13):**
+- レシピ完了待ちを `getByText("06-evaluation-criteria.md")` から `getByRole("button", ...)` に厳密化。進行表示「7/7: 06-evaluation-criteria.md を生成中...」(ディスク出力前にbrew.jsonへ書かれる)との部分一致による existsSync の早期実行と strict mode violation を防ぐ。ファイル一覧ボタンはサーバーの readdir 結果由来のためディスク出力済みを含意する。
+- `global-setup.ts` の `rmSync` に `maxRetries: 5, retryDelay: 200` を追加。Playwright は webServer を globalSetup より先に起動するため、Windows/OneDrive で EBUSY/EPERM になりうるのをリトライで吸収。
+- 「コンセプト」見出しの待機に `timeout: 30_000` を明示(マッシュAPI + Next dev 初回コンパイルを跨ぐため)。あわせて `getByLabel` の冗長な `{ exact: false }` を削除し、`toHaveLength(1)` が `--retries` 非併用前提である旨のコメントを追加。
+
 ---
 
 ### Task 14: README と最終確認

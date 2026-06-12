@@ -11,12 +11,15 @@ test("原料投入からレシピ生成までのハッピーパス", async ({ pa
   await page.getByRole("button", { name: "仕込みを始める" }).click();
 
   // 2. 仕込み(マッシュ)
+  // マッシュAPI + Next devの初回コンパイルを跨ぐためデフォルト5秒では不足しうる
   await page.getByRole("button", { name: "仕込み開始(マッシュ)" }).click();
-  await expect(page.getByRole("heading", { name: "コンセプト", exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "コンセプト", exact: true })).toBeVisible({
+    timeout: 30_000,
+  });
 
   // 3. グリル(auto)
   await page.getByRole("button", { name: "グリル", exact: true }).click();
-  await page.getByLabel("autoモード", { exact: false }).check();
+  await page.getByLabel("autoモード").check();
   await page.getByRole("button", { name: "グリル開始" }).click();
   // 「煮詰め完了にする」ボタンと区別するため句点付きの完了メッセージで待つ
   await expect(page.getByText("煮詰め完了。")).toBeVisible({ timeout: 30_000 });
@@ -24,13 +27,16 @@ test("原料投入からレシピ生成までのハッピーパス", async ({ pa
   // 4. レシピ生成(発酵)
   await page.getByRole("button", { name: "レシピ", exact: true }).click();
   await page.getByRole("button", { name: "レシピ生成" }).click();
-  await expect(page.getByText("06-evaluation-criteria.md")).toBeVisible({
-    timeout: 60_000,
-  });
+  // 進行表示「7/7: 06-evaluation-criteria.md を生成中...」と部分一致しないよう、
+  // サーバーのreaddir結果から描画されるファイル一覧のボタンで待つ(=ディスク出力済みを含意)
+  await expect(
+    page.getByRole("button", { name: "06-evaluation-criteria.md" }),
+  ).toBeVisible({ timeout: 60_000 });
 
   // 5. ファイルが実際にディスクへ出力されている
   const brewsDir = path.join(process.cwd(), ".e2e-data", "brews");
   const ids = readdirSync(brewsDir);
+  // globalSetupは1回の実行につき1度だけ走るため、--retries併用時はこの前提が崩れる
   expect(ids).toHaveLength(1);
   for (const f of [
     "00-overview.md",
