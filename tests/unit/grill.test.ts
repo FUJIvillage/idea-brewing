@@ -53,6 +53,16 @@ test("全項目 full なら LLM を呼ばずに finished になる", async () =>
   expect(fake.calls.length).toBe(callsBefore); // LLM 呼び出しなし
 });
 
+test("LLM が done を返したら finished になる", async () => {
+  const { brew, fake } = await mashedBrew();
+  const { brew: b1 } = await nextQuestion(brew, fake);
+  const { brew: b2 } = await nextQuestion(b1, fake);
+  const { brew: b3, entry } = await nextQuestion(b2, fake);
+  expect(b2.grill.entries).toHaveLength(2);
+  expect(entry).toBeNull();
+  expect(b3.grill.finished).toBe(true);
+});
+
 test("質問数が上限に達したら強制終了する", async () => {
   const { brew, fake } = await mashedBrew();
   const entries: GrillEntry[] = Array.from({ length: MAX_QUESTIONS }, (_, i) => ({
