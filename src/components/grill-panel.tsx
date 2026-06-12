@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { Brew, GrillEntry } from "@/lib/store/types";
 
 async function postGrill(
@@ -20,18 +20,29 @@ async function postGrill(
 export function GrillPanel({
   brew,
   onUpdate,
+  onBusyChange,
 }: {
   brew: Brew;
   onUpdate: (b: Brew) => void;
+  onBusyChange: (busy: boolean) => void;
 }) {
   const [busy, setBusy] = useState(false);
   const [auto, setAuto] = useState(brew.grill.auto);
   const [freeText, setFreeText] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const cancelRef = useRef(false);
   const pending = brew.grill.entries.find((e) => !e.answer) ?? null;
+
+  // アンマウント時はautoループを止める
+  useEffect(() => {
+    return () => {
+      cancelRef.current = true;
+    };
+  }, []);
 
   async function run(fn: () => Promise<void>) {
     setBusy(true);
+    onBusyChange(true);
     setError(null);
     try {
       await fn();
@@ -39,6 +50,7 @@ export function GrillPanel({
       setError(err instanceof Error ? err.message : String(err));
     } finally {
       setBusy(false);
+      onBusyChange(false);
     }
   }
 
@@ -63,10 +75,11 @@ export function GrillPanel({
 
   const runAuto = () =>
     run(async () => {
+      cancelRef.current = false;
       let current = (await postGrill(brew.id, { action: "auto", auto: true })).brew;
       onUpdate(current);
       let guard = 0;
-      while (!current.grill.finished && guard < 50) {
+      while (!cancelRef.current && !current.grill.finished && guard < 50) {
         guard += 1;
         const pendingEntry = current.grill.entries.find((e) => !e.answer);
         if (pendingEntry) {
@@ -107,7 +120,17 @@ export function GrillPanel({
             <input
               type="checkbox"
               checked={auto}
-              onChange={(e) => setAuto(e.target.checked)}
+              onChange={(e) => {
+                const checked = e.target.checked;
+                setAuto(checked);
+                if (!checked) {
+                  // 実行中のautoループを次の反復で止め、サーバー側の状態も合わせる
+                  cancelRef.current = true;
+                  void postGrill(brew.id, { action: "auto", auto: false })
+                    .then(({ brew: b }) => onUpdate(b))
+                    .catch(() => {});
+                }
+              }}
             />
             autoモード(推奨回答を自動選択して連続進行)
           </label>

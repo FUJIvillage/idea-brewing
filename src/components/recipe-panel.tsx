@@ -8,10 +8,12 @@ export function RecipePanel({
   brew,
   onUpdate,
   refresh,
+  onBusyChange,
 }: {
   brew: Brew;
   onUpdate: (b: Brew) => void;
   refresh: () => Promise<void>;
+  onBusyChange: (busy: boolean) => void;
 }) {
   const [files, setFiles] = useState<string[]>([]);
   const [selected, setSelected] = useState<string | null>(null);
@@ -21,10 +23,17 @@ export function RecipePanel({
 
   useEffect(() => {
     let cancelled = false;
+    // 再生成後はファイル名が同一のままなので、古い本文を表示し続けないようクリアする
+    setSelected(null);
+    setContent("");
     (async () => {
-      const res = await fetch(`/api/brews/${brew.id}/recipe`);
-      const json = await res.json();
-      if (!cancelled) setFiles(json.files ?? []);
+      try {
+        const res = await fetch(`/api/brews/${brew.id}/recipe`);
+        const json = await res.json();
+        if (!cancelled) setFiles(json.files ?? []);
+      } catch {
+        if (!cancelled) setError("レシピ一覧の取得に失敗しました。");
+      }
     })();
     return () => {
       cancelled = true;
@@ -33,27 +42,37 @@ export function RecipePanel({
 
   async function generate() {
     setBusy(true);
+    onBusyChange(true);
     setError(null);
     const poll = setInterval(() => void refresh(), 1000);
     try {
       const res = await fetch(`/api/brews/${brew.id}/recipe`, { method: "POST" });
+      // 進行中ポーリングの古い応答が最新状態を上書きしないよう、
+      // 応答処理の前に止めてから最後に1回だけ取り直す
+      clearInterval(poll);
       const json = await res.json();
-      if (!res.ok) throw new Error(json.error);
+      if (!res.ok) throw new Error(json.error ?? "エラーが発生しました。");
       onUpdate(json);
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
     } finally {
       clearInterval(poll);
+      await refresh();
       setBusy(false);
+      onBusyChange(false);
     }
   }
 
   async function open(file: string) {
-    const res = await fetch(`/api/brews/${brew.id}/recipe/${file}`);
-    const json = await res.json();
-    if (res.ok) {
+    setError(null);
+    try {
+      const res = await fetch(`/api/brews/${brew.id}/recipe/${file}`);
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error ?? "エラーが発生しました。");
       setSelected(file);
       setContent(json.content);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
     }
   }
 
@@ -99,7 +118,7 @@ export function RecipePanel({
               </li>
             ))}
           </ul>
-          <article className="prose prose-invert prose-amber max-w-none rounded-lg border border-amber-900/40 bg-black/20 p-6">
+          <article className="prose prose-invert max-w-none rounded-lg border border-amber-900/40 bg-black/20 p-6">
             {selected ? (
               <ReactMarkdown>{content}</ReactMarkdown>
             ) : (

@@ -18,6 +18,9 @@ export async function POST(_req: Request, ctx: { params: Promise<{ id: string }>
   } catch {
     return NextResponse.json({ error: "ブリューが見つかりません。" }, { status: 404 });
   }
+  if (brew.recipeProgress !== null) {
+    return NextResponse.json({ error: "レシピを生成中です。" }, { status: 409 });
+  }
   try {
     if (!brew.grill.finished) {
       return NextResponse.json({ error: "グリルが完了していません。" }, { status: 400 });

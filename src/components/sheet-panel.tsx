@@ -58,7 +58,7 @@ function FieldCard({
         body: JSON.stringify({ key: fieldKey, content: draft }),
       });
       const json = await res.json();
-      if (!res.ok) throw new Error(json.error);
+      if (!res.ok) throw new Error(json.error ?? "エラーが発生しました。");
       onUpdate(json);
       setEditing(false);
     } catch (err) {

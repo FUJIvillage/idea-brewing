@@ -41,7 +41,7 @@ export function IngredientsPanel({
         body: form,
       });
       const json = await res.json();
-      if (!res.ok) throw new Error(json.error);
+      if (!res.ok) throw new Error(json.error ?? "エラーが発生しました。");
       onUpdate(json);
       setText("");
       setUrls("");
@@ -59,7 +59,7 @@ export function IngredientsPanel({
     try {
       const res = await fetch(`/api/brews/${brew.id}/mash`, { method: "POST" });
       const json = await res.json();
-      if (!res.ok) throw new Error(json.error);
+      if (!res.ok) throw new Error(json.error ?? "エラーが発生しました。");
       onUpdate(json);
       onMashed();
     } catch (err) {

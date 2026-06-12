@@ -18,6 +18,8 @@ type TabId = (typeof TABS)[number]["id"];
 export function BrewWorkbench({ initial }: { initial: Brew }) {
   const [brew, setBrew] = useState(initial);
   const [tab, setTab] = useState<TabId>(initial.sheet ? "sheet" : "ingredients");
+  // 長時間処理(レシピ生成・グリルauto)中はタブ切替を禁止し、パネルのアンマウントを防ぐ
+  const [busy, setBusy] = useState(false);
 
   const refresh = useCallback(async () => {
     const res = await fetch(`/api/brews/${initial.id}`);
@@ -38,7 +40,7 @@ export function BrewWorkbench({ initial }: { initial: Brew }) {
         {TABS.map((t) => (
           <button
             key={t.id}
-            disabled={!enabled[t.id]}
+            disabled={!enabled[t.id] || busy}
             onClick={() => setTab(t.id)}
             className={`px-4 py-2 font-bold ${
               tab === t.id
@@ -55,9 +57,16 @@ export function BrewWorkbench({ initial }: { initial: Brew }) {
           <IngredientsPanel brew={brew} onUpdate={setBrew} onMashed={() => setTab("sheet")} />
         )}
         {tab === "sheet" && <SheetPanel brew={brew} onUpdate={setBrew} />}
-        {tab === "grill" && <GrillPanel brew={brew} onUpdate={setBrew} />}
+        {tab === "grill" && (
+          <GrillPanel brew={brew} onUpdate={setBrew} onBusyChange={setBusy} />
+        )}
         {tab === "recipe" && (
-          <RecipePanel brew={brew} onUpdate={setBrew} refresh={refresh} />
+          <RecipePanel
+            brew={brew}
+            onUpdate={setBrew}
+            refresh={refresh}
+            onBusyChange={setBusy}
+          />
         )}
       </div>
     </main>

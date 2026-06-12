@@ -3033,6 +3033,16 @@ npm run dev
 git add src/app/brews src/components; git commit -m "feat: ブリュー詳細ワークベンチ(原料/シート/グリル/レシピ)を追加"
 ```
 
+**レビュー後修正(2026-06-13):**
+
+- レシピ生成POSTに409ガードを追加(`recipeProgress`が残っている間は「レシピを生成中です。」を返し二重起動を防止)
+- `BrewWorkbench`に`busy`状態をリフトし、長時間処理(レシピ生成・グリルauto)中はタブ切替を無効化してパネルのアンマウントを防止
+- レシピ生成のポーリング競合を修正(POST応答処理前に`clearInterval`し、最後に`refresh()`を1回実行して最新のディスク状態で確定)
+- `@tailwindcss/typography`を導入し`globals.css`に`@plugin`を追加、存在しない`prose-amber`を除去
+- 再発酵後に古い本文が残らないよう`recipeGeneratedAt`変化時に選択ファイル/本文をクリア
+- グリルautoループに`useRef`の中断フラグを追加(チェック解除で停止+サーバーへ`auto:false`を送信、アンマウント時も停止)
+- パネルのエラーフォールバックを`json.error ?? "エラーが発生しました。"`に統一、レシピ一覧取得・ファイル表示のfetch失敗時もエラー表示
+
 ---
 
 ### Task 12: 設定画面(BYOK)
