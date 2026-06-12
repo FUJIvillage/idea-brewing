@@ -62,8 +62,14 @@ export function createAiSdkClient(settings: Settings): LlmClient {
       };
       try {
         return await run();
-      } catch {
-        return await run(); // パース失敗等は1回だけ自動リトライ
+      } catch (firstErr) {
+        try {
+          return await run(); // パース失敗等は1回だけ自動リトライ
+        } catch (secondErr) {
+          throw secondErr instanceof Error
+            ? new Error(secondErr.message, { cause: firstErr })
+            : secondErr;
+        }
       }
     },
     async generateText(opts: GenerateOptions): Promise<string> {
