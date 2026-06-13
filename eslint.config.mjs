@@ -12,6 +12,8 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // 生成アプリのひな形は本体の lint 対象外(CommonJS の fake server や vite build の成果物を含む)
+    "templates/**",
   ]),
 ]);
 

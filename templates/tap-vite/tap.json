@@ -1,0 +1,3 @@
+{
+  "verify": ["npm install", "npx tsc --noEmit", "npx vite build"]
+}

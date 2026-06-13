@@ -47,3 +47,7 @@ data/
 # playwright
 playwright-report/
 test-results/
+
+# tap templates (作業時の生成物)
+templates/**/node_modules/
+templates/**/dist/
