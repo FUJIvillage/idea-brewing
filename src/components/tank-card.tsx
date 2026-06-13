@@ -6,6 +6,7 @@ const STAGE_INFO: Record<Brew["stage"], { label: string; percent: number }> = {
   grilling: { label: "グリル中", percent: 55 },
   fermenting: { label: "発酵待ち", percent: 85 },
   done: { label: "レシピ完成", percent: 100 },
+  built: { label: "提供中(ビルド済み)", percent: 100 },
 };
 
 export function TankCard({ brew }: { brew: Brew }) {

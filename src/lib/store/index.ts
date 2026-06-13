@@ -15,6 +15,10 @@ export function recipeDir(id: string): string {
   return path.join(brewDir(id), "recipe");
 }
 
+export function tapDir(id: string, batch: number): string {
+  return path.join(brewDir(id), "taps", `batch-${batch}`);
+}
+
 const DEFAULT_SETTINGS: Settings = {
   provider: "openai",
   apiKey: "",
@@ -56,6 +60,8 @@ export async function createBrew(name: string): Promise<Brew> {
     grill: { entries: [], auto: false, finished: false },
     recipeProgress: null,
     recipeGeneratedAt: null,
+    batches: [],
+    buildProgress: null,
   };
   await fs.mkdir(path.join(brewDir(brew.id), "ingredients"), { recursive: true });
   return writeBrew(brew);
@@ -63,7 +69,13 @@ export async function createBrew(name: string): Promise<Brew> {
 
 export async function readBrew(id: string): Promise<Brew> {
   const raw = await fs.readFile(path.join(brewDir(id), "brew.json"), "utf8");
-  return JSON.parse(raw) as Brew;
+  const parsed = JSON.parse(raw) as Brew;
+  // 第1版で作られた brew.json には batches / buildProgress が無いので補完する
+  return {
+    ...parsed,
+    batches: parsed.batches ?? [],
+    buildProgress: parsed.buildProgress ?? null,
+  };
 }
 
 export async function writeBrew(brew: Brew): Promise<Brew> {
