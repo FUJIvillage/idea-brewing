@@ -125,8 +125,8 @@ export interface BuildEngine {
 | ルート | メソッド | 動作 |
 |---|---|---|
 | `/api/brews/[id]/tap/build` | POST | ビルド開始。404(ブリュー不在)/ 400(レシピ未生成・Cursor キー未設定)/ 409(ビルド中)。同期実行 + 進捗ポーリング方式 |
-| `/api/brews/[id]/tap/cancel` | POST | ビルド中断。実行中でなければ 409 |
-| `/api/brews/[id]/tap/server` | POST | `{ action: "start" \| "stop" }`。400(バッチ未成功で start)/ 404 |
+| `/api/brews/[id]/tap/cancel` | POST | ビルド中断。実行中なら中断フラグを立てる。実行中でない場合、`building` 残留(クラッシュ痕)があれば `failed` に補正して進捗をクリア(復旧動作)。どちらにも該当しなければ 409 |
+| `/api/brews/[id]/tap/server` | GET / POST | GET は `{ running, port }`。POST は `{ action: "start" \| "stop" }`。400(バッチ未成功で start)/ 404 |
 | `/api/brews/[id]/tap/log` | GET | `build.log` の末尾 200 行を `{ lines }` で返す |
 
 エラー契約は第1版どおり全ルート `{ error }` JSON。
