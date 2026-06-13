@@ -92,4 +92,8 @@ export interface Settings {
   apiKey: string;
   baseUrl: string;
   model: string;
+  /** Cursor SDK(タップ工程)のAPIキー。空なら環境変数 CURSOR_API_KEY にフォールバック */
+  cursorApiKey: string;
+  /** タップ工程で使うモデルID */
+  cursorModel: string;
 }

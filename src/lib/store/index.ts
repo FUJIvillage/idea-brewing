@@ -15,7 +15,14 @@ export function recipeDir(id: string): string {
   return path.join(brewDir(id), "recipe");
 }
 
-const DEFAULT_SETTINGS: Settings = { provider: "openai", apiKey: "", baseUrl: "", model: "" };
+const DEFAULT_SETTINGS: Settings = {
+  provider: "openai",
+  apiKey: "",
+  baseUrl: "",
+  model: "",
+  cursorApiKey: "",
+  cursorModel: "composer-2.5",
+};
 
 export async function readSettings(): Promise<Settings> {
   try {

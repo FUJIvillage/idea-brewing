@@ -15,6 +15,7 @@
     "@ai-sdk/google": "^3.0.82",
     "@ai-sdk/openai": "^3.0.71",
     "@ai-sdk/openai-compatible": "^2.0.50",
+    "@cursor/sdk": "^1.0.18",
     "ai": "^6.0.203",
     "cheerio": "^1.2.0",
     "next": "16.2.9",

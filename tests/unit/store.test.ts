@@ -21,12 +21,20 @@ test("設定が無いときは既定値を返す", async () => {
   expect(s.model).toBe("");
 });
 
+test("設定の既定値に Cursor 用フィールドが入る", async () => {
+  const s = await readSettings();
+  expect(s.cursorApiKey).toBe("");
+  expect(s.cursorModel).toBe("composer-2.5");
+});
+
 test("設定の保存と読み出し", async () => {
   await writeSettings({
     provider: "ollama",
     apiKey: "",
     baseUrl: "http://localhost:11434/v1",
     model: "llama3",
+    cursorApiKey: "",
+    cursorModel: "composer-2.5",
   });
   const s = await readSettings();
   expect(s.provider).toBe("ollama");

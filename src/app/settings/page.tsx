@@ -160,6 +160,38 @@ export default function SettingsPage() {
             className={inputCls}
           />
         </div>
+        <h2 className="mt-8 text-lg font-bold text-amber-100">ビルドエンジン(Cursor)</h2>
+        <p className="mt-1 text-sm text-amber-200/70">
+          タップ工程(コード生成)で使う Cursor SDK の設定です。ビルドを使わない場合は未設定で構いません。
+        </p>
+        <div className="mt-3">
+          <label htmlFor="cursorApiKey" className="mb-1 block font-bold text-amber-200">
+            Cursor APIキー
+          </label>
+          <input
+            id="cursorApiKey"
+            type="password"
+            autoComplete="off"
+            value={s.cursorApiKey}
+            onChange={(e) => setSettings({ ...s, cursorApiKey: e.target.value })}
+            placeholder="cursor_..."
+            className={inputCls}
+          />
+          <p className="text-xs text-amber-200/60">空の場合は環境変数 CURSOR_API_KEY を使います。</p>
+        </div>
+        <div className="mt-3">
+          <label htmlFor="cursorModel" className="mb-1 block font-bold text-amber-200">
+            ビルドモデル名
+          </label>
+          <input
+            id="cursorModel"
+            type="text"
+            value={s.cursorModel}
+            onChange={(e) => setSettings({ ...s, cursorModel: e.target.value })}
+            placeholder="composer-2.5"
+            className={inputCls}
+          />
+        </div>
         <div className="flex gap-3">
           <button
             onClick={save}
