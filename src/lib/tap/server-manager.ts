@@ -169,8 +169,8 @@ async function startFreshServer(brewId: string): Promise<{ port: number }> {
 }
 
 async function stopEntryIfCurrent(brewId: string, entry: RunningServer): Promise<void> {
-  if (servers.get(brewId) === entry) servers.delete(brewId);
   await killProcessTree(entry);
+  if (servers.get(brewId) === entry) servers.delete(brewId);
 }
 
 export async function stopServer(brewId: string): Promise<void> {
