@@ -1,9 +1,11 @@
 import { beforeEach, expect, test } from "vitest";
-import { mkdtempSync } from "node:fs";
+import { mkdtempSync, promises as fs } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import {
+  brewDir,
   createBrew,
+  dataDir,
   listBrews,
   readBrew,
   readSettings,
@@ -21,12 +23,20 @@ test("設定が無いときは既定値を返す", async () => {
   expect(s.model).toBe("");
 });
 
+test("設定の既定値に Cursor 用フィールドが入る", async () => {
+  const s = await readSettings();
+  expect(s.cursorApiKey).toBe("");
+  expect(s.cursorModel).toBe("composer-2.5");
+});
+
 test("設定の保存と読み出し", async () => {
   await writeSettings({
     provider: "ollama",
     apiKey: "",
     baseUrl: "http://localhost:11434/v1",
     model: "llama3",
+    cursorApiKey: "",
+    cursorModel: "composer-2.5",
   });
   const s = await readSettings();
   expect(s.provider).toBe("ollama");
@@ -55,4 +65,36 @@ test("ブリューの更新で updatedAt が進む", async () => {
 
 test("brews フォルダが無ければ空一覧", async () => {
   expect(await listBrews()).toEqual([]);
+});
+
+test("不正なブリューIDはパスとして使えない", async () => {
+  expect(() => brewDir("../outside")).toThrow("不正なブリューID");
+  await expect(readBrew("../outside")).rejects.toThrow("不正なブリューID");
+});
+
+test("旧スキーマの brew.json に batches と buildProgress が補完される", async () => {
+  const brew = await createBrew("旧データ");
+  const file = path.join(brewDir(brew.id), "brew.json");
+  const raw = JSON.parse(await fs.readFile(file, "utf8")) as Record<string, unknown>;
+  delete raw.batches;
+  delete raw.buildProgress;
+  await fs.writeFile(file, JSON.stringify(raw), "utf8");
+  const loaded = await readBrew(brew.id);
+  expect(loaded.batches).toEqual([]);
+  expect(loaded.buildProgress).toBeNull();
+});
+
+test("旧形式 settings.json でも Cursor フィールドが補完される", async () => {
+  const old = {
+    provider: "ollama",
+    apiKey: "",
+    baseUrl: "http://localhost:11434/v1",
+    model: "llama3",
+  };
+  await fs.mkdir(dataDir(), { recursive: true });
+  await fs.writeFile(path.join(dataDir(), "settings.json"), JSON.stringify(old), "utf8");
+  const s = await readSettings();
+  expect(s.provider).toBe("ollama");
+  expect(s.cursorApiKey).toBe("");
+  expect(s.cursorModel).toBe("composer-2.5");
 });

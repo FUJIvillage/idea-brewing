@@ -7,7 +7,14 @@ export function dataDir(): string {
   return process.env.IDEA_BREWING_DATA_DIR ?? path.join(process.cwd(), "data");
 }
 
+function assertBrewId(id: string): void {
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id)) {
+    throw new Error("不正なブリューIDです。");
+  }
+}
+
 export function brewDir(id: string): string {
+  assertBrewId(id);
   return path.join(dataDir(), "brews", id);
 }
 
@@ -15,7 +22,18 @@ export function recipeDir(id: string): string {
   return path.join(brewDir(id), "recipe");
 }
 
-const DEFAULT_SETTINGS: Settings = { provider: "openai", apiKey: "", baseUrl: "", model: "" };
+export function tapDir(id: string, batch: number): string {
+  return path.join(brewDir(id), "taps", `batch-${batch}`);
+}
+
+const DEFAULT_SETTINGS: Settings = {
+  provider: "openai",
+  apiKey: "",
+  baseUrl: "",
+  model: "",
+  cursorApiKey: "",
+  cursorModel: "composer-2.5",
+};
 
 export async function readSettings(): Promise<Settings> {
   try {
@@ -49,6 +67,8 @@ export async function createBrew(name: string): Promise<Brew> {
     grill: { entries: [], auto: false, finished: false },
     recipeProgress: null,
     recipeGeneratedAt: null,
+    batches: [],
+    buildProgress: null,
   };
   await fs.mkdir(path.join(brewDir(brew.id), "ingredients"), { recursive: true });
   return writeBrew(brew);
@@ -56,7 +76,13 @@ export async function createBrew(name: string): Promise<Brew> {
 
 export async function readBrew(id: string): Promise<Brew> {
   const raw = await fs.readFile(path.join(brewDir(id), "brew.json"), "utf8");
-  return JSON.parse(raw) as Brew;
+  const parsed = JSON.parse(raw) as Brew;
+  // 第1版で作られた brew.json には batches / buildProgress が無いので補完する
+  return {
+    ...parsed,
+    batches: parsed.batches ?? [],
+    buildProgress: parsed.buildProgress ?? null,
+  };
 }
 
 export async function writeBrew(brew: Brew): Promise<Brew> {

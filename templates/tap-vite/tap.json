@@ -1,0 +1,3 @@
+{
+  "verify": ["npm install --ignore-scripts", "npx tsc --noEmit", "npx vite build"]
+}

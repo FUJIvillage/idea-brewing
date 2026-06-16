@@ -69,7 +69,24 @@ export interface RecipeProgress {
   file: string;
 }
 
-export type BrewStage = "ingredients" | "grilling" | "fermenting" | "done";
+export type BatchStatus = "building" | "succeeded" | "failed" | "cancelled";
+
+export interface BatchRecord {
+  number: number; // 1始まり。第2版では常に1
+  status: BatchStatus;
+  startedAt: string;
+  finishedAt: string | null;
+  error: string | null;
+}
+
+export type BuildPhase = "preparing" | "generating" | "verifying" | "repairing";
+
+export interface BuildProgress {
+  phase: BuildPhase;
+  detail: string;
+}
+
+export type BrewStage = "ingredients" | "grilling" | "fermenting" | "done" | "built";
 
 export interface Brew {
   schemaVersion: 1;
@@ -83,6 +100,8 @@ export interface Brew {
   grill: GrillState;
   recipeProgress: RecipeProgress | null;
   recipeGeneratedAt: string | null;
+  batches: BatchRecord[];
+  buildProgress: BuildProgress | null;
 }
 
 export type ProviderId = "openai" | "google" | "ollama" | "openrouter" | "fake";
@@ -92,4 +111,8 @@ export interface Settings {
   apiKey: string;
   baseUrl: string;
   model: string;
+  /** Cursor SDK(タップ工程)のAPIキー。空なら環境変数 CURSOR_API_KEY にフォールバック */
+  cursorApiKey: string;
+  /** タップ工程で使うモデルID */
+  cursorModel: string;
 }

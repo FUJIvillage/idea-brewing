@@ -6,18 +6,22 @@ import { IngredientsPanel } from "./ingredients-panel";
 import { SheetPanel } from "./sheet-panel";
 import { GrillPanel } from "./grill-panel";
 import { RecipePanel } from "./recipe-panel";
+import { TapPanel } from "./tap-panel";
 
 const TABS = [
   { id: "ingredients", label: "原料" },
   { id: "sheet", label: "ブリューシート" },
   { id: "grill", label: "グリル" },
   { id: "recipe", label: "レシピ" },
+  { id: "tap", label: "タップ" },
 ] as const;
 type TabId = (typeof TABS)[number]["id"];
 
 export function BrewWorkbench({ initial }: { initial: Brew }) {
   const [brew, setBrew] = useState(initial);
-  const [tab, setTab] = useState<TabId>(initial.sheet ? "sheet" : "ingredients");
+  const [tab, setTab] = useState<TabId>(
+    initial.buildProgress !== null ? "tap" : initial.sheet ? "sheet" : "ingredients",
+  );
   // 長時間処理(レシピ生成・グリルauto)中はタブ切替を禁止し、パネルのアンマウントを防ぐ
   const [busy, setBusy] = useState(false);
 
@@ -31,7 +35,10 @@ export function BrewWorkbench({ initial }: { initial: Brew }) {
     sheet: brew.sheet !== null,
     grill: brew.sheet !== null,
     recipe: brew.grill.finished,
+    tap: brew.recipeGeneratedAt !== null,
   };
+  const tabsBusy = busy || brew.buildProgress !== null;
+  const visibleTab: TabId = brew.buildProgress !== null ? "tap" : tab;
 
   return (
     <main className="mx-auto max-w-4xl p-6">
@@ -40,10 +47,10 @@ export function BrewWorkbench({ initial }: { initial: Brew }) {
         {TABS.map((t) => (
           <button
             key={t.id}
-            disabled={!enabled[t.id] || busy}
+            disabled={!enabled[t.id] || tabsBusy}
             onClick={() => setTab(t.id)}
             className={`px-4 py-2 font-bold ${
-              tab === t.id
+              visibleTab === t.id
                 ? "border-b-2 border-amber-400 text-amber-300"
                 : "text-amber-200/70"
             } disabled:opacity-30`}
@@ -53,7 +60,7 @@ export function BrewWorkbench({ initial }: { initial: Brew }) {
         ))}
       </nav>
       <div className="mt-6">
-        {tab === "ingredients" && (
+        {visibleTab === "ingredients" && (
           <IngredientsPanel
             brew={brew}
             onUpdate={setBrew}
@@ -61,12 +68,20 @@ export function BrewWorkbench({ initial }: { initial: Brew }) {
             onBusyChange={setBusy}
           />
         )}
-        {tab === "sheet" && <SheetPanel brew={brew} onUpdate={setBrew} />}
-        {tab === "grill" && (
+        {visibleTab === "sheet" && <SheetPanel brew={brew} onUpdate={setBrew} />}
+        {visibleTab === "grill" && (
           <GrillPanel brew={brew} onUpdate={setBrew} onBusyChange={setBusy} />
         )}
-        {tab === "recipe" && (
+        {visibleTab === "recipe" && (
           <RecipePanel
+            brew={brew}
+            onUpdate={setBrew}
+            refresh={refresh}
+            onBusyChange={setBusy}
+          />
+        )}
+        {visibleTab === "tap" && (
+          <TapPanel
             brew={brew}
             onUpdate={setBrew}
             refresh={refresh}
