@@ -6,6 +6,11 @@ import { serverStatus, startServer, stopServer } from "@/lib/tap/server-manager"
 
 export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> }) {
   const { id } = await ctx.params;
+  try {
+    await readBrew(id);
+  } catch {
+    return NextResponse.json({ error: "ブリューが見つかりません。" }, { status: 404 });
+  }
   return NextResponse.json(serverStatus(id));
 }
 
@@ -20,7 +25,13 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
       return NextResponse.json({ error: "ブリューが見つかりません。" }, { status: 404 });
     }
 
-    const { action } = (await req.json()) as { action?: unknown };
+    let action: unknown;
+    try {
+      const body = (await req.json()) as { action?: unknown } | null;
+      action = body?.action;
+    } catch {
+      return NextResponse.json({ error: "不正なアクションです。" }, { status: 400 });
+    }
     if (action === "start") {
       if (brew.batches[0]?.status !== "succeeded") {
         return NextResponse.json({ error: "ビルドが成功していません。" }, { status: 400 });

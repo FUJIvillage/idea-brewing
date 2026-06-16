@@ -11,15 +11,23 @@ import { GET as logGet } from "@/app/api/brews/[id]/tap/log/route";
 import { GET as serverGet, POST as serverPost } from "@/app/api/brews/[id]/tap/server/route";
 
 let tmp: string;
+let previousCursorApiKey: string | undefined;
 
 beforeEach(async () => {
   tmp = await fs.mkdtemp(path.join(os.tmpdir(), "idea-brewing-api-test-"));
   process.env.IDEA_BREWING_DATA_DIR = tmp;
+  previousCursorApiKey = process.env.CURSOR_API_KEY;
+  delete process.env.CURSOR_API_KEY;
 });
 
 afterEach(async () => {
   delete process.env.IDEA_BREWING_DATA_DIR;
   delete process.env.IDEA_BREWING_FAKE_BUILD;
+  if (previousCursorApiKey === undefined) {
+    delete process.env.CURSOR_API_KEY;
+  } else {
+    process.env.CURSOR_API_KEY = previousCursorApiKey;
+  }
   await fs.rm(tmp, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 });
 });
 
@@ -120,8 +128,17 @@ describe("tap cancel route", () => {
 });
 
 describe("tap server route", () => {
-  it("GETはブリューを読まずサーバー状態を返す", async () => {
+  it("GETはブリューが無ければ404を返す", async () => {
     const res = await serverGet(new Request("http://localhost"), ctx("missing"));
+
+    expect(res.status).toBe(404);
+    expect(await json(res)).toEqual({ error: "ブリューが見つかりません。" });
+  });
+
+  it("GETはブリューがあればサーバー状態を返す", async () => {
+    const brew = await createBrew("状態");
+
+    const res = await serverGet(new Request("http://localhost"), ctx(brew.id));
 
     expect(res.status).toBe(200);
     expect(await json(res)).toEqual({ running: false, port: null });
@@ -138,11 +155,33 @@ describe("tap server route", () => {
     expect(res.status).toBe(404);
     expect(await json(res)).toEqual({ error: "ブリューが見つかりません。" });
   });
+
+  it("POSTのJSONが壊れていれば400を返す", async () => {
+    const brew = await createBrew("不正JSON");
+    const req = new Request("http://localhost", {
+      method: "POST",
+      body: "{",
+    });
+
+    const res = await serverPost(req, ctx(brew.id));
+
+    expect(res.status).toBe(400);
+    expect(await json(res)).toEqual({ error: "不正なアクションです。" });
+  });
 });
 
 describe("tap log route", () => {
-  it("ログが無ければ空配列を返す", async () => {
+  it("ブリューが無ければ404を返す", async () => {
     const res = await logGet(new Request("http://localhost"), ctx("missing"));
+
+    expect(res.status).toBe(404);
+    expect(await json(res)).toEqual({ error: "ブリューが見つかりません。" });
+  });
+
+  it("ログが無ければ空配列を返す", async () => {
+    const brew = await createBrew("ログなし");
+
+    const res = await logGet(new Request("http://localhost"), ctx(brew.id));
 
     expect(res.status).toBe(200);
     expect(await json(res)).toEqual({ lines: [] });
