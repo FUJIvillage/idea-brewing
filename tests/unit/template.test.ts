@@ -2,7 +2,7 @@ import { promises as fs } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { prepareBatchDir, readManifest } from "@/lib/tap/template";
+import { prepareBatchDir, readManifest, shouldCopyTemplatePath } from "@/lib/tap/template";
 import { createBrew, recipeDir } from "@/lib/store";
 import { RECIPE_FILES } from "@/lib/recipe";
 
@@ -19,6 +19,15 @@ afterEach(async () => {
 });
 
 describe("prepareBatchDir", () => {
+  it("テンプレート内の node_modules と dist だけを除外する", () => {
+    const root = path.join("C:", "work", "dist", "idea-brewing", "templates", "tap-fake");
+    expect(shouldCopyTemplatePath(root, root)).toBe(true);
+    expect(shouldCopyTemplatePath(root, path.join(root, "package.json"))).toBe(true);
+    expect(shouldCopyTemplatePath(root, path.join(root, "node_modules", "x.js"))).toBe(false);
+    expect(shouldCopyTemplatePath(root, path.join(root, "dist", "index.html"))).toBe(false);
+    expect(shouldCopyTemplatePath(root, path.join(root, "src", "dist-utils.ts"))).toBe(true);
+  });
+
   it("フェイクテンプレートとレシピを配置する", async () => {
     const brew = await createBrew("テンプレ");
     await fs.mkdir(recipeDir(brew.id), { recursive: true });
@@ -41,5 +50,12 @@ describe("prepareBatchDir", () => {
     await fs.writeFile(path.join(dir, "leftover.txt"), "old", "utf8");
     await prepareBatchDir(brew.id, 1, "tap-fake");
     await expect(fs.access(path.join(dir, "leftover.txt"))).rejects.toThrow();
+  });
+
+  it("不正な tap.json を拒否する", async () => {
+    const brew = await createBrew("不正マニフェスト");
+    const dir = await prepareBatchDir(brew.id, 1, "tap-fake");
+    await fs.writeFile(path.join(dir, "tap.json"), JSON.stringify({ verify: "npm install" }), "utf8");
+    await expect(readManifest(dir)).rejects.toThrow("文字列配列");
   });
 });
