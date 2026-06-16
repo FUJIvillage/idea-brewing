@@ -42,7 +42,7 @@ Cursor APIキーは設定画面に保存する代わりに、環境変数 `CURSO
 5. **タップ** — 「タップ」タブで「ビルド開始(1stバッチ)」を押して生成アプリを作り、「注ぐ(サーバー起動)」でローカルdevサーバーを起動。確認後は「止める」で停止
 
 成果物は `data/brews/<ID>/recipe/` に Markdown として保存され、エクスプローラーから直接読めます。
-タップ工程の生成物は `data/brews/<ID>/taps/batch-1/` に Vite + React + TypeScript + Tailwind のアプリとして出力されます。ビルド後は `npm install` / `npx tsc --noEmit` / `npx vite build` で検証し、失敗時は最大2回の修理ラウンドが自動で走ります。ログは `data/brews/<ID>/taps/batch-1/build.log` に保存されます。
+タップ工程の生成物は `data/brews/<ID>/taps/batch-1/` に Vite + React + TypeScript + Tailwind のアプリとして出力されます。ビルド後は `npm install --ignore-scripts` / `npx tsc --noEmit` / `npx vite build` で検証し、失敗時は最大2回の修理ラウンドが自動で走ります。ログは `data/brews/<ID>/taps/batch-1/build.log` に保存されます。
 
 データ配置の概要:
 

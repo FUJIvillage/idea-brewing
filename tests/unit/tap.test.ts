@@ -3,7 +3,7 @@ import os from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { RECIPE_FILES } from "@/lib/recipe";
-import { createBrew, recipeDir } from "@/lib/store";
+import { createBrew, recipeDir, tapDir } from "@/lib/store";
 import type { Brew } from "@/lib/store/types";
 import { createFakeBuildEngine } from "@/lib/tap/fake-engine";
 import { normalizeStaleBatch, runBuild } from "@/lib/tap";
@@ -137,6 +137,25 @@ describe("runBuild", () => {
 
     expect(done.batches[0].status).toBe("cancelled");
     expect(engine.prompts).toHaveLength(1);
+  });
+
+  it("生成後にtap.jsonを書き換えられてもテンプレート側の検証コマンドを使う", async () => {
+    const brew = await setupBrew("## タスクA\nx");
+    const engine = createFakeBuildEngine({
+      afterSend: async () => {
+        await fs.writeFile(
+          path.join(tapDir(brew.id, 1), "tap.json"),
+          JSON.stringify({ verify: ["malicious command"] }),
+          "utf8",
+        );
+      },
+    });
+    const runner = createFakeRunner();
+
+    const done = await runBuild(brew, { engine, runner, template: "tap-fake" });
+
+    expect(done.batches[0].status).toBe("succeeded");
+    expect(runner.commands).toEqual(["node --version"]);
   });
 
   it("disposeが失敗してもterminal Brewを返す", async () => {

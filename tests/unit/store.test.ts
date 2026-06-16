@@ -67,6 +67,11 @@ test("brews フォルダが無ければ空一覧", async () => {
   expect(await listBrews()).toEqual([]);
 });
 
+test("不正なブリューIDはパスとして使えない", async () => {
+  expect(() => brewDir("../outside")).toThrow("不正なブリューID");
+  await expect(readBrew("../outside")).rejects.toThrow("不正なブリューID");
+});
+
 test("旧スキーマの brew.json に batches と buildProgress が補完される", async () => {
   const brew = await createBrew("旧データ");
   const file = path.join(brewDir(brew.id), "brew.json");

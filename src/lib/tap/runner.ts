@@ -9,6 +9,7 @@ export interface RunOptions {
   cwd: string;
   onLog?: (line: string) => void;
   timeoutMs?: number;
+  cancel?: { cancelled: boolean };
 }
 
 export interface CommandRunner {
@@ -39,7 +40,10 @@ function killProcessTree(child: ChildProcess): void {
  * command には固定文字列のみ渡すこと(ユーザー入力を混ぜない)。
  */
 export const realRunner: CommandRunner = {
-  run(command, { cwd, onLog, timeoutMs = 600_000 }) {
+  run(command, { cwd, onLog, timeoutMs = 600_000, cancel }) {
+    if (cancel?.cancelled) {
+      return Promise.resolve({ ok: false, output: "Command cancelled before start." });
+    }
     return new Promise((resolve) => {
       const child = spawn(command, {
         cwd,
@@ -48,6 +52,7 @@ export const realRunner: CommandRunner = {
       });
       let output = "";
       let timedOut = false;
+      let cancelled = false;
       let settled = false;
       const onData = (buf: Buffer) => {
         const text = buf.toString();
@@ -65,16 +70,28 @@ export const realRunner: CommandRunner = {
         onLog?.(message);
         killProcessTree(child);
       }, timeoutMs);
+      const cancelTimer = cancel
+        ? setInterval(() => {
+            if (!cancel.cancelled || cancelled) return;
+            cancelled = true;
+            const message = `Command cancelled: ${command}`;
+            output += `\n${message}\n`;
+            onLog?.(message);
+            killProcessTree(child);
+          }, 250)
+        : null;
       child.on("close", (code) => {
         if (settled) return;
         settled = true;
         clearTimeout(timer);
-        resolve({ ok: !timedOut && code === 0, output });
+        if (cancelTimer) clearInterval(cancelTimer);
+        resolve({ ok: !timedOut && !cancelled && code === 0, output });
       });
       child.on("error", (err) => {
         if (settled) return;
         settled = true;
         clearTimeout(timer);
+        if (cancelTimer) clearInterval(cancelTimer);
         resolve({ ok: false, output: output + String(err) });
       });
     });

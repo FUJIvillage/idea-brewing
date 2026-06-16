@@ -6,7 +6,7 @@ import type { CancelToken } from "./build-state";
 import type { BuildEngine, BuildSendResult, BuildSession } from "./engine";
 import type { CommandRunner } from "./runner";
 import { extractTasks } from "./tasks";
-import { prepareBatchDir, readManifest, type TemplateId } from "./template";
+import { prepareBatchDir, readManifest, templateDir, type TemplateId } from "./template";
 
 export const MAX_REPAIR_ROUNDS = 2;
 
@@ -114,10 +114,11 @@ async function runVerify(
   commands: string[],
   cwd: string,
   log: (line: string) => void,
+  cancel?: CancelToken,
 ): Promise<{ command: string; output: string } | null> {
   for (const command of commands) {
     log(`[verify] ${command}`);
-    const result = await runner.run(command, { cwd, onLog: log });
+    const result = await runner.run(command, { cwd, onLog: log, cancel });
     if (!result.ok) return { command, output: result.output };
   }
   return null;
@@ -155,6 +156,7 @@ export async function runBuild(brew: Brew, deps: BuildDeps): Promise<Brew> {
   let session: BuildSession | null = null;
   let log: ((line: string) => void) | null = null;
   try {
+    const manifest = await readManifest(templateDir(deps.template));
     const batchDir = await prepareBatchDir(brew.id, 1, deps.template);
     const logPath = path.join(batchDir, "build.log");
     log = (line: string) => {
@@ -204,7 +206,6 @@ export async function runBuild(brew: Brew, deps: BuildDeps): Promise<Brew> {
       }
     }
 
-    const manifest = await readManifest(batchDir);
     for (let round = 0; round <= MAX_REPAIR_ROUNDS; round++) {
       current = withProgress(
         current,
@@ -212,7 +213,7 @@ export async function runBuild(brew: Brew, deps: BuildDeps): Promise<Brew> {
         round === 0 ? "検証コマンドを実行中" : `再検証中(修理ラウンド ${round}/${MAX_REPAIR_ROUNDS})`,
       );
       await deps.onProgress?.(current);
-      const failure = await runVerify(deps.runner, manifest.verify, batchDir, log);
+      const failure = await runVerify(deps.runner, manifest.verify, batchDir, log, deps.cancel);
       if (deps.cancel?.cancelled) return finishBatch(current, "cancelled", null);
       if (!failure) return finishBatch(current, "succeeded", null);
       if (round === MAX_REPAIR_ROUNDS) {

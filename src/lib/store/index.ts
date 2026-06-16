@@ -7,7 +7,14 @@ export function dataDir(): string {
   return process.env.IDEA_BREWING_DATA_DIR ?? path.join(process.cwd(), "data");
 }
 
+function assertBrewId(id: string): void {
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id)) {
+    throw new Error("不正なブリューIDです。");
+  }
+}
+
 export function brewDir(id: string): string {
+  assertBrewId(id);
   return path.join(dataDir(), "brews", id);
 }
 

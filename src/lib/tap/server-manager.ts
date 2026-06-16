@@ -1,5 +1,7 @@
+import { existsSync } from "node:fs";
 import { spawn, type ChildProcess } from "node:child_process";
 import net from "node:net";
+import path from "node:path";
 import { tapDir } from "@/lib/store";
 
 interface RunningServer {
@@ -123,7 +125,10 @@ export async function startServer(brewId: string): Promise<{ port: number }> {
 async function startFreshServer(brewId: string): Promise<{ port: number }> {
   const cwd = tapDir(brewId, 1);
   const port = await findFreePort();
-  const child = spawn(`npm run dev -- --port ${port} --strictPort`, {
+  const command = existsSync(path.join(cwd, "server.js"))
+    ? `node server.js --port ${port}`
+    : `npx vite --host 127.0.0.1 --port ${port} --strictPort`;
+  const child = spawn(command, {
     cwd,
     shell: true,
     detached: process.platform !== "win32",

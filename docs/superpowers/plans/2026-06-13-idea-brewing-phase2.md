@@ -2081,7 +2081,7 @@ test: E2Eハッピーパスをタップ提供(ビルド・注ぐ・停止)まで
 
 1. **工程の説明**: レシピ完成後、「タップ」タブからビルド(コード生成)を実行できる。生成エンジンは Cursor SDK(`@cursor/sdk`)で、生成物は Vite + React + TypeScript + Tailwind のアプリとして `data/brews/<ID>/taps/batch-1/` に出力される。「注ぐ」でローカル dev サーバーとして起動し、ブラウザで確認できる。
 2. **設定**: 設定画面の「ビルドエンジン(Cursor)」に Cursor APIキー(または環境変数 `CURSOR_API_KEY`)とモデル名を設定する。キーは [Cursor Dashboard → Integrations](https://cursor.com/dashboard/integrations) で発行できる。
-3. **検証と修理**: ビルド後に `npm install` / `tsc` / `vite build` で検証し、失敗時は最大2回の修理ラウンドが自動で走る。ログは `taps/batch-1/build.log` に保存される。
+3. **検証と修理**: ビルド後にテンプレート側の固定 manifest から読み込んだ `npm install --ignore-scripts` / `npx tsc --noEmit` / `npx vite build` で検証し、失敗時は最大2回の修理ラウンドが自動で走る。ログは `taps/batch-1/build.log` に保存される。
 4. **注意**: 生成アプリの dev サーバーは idea brewing 本体のプロセスから起動される。本体を終了しても生成アプリのサーバーが残る場合はタスクマネージャ等で停止すること。`IDEA_BREWING_FAKE_BUILD=1` を設定すると SDK を呼ばないフェイクビルドになる(開発・テスト用)。
 5. **データ配置**: 既存のデータ配置ツリーに `taps/batch-1/` を追記。
 
@@ -2103,6 +2103,13 @@ Expected: すべて成功(unit 全件 + E2E 1 本)。
 ```
 docs: READMEにタップ工程(ビルド・注ぐ)とCursor設定を追記
 ```
+
+最終レビュー後修正(2026-06-17):
+- 検証コマンドは生成後の `tap.json` ではなくテンプレート側 manifest を事前に読み、生成物が検証コマンドを差し替えられないようにする。
+- `tap-vite` の install は `npm install --ignore-scripts` に変更し、依存 install 時の lifecycle script 実行を避ける。
+- 検証中キャンセルは `CommandRunner` にも渡し、`npm install` / `tsc` / `vite build` 実行中でもプロセスツリーを停止できるようにする。
+- 生成アプリのdevサーバー起動は生成後の `package.json` scripts ではなく、固定の `node server.js --port ...`(fake) または `npx vite --host 127.0.0.1 --port ... --strictPort` を使う。
+- brew id は UUID 形式のみ許可し、URL id が `brewDir` / `tapDir` などのファイルパスへ直接展開されないようにする。
 
 ---
 

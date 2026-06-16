@@ -26,4 +26,23 @@ describe("realRunner", () => {
     expect(result.output).toContain("Command timed out");
     expect(logs.some((line) => line.includes("Command timed out"))).toBe(true);
   }, 10_000);
+
+  it("cancelフラグが立つと実行中コマンドを停止する", async () => {
+    const logs: string[] = [];
+    const cancel = { cancelled: false };
+    const running = realRunner.run('node -e "setTimeout(() => {}, 5000)"', {
+      cwd: tmp,
+      timeoutMs: 10_000,
+      cancel,
+      onLog: (line) => logs.push(line),
+    });
+    await new Promise((resolve) => setTimeout(resolve, 200));
+    cancel.cancelled = true;
+
+    const result = await running;
+
+    expect(result.ok).toBe(false);
+    expect(result.output).toContain("Command cancelled");
+    expect(logs.some((line) => line.includes("Command cancelled"))).toBe(true);
+  }, 10_000);
 });
