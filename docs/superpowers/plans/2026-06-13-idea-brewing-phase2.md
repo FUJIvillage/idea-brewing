@@ -1366,6 +1366,11 @@ Run: `npx tsc --noEmit; npm run lint; npm run test; npm run build` → Expected:
 feat: Cursor SDKビルドエンジンとエンジン選択を追加
 ```
 
+レビュー後修正(2026-06-16):
+- `agent.send()` が解決して `currentRun` に入る前にキャンセル要求が来た場合に備え、Cursor SDK エンジン側で pending cancel を保持し、run 作成直後に反映する。
+- `CursorAgentError` の summary には run 作成前後どちらの経路でも `retryable` を含める。
+- `resolveEngine` は `cursorApiKey` / `CURSOR_API_KEY` / `cursorModel` の前後空白を除去し、空白だけの値は未設定として扱う。
+
 ---
 
 ### タスク7: devサーバーマネージャ

@@ -20,7 +20,7 @@ export function resolveEngine(settings: Settings): ResolvedEngine {
     return { engine: createFakeBuildEngine(), template: "tap-fake" };
   }
 
-  const apiKey = settings.cursorApiKey || process.env.CURSOR_API_KEY || "";
+  const apiKey = settings.cursorApiKey.trim() || process.env.CURSOR_API_KEY?.trim() || "";
   if (!apiKey) {
     throw new TapNotConfiguredError(
       "Cursor APIキーが未設定です。設定画面の「ビルドエンジン(Cursor)」で設定してください。",
@@ -28,7 +28,7 @@ export function resolveEngine(settings: Settings): ResolvedEngine {
   }
 
   return {
-    engine: createCursorEngine({ apiKey, model: settings.cursorModel || "composer-2.5" }),
+    engine: createCursorEngine({ apiKey, model: settings.cursorModel.trim() || "composer-2.5" }),
     template: "tap-vite",
   };
 }

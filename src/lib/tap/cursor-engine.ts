@@ -27,6 +27,11 @@ export function createCursorEngine(opts: CursorEngineOptions): BuildEngine {
       }
 
       let currentRun: Run | null = null;
+      let pendingCancel = false;
+
+      const cancelRun = async (run: Run) => {
+        if (run.supports("cancel")) await run.cancel();
+      };
 
       const session: BuildSession = {
         async send(prompt) {
@@ -35,6 +40,16 @@ export function createCursorEngine(opts: CursorEngineOptions): BuildEngine {
             run = await agent.send(prompt);
             currentRun = run;
             onLog(`[cursor] run開始: ${run.id}`);
+            if (pendingCancel) {
+              const runId = run.id;
+              await cancelRun(run).catch((err) => {
+                onLog(
+                  `[cursor] cancel失敗 (run: ${runId}): ${
+                    err instanceof Error ? err.message : String(err)
+                  }`,
+                );
+              });
+            }
 
             if (run.supports("stream")) {
               for await (const event of run.stream()) {
@@ -65,17 +80,22 @@ export function createCursorEngine(opts: CursorEngineOptions): BuildEngine {
               }
               return {
                 ok: false,
-                summary: `エージェント通信失敗 (run: ${run.id}): ${err.message}`,
+                summary: `エージェント通信失敗 (run: ${run.id}): ${err.message} (retryable=${err.isRetryable})`,
               };
             }
             throw err;
           } finally {
-            currentRun = null;
+            if (currentRun === run) currentRun = null;
           }
         },
         async cancel() {
           const run = currentRun;
-          if (run?.supports("cancel")) await run.cancel();
+          if (run) {
+            await cancelRun(run);
+            return;
+          }
+          // agent.send() の解決前にキャンセル要求が来た場合、run 作成直後に反映する。
+          pendingCancel = true;
         },
         async dispose() {
           await agent[Symbol.asyncDispose]();
