@@ -1,4 +1,4 @@
-import { existsSync, readdirSync } from "node:fs";
+import { existsSync } from "node:fs";
 import path from "node:path";
 import { expect, test } from "@playwright/test";
 
@@ -16,6 +16,10 @@ test("原料投入からタップ提供までのハッピーパス", async ({ pa
     await page.getByLabel("ブリュー名").fill("最高のtodoアプリ");
     await page.getByLabel("アイデアメモ").fill("最高のtodoアプリ");
     await page.getByRole("button", { name: "仕込みを始める" }).click();
+    await page.waitForURL(/\/brews\/(?!new$)[^/]+$/);
+    const match = page.url().match(/\/brews\/([^/?#]+)$/);
+    if (!match) throw new Error("作成したブリューIDをURLから取得できませんでした。");
+    brewId = decodeURIComponent(match[1]);
 
     // 2. 仕込み(マッシュ)
     // マッシュAPI + Next devの初回コンパイルを跨ぐためデフォルト5秒では不足しうる
@@ -42,10 +46,6 @@ test("原料投入からタップ提供までのハッピーパス", async ({ pa
 
     // 5. ファイルが実際にディスクへ出力されている
     const brewsDir = path.join(e2eDataDir, "brews");
-    const ids = readdirSync(brewsDir);
-    // globalSetupは1回の実行につき1度だけ走るため、--retries併用時はこの前提が崩れる
-    expect(ids).toHaveLength(1);
-    brewId = ids[0];
     for (const f of [
       "00-overview.md",
       "01-requirements.md",

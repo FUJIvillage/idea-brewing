@@ -2066,6 +2066,7 @@ test: E2Eハッピーパスをタップ提供(ビルド・注ぐ・停止)まで
 - `.e2e-data/**` は `eslint.config.mjs` の ignore に追加して lint 対象外にする。
 - 失敗時 cleanup は `tap/cancel` と `tap/server stop` の best-effort に限定する。
 - 追加工程込みで Windows/OneDrive 環境でも余裕を持つよう、この spec の timeout を 180 秒にする。
+- リトライ時に複数 brew が `.e2e-data/brews` に残っても今回作成した brew を検証できるよう、`brewId` は URL から取得する。
 
 ---
 
