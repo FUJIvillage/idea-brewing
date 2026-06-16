@@ -1,4 +1,3 @@
-import { Agent, CursorAgentError, type Run } from "@cursor/sdk";
 import type { BuildEngine, BuildSession } from "./engine";
 
 export interface CursorEngineOptions {
@@ -6,15 +5,65 @@ export interface CursorEngineOptions {
   model: string;
 }
 
-function cursorStartupError(err: CursorAgentError): Error {
-  return new Error(`エージェント起動失敗: ${err.message} (retryable=${err.isRetryable})`);
+interface CursorAgentErrorLike extends Error {
+  isRetryable?: boolean;
+}
+
+interface CursorTextBlock {
+  type: string;
+  text?: string;
+}
+
+interface CursorRun {
+  id: string;
+  supports(capability: string): boolean;
+  unsupportedReason(capability: string): string | undefined;
+  stream(): AsyncIterable<{
+    type: string;
+    message: { content: CursorTextBlock[] };
+  }>;
+  wait(): Promise<{ status: string; result?: string }>;
+  cancel(): Promise<void>;
+}
+
+interface CursorAgent {
+  send(prompt: string): Promise<CursorRun>;
+  [Symbol.asyncDispose](): Promise<void>;
+}
+
+interface CursorSdkModule {
+  Agent: {
+    create(opts: {
+      apiKey: string;
+      model: { id: string };
+      local: { cwd: string };
+    }): Promise<CursorAgent>;
+  };
+}
+
+async function loadCursorSdk(): Promise<CursorSdkModule> {
+  const specifier = ["@cursor", "sdk"].join("/");
+  return import(specifier) as Promise<CursorSdkModule>;
+}
+
+function isCursorAgentError(err: unknown): err is CursorAgentErrorLike {
+  return err instanceof Error && "isRetryable" in err;
+}
+
+function retryableLabel(err: CursorAgentErrorLike): string {
+  return String(err.isRetryable);
+}
+
+function cursorStartupError(err: CursorAgentErrorLike): Error {
+  return new Error(`エージェント起動失敗: ${err.message} (retryable=${retryableLabel(err)})`);
 }
 
 /** @cursor/sdk によるビルドエンジン。1セッション = 1エージェント(コンテキスト維持) */
 export function createCursorEngine(opts: CursorEngineOptions): BuildEngine {
   return {
     async createSession({ cwd, onLog }) {
-      let agent: Awaited<ReturnType<typeof Agent.create>>;
+      const { Agent } = await loadCursorSdk();
+      let agent: CursorAgent;
       try {
         agent = await Agent.create({
           apiKey: opts.apiKey,
@@ -22,20 +71,20 @@ export function createCursorEngine(opts: CursorEngineOptions): BuildEngine {
           local: { cwd },
         });
       } catch (err) {
-        if (err instanceof CursorAgentError) throw cursorStartupError(err);
+        if (isCursorAgentError(err)) throw cursorStartupError(err);
         throw err;
       }
 
-      let currentRun: Run | null = null;
+      let currentRun: CursorRun | null = null;
       let pendingCancel = false;
 
-      const cancelRun = async (run: Run) => {
+      const cancelRun = async (run: CursorRun) => {
         if (run.supports("cancel")) await run.cancel();
       };
 
       const session: BuildSession = {
         async send(prompt) {
-          let run: Run | null = null;
+          let run: CursorRun | null = null;
           try {
             run = await agent.send(prompt);
             currentRun = run;
@@ -56,7 +105,9 @@ export function createCursorEngine(opts: CursorEngineOptions): BuildEngine {
               for await (const event of run.stream()) {
                 if (event.type !== "assistant") continue;
                 for (const block of event.message.content) {
-                  if (block.type === "text" && block.text.trim()) onLog(block.text);
+                  if (block.type === "text" && typeof block.text === "string" && block.text.trim()) {
+                    onLog(block.text);
+                  }
                 }
               }
             } else {
@@ -72,16 +123,16 @@ export function createCursorEngine(opts: CursorEngineOptions): BuildEngine {
             }
             return { ok: true, summary: result.result ?? "" };
           } catch (err) {
-            if (err instanceof CursorAgentError) {
+            if (isCursorAgentError(err)) {
               if (run === null) {
                 return {
                   ok: false,
-                  summary: `エージェント起動失敗: ${err.message} (retryable=${err.isRetryable})`,
+                  summary: `エージェント起動失敗: ${err.message} (retryable=${retryableLabel(err)})`,
                 };
               }
               return {
                 ok: false,
-                summary: `エージェント通信失敗 (run: ${run.id}): ${err.message} (retryable=${err.isRetryable})`,
+                summary: `エージェント通信失敗 (run: ${run.id}): ${err.message} (retryable=${retryableLabel(err)})`,
               };
             }
             throw err;

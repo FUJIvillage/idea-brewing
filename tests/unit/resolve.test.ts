@@ -17,26 +17,30 @@ afterEach(() => {
 });
 
 describe("resolveEngine", () => {
-  it("fakeプロバイダではフェイクテンプレートを使う", () => {
-    const resolved = resolveEngine({ ...baseSettings, provider: "fake" });
+  it("fakeプロバイダではフェイクテンプレートを使う", async () => {
+    const resolved = await resolveEngine({ ...baseSettings, provider: "fake" });
     expect(resolved.template).toBe("tap-fake");
   });
 
-  it("環境変数でフェイクビルドに切り替えられる", () => {
+  it("環境変数でフェイクビルドに切り替えられる", async () => {
     process.env.IDEA_BREWING_FAKE_BUILD = "1";
-    const resolved = resolveEngine(baseSettings);
+    const resolved = await resolveEngine(baseSettings);
     expect(resolved.template).toBe("tap-fake");
   });
 
-  it("Cursorキーが未設定なら設定エラーになる", () => {
-    expect(() => resolveEngine({ ...baseSettings, cursorApiKey: "   " })).toThrow(
+  it("Cursorキーが未設定なら設定エラーになる", async () => {
+    await expect(resolveEngine({ ...baseSettings, cursorApiKey: "   " })).rejects.toThrow(
       TapNotConfiguredError,
     );
   });
 
-  it("設定キーが空白だけなら環境変数へフォールバックする", () => {
+  it("設定キーが空白だけなら環境変数へフォールバックする", async () => {
     process.env.CURSOR_API_KEY = " cursor_env_key ";
-    const resolved = resolveEngine({ ...baseSettings, cursorApiKey: "   ", cursorModel: "   " });
+    const resolved = await resolveEngine({
+      ...baseSettings,
+      cursorApiKey: "   ",
+      cursorModel: "   ",
+    });
     expect(resolved.template).toBe("tap-vite");
   });
 });

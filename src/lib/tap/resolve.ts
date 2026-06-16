@@ -1,5 +1,4 @@
 import type { Settings } from "@/lib/store/types";
-import { createCursorEngine } from "./cursor-engine";
 import type { BuildEngine } from "./engine";
 import { createFakeBuildEngine } from "./fake-engine";
 import type { TemplateId } from "./template";
@@ -15,7 +14,7 @@ export interface ResolvedEngine {
  * 設定からビルドエンジンとテンプレートを決める。
  * フェイクプロバイダ設定時(E2E)と IDEA_BREWING_FAKE_BUILD=1 のときはフェイク。
  */
-export function resolveEngine(settings: Settings): ResolvedEngine {
+export async function resolveEngine(settings: Settings): Promise<ResolvedEngine> {
   if (settings.provider === "fake" || process.env.IDEA_BREWING_FAKE_BUILD === "1") {
     return { engine: createFakeBuildEngine(), template: "tap-fake" };
   }
@@ -27,6 +26,7 @@ export function resolveEngine(settings: Settings): ResolvedEngine {
     );
   }
 
+  const { createCursorEngine } = await import("./cursor-engine");
   return {
     engine: createCursorEngine({ apiKey, model: settings.cursorModel.trim() || "composer-2.5" }),
     template: "tap-vite",
