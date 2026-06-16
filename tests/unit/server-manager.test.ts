@@ -56,4 +56,19 @@ describe("server-manager", () => {
     await stopServer(brew.id);
     brewId = null;
   }, 60_000);
+
+  it("同時に起動要求しても同じサーバーを共有する", async () => {
+    const brew = await createBrew("サーバー同時起動");
+    brewId = brew.id;
+    await fs.cp(path.join(process.cwd(), "templates", "tap-fake"), tapDir(brew.id, 1), {
+      recursive: true,
+    });
+
+    const [first, second] = await Promise.all([startServer(brew.id), startServer(brew.id)]);
+
+    expect(second.port).toBe(first.port);
+    expect(serverStatus(brew.id)).toEqual({ running: true, port: first.port });
+    await stopServer(brew.id);
+    brewId = null;
+  }, 60_000);
 });

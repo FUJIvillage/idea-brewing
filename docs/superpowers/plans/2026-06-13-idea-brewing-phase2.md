@@ -1514,6 +1514,11 @@ Run: `npx tsc --noEmit; npm run lint; npm run test; npm run build` → Expected:
 feat: 生成アプリのdevサーバー起動・停止マネージャを追加
 ```
 
+レビュー後修正(2026-06-16):
+- サーバー entry に `readyPromise` を持たせ、起動中に同じブリューへ再度 `startServer` が来た場合は同じ起動完了を await する。
+- child の `close` イベントで同一 entry の場合のみ Map から削除し、古い start/timeout 処理が新しい entry を消さない identity-aware cleanup にする。
+- `stopServer` は Windows の `taskkill` 完了と child close を待ち、停止できない場合はエラーにする。
+
 ---
 
 ### タスク8: APIルート(build / cancel / server / log)

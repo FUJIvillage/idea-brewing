@@ -7,6 +7,7 @@ interface RunningServer {
   pid: number;
   port: number;
   startedAt: string;
+  readyPromise: Promise<{ port: number }>;
 }
 
 export interface ServerStatus {
@@ -15,6 +16,7 @@ export interface ServerStatus {
 }
 
 const servers = new Map<string, RunningServer>();
+const startPromises = new Map<string, Promise<{ port: number }>>();
 
 async function findFreePort(start = 5173): Promise<number> {
   for (let port = start; port < start + 100; port++) {
@@ -38,14 +40,14 @@ function wait(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-function waitForExit(child: ChildProcess, timeoutMs = 5_000): Promise<void> {
-  if (hasExited(child)) return Promise.resolve();
+function waitForExit(child: ChildProcess, timeoutMs = 5_000): Promise<boolean> {
+  if (hasExited(child)) return Promise.resolve(true);
 
   return new Promise((resolve) => {
-    const timer = setTimeout(resolve, timeoutMs);
+    const timer = setTimeout(() => resolve(false), timeoutMs);
     child.once("close", () => {
       clearTimeout(timer);
-      resolve();
+      resolve(true);
     });
   });
 }
@@ -54,22 +56,28 @@ async function killProcessTree(entry: RunningServer): Promise<void> {
   if (hasExited(entry.child)) return;
 
   if (process.platform === "win32") {
-    await new Promise<void>((resolve) => {
+    const taskkillCode = await new Promise<number | null>((resolve) => {
       const killer = spawn("taskkill", ["/PID", String(entry.pid), "/T", "/F"], {
         windowsHide: true,
       });
       let settled = false;
-      const done = () => {
+      const done = (code: number | null) => {
         if (settled) return;
         settled = true;
-        resolve();
+        resolve(code);
       };
       killer.once("error", () => {
         entry.child.kill();
-        done();
+        done(null);
       });
       killer.once("close", done);
     });
+    const exited = await waitForExit(entry.child);
+    if (!exited) {
+      entry.child.kill();
+      throw new Error(`devサーバーの停止に失敗しました(taskkill=${taskkillCode ?? "error"})。`);
+    }
+    return;
   } else {
     try {
       process.kill(-entry.pid, "SIGTERM");
@@ -78,7 +86,8 @@ async function killProcessTree(entry: RunningServer): Promise<void> {
     }
   }
 
-  await waitForExit(entry.child);
+  const exited = await waitForExit(entry.child);
+  if (!exited) throw new Error("devサーバーの停止に失敗しました。");
 }
 
 async function respondsOk(port: number): Promise<boolean> {
@@ -95,9 +104,23 @@ async function respondsOk(port: number): Promise<boolean> {
 }
 
 export async function startServer(brewId: string): Promise<{ port: number }> {
-  const existing = serverStatus(brewId);
-  if (existing.running && existing.port !== null) return { port: existing.port };
+  const existing = servers.get(brewId);
+  if (existing && !hasExited(existing.child)) return existing.readyPromise;
+  if (existing) servers.delete(brewId);
 
+  const starting = startPromises.get(brewId);
+  if (starting) return starting;
+
+  const promise = startFreshServer(brewId);
+  startPromises.set(brewId, promise);
+  try {
+    return await promise;
+  } finally {
+    if (startPromises.get(brewId) === promise) startPromises.delete(brewId);
+  }
+}
+
+async function startFreshServer(brewId: string): Promise<{ port: number }> {
   const cwd = tapDir(brewId, 1);
   const port = await findFreePort();
   const child = spawn(`npm run dev -- --port ${port} --strictPort`, {
@@ -112,36 +135,49 @@ export async function startServer(brewId: string): Promise<{ port: number }> {
     spawnError = err;
   });
 
-  servers.set(brewId, {
+  const entry: RunningServer = {
     child,
     pid: child.pid ?? -1,
     port,
     startedAt: new Date().toISOString(),
+    readyPromise: Promise.resolve({ port }),
+  };
+  entry.readyPromise = (async () => {
+    for (let i = 0; i < 30; i++) {
+      if (spawnError) {
+        await stopEntryIfCurrent(brewId, entry);
+        throw spawnError;
+      }
+      if (hasExited(child)) {
+        await stopEntryIfCurrent(brewId, entry);
+        throw new Error("devサーバーの起動に失敗しました。");
+      }
+      if ((await respondsOk(port)) && !hasExited(child)) return { port };
+      await wait(1_000);
+    }
+    await stopEntryIfCurrent(brewId, entry);
+    throw new Error(
+      "devサーバーが30秒以内に応答しませんでした。build.logと taps/batch-1 を確認してください。",
+    );
+  })();
+
+  servers.set(brewId, entry);
+  child.once("close", () => {
+    if (servers.get(brewId) === entry) servers.delete(brewId);
   });
+  return entry.readyPromise;
+}
 
-  for (let i = 0; i < 30; i++) {
-    if (spawnError) {
-      await stopServer(brewId);
-      throw spawnError;
-    }
-    if (hasExited(child)) {
-      await stopServer(brewId);
-      throw new Error("devサーバーの起動に失敗しました。");
-    }
-    if (await respondsOk(port)) return { port };
-    await wait(1_000);
-  }
-
-  await stopServer(brewId);
-  throw new Error("devサーバーが30秒以内に応答しませんでした。build.logと taps/batch-1 を確認してください。");
+async function stopEntryIfCurrent(brewId: string, entry: RunningServer): Promise<void> {
+  if (servers.get(brewId) === entry) servers.delete(brewId);
+  await killProcessTree(entry);
 }
 
 export async function stopServer(brewId: string): Promise<void> {
   const entry = servers.get(brewId);
   if (!entry) return;
 
-  servers.delete(brewId);
-  await killProcessTree(entry);
+  await stopEntryIfCurrent(brewId, entry);
 }
 
 export function serverStatus(brewId: string): ServerStatus {
