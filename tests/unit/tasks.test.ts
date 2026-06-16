@@ -28,4 +28,19 @@ describe("extractTasks", () => {
     expect(extractTasks("ただの文章")).toEqual([]);
     expect(extractTasks("")).toEqual([]);
   });
+
+  it("コードフェンス内の見出し風テキストはタスクにしない", () => {
+    const md = [
+      "## タスク1: 本物",
+      "本文",
+      "```md",
+      "## タスクではない",
+      "```",
+      "  ## タスク2: 字下げあり",
+      "本文2",
+    ].join("\n");
+    const tasks = extractTasks(md);
+    expect(tasks.map((t) => t.title)).toEqual(["タスク1: 本物", "タスク2: 字下げあり"]);
+    expect(tasks[0].body).toContain("## タスクではない");
+  });
 });

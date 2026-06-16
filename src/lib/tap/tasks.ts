@@ -8,9 +8,11 @@ export function extractTasks(markdown: string): PlanTask[] {
   const lines = markdown.split(/\r?\n/);
   const tasks: PlanTask[] = [];
   let current: PlanTask | null = null;
+  let inFence = false;
   for (const line of lines) {
-    const m = /^##\s+(.+)$/.exec(line);
-    if (m) {
+    if (/^\s*```/.test(line)) inFence = !inFence;
+    const m = /^\s{0,3}##\s+(.+)$/.exec(line);
+    if (m && !inFence) {
       if (current) tasks.push(current);
       current = { title: m[1].trim(), body: "" };
     } else if (current) {

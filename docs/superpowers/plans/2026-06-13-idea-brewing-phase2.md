@@ -843,6 +843,11 @@ Run: `npx tsc --noEmit; npm run lint; npm run test; npm run build` → Expected:
 feat: ビルドエンジン抽象・フェイクエンジン・コマンドランナーを追加
 ```
 
+レビュー後修正(2026-06-16):
+- `realRunner` は timeout 時に `child.kill()` だけではなく、Windows では `taskkill /PID ... /T /F`、POSIX ではプロセスグループ kill を使って子プロセスツリーを停止する。
+- timeout は `CommandResult.ok = false` とし、`output` と `onLog` に timeout メッセージを残す。
+- `extractTasks` はコードフェンス内の `##` を見出し扱いせず、Markdown の3スペースまでの字下げ見出しを許容する。
+
 ---
 
 ### タスク5: ビルドオーケストレータ(runBuild)

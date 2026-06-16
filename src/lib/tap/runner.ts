@@ -1,4 +1,4 @@
-import { spawn } from "node:child_process";
+import { spawn, type ChildProcess } from "node:child_process";
 
 export interface CommandResult {
   ok: boolean;
@@ -15,6 +15,25 @@ export interface CommandRunner {
   run(command: string, opts: RunOptions): Promise<CommandResult>;
 }
 
+function killProcessTree(child: ChildProcess): void {
+  if (!child.pid) {
+    child.kill();
+    return;
+  }
+  if (process.platform === "win32") {
+    const killer = spawn("taskkill", ["/PID", String(child.pid), "/T", "/F"], {
+      windowsHide: true,
+    });
+    killer.on("error", () => child.kill());
+    return;
+  }
+  try {
+    process.kill(-child.pid, "SIGTERM");
+  } catch {
+    child.kill("SIGTERM");
+  }
+}
+
 /**
  * 実コマンド実行。Windows互換のため文字列コマンド+shell実行。
  * command には固定文字列のみ渡すこと(ユーザー入力を混ぜない)。
@@ -22,8 +41,14 @@ export interface CommandRunner {
 export const realRunner: CommandRunner = {
   run(command, { cwd, onLog, timeoutMs = 600_000 }) {
     return new Promise((resolve) => {
-      const child = spawn(command, { cwd, shell: true });
+      const child = spawn(command, {
+        cwd,
+        shell: true,
+        detached: process.platform !== "win32",
+      });
       let output = "";
+      let timedOut = false;
+      let settled = false;
       const onData = (buf: Buffer) => {
         const text = buf.toString();
         output += text;
@@ -33,12 +58,22 @@ export const realRunner: CommandRunner = {
       };
       child.stdout.on("data", onData);
       child.stderr.on("data", onData);
-      const timer = setTimeout(() => child.kill(), timeoutMs);
+      const timer = setTimeout(() => {
+        timedOut = true;
+        const message = `Command timed out after ${timeoutMs}ms: ${command}`;
+        output += `\n${message}\n`;
+        onLog?.(message);
+        killProcessTree(child);
+      }, timeoutMs);
       child.on("close", (code) => {
+        if (settled) return;
+        settled = true;
         clearTimeout(timer);
-        resolve({ ok: code === 0, output });
+        resolve({ ok: !timedOut && code === 0, output });
       });
       child.on("error", (err) => {
+        if (settled) return;
+        settled = true;
         clearTimeout(timer);
         resolve({ ok: false, output: output + String(err) });
       });
