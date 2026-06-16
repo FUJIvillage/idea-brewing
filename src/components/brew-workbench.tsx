@@ -6,12 +6,14 @@ import { IngredientsPanel } from "./ingredients-panel";
 import { SheetPanel } from "./sheet-panel";
 import { GrillPanel } from "./grill-panel";
 import { RecipePanel } from "./recipe-panel";
+import { TapPanel } from "./tap-panel";
 
 const TABS = [
   { id: "ingredients", label: "原料" },
   { id: "sheet", label: "ブリューシート" },
   { id: "grill", label: "グリル" },
   { id: "recipe", label: "レシピ" },
+  { id: "tap", label: "タップ" },
 ] as const;
 type TabId = (typeof TABS)[number]["id"];
 
@@ -31,6 +33,7 @@ export function BrewWorkbench({ initial }: { initial: Brew }) {
     sheet: brew.sheet !== null,
     grill: brew.sheet !== null,
     recipe: brew.grill.finished,
+    tap: brew.recipeGeneratedAt !== null,
   };
 
   return (
@@ -67,6 +70,14 @@ export function BrewWorkbench({ initial }: { initial: Brew }) {
         )}
         {tab === "recipe" && (
           <RecipePanel
+            brew={brew}
+            onUpdate={setBrew}
+            refresh={refresh}
+            onBusyChange={setBusy}
+          />
+        )}
+        {tab === "tap" && (
+          <TapPanel
             brew={brew}
             onUpdate={setBrew}
             refresh={refresh}

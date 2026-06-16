@@ -1,0 +1,258 @@
+"use client";
+
+import { useCallback, useEffect, useState } from "react";
+import type { Brew, BuildPhase } from "@/lib/store/types";
+
+const PHASE_LABELS: Record<BuildPhase, string> = {
+  preparing: "準備",
+  generating: "生成",
+  verifying: "検証",
+  repairing: "修理",
+};
+
+type ServerState = {
+  running: boolean;
+  port: number | null;
+};
+
+type ErrorBody = {
+  error?: string;
+};
+
+export function TapPanel({
+  brew,
+  onUpdate,
+  refresh,
+  onBusyChange,
+}: {
+  brew: Brew;
+  onUpdate: (b: Brew) => void;
+  refresh: () => Promise<void>;
+  onBusyChange: (busy: boolean) => void;
+}) {
+  const [buildBusy, setBuildBusy] = useState(false);
+  const [serverBusy, setServerBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [logLines, setLogLines] = useState<string[]>([]);
+  const [server, setServer] = useState<ServerState>({
+    running: false,
+    port: null,
+  });
+
+  const batch = brew.batches[0] ?? null;
+  const busy = buildBusy || serverBusy;
+
+  const fetchLog = useCallback(async () => {
+    try {
+      const res = await fetch(`/api/brews/${brew.id}/tap/log`);
+      if (res.ok) {
+        const json = (await res.json()) as { lines?: string[] };
+        setLogLines(json.lines ?? []);
+      }
+    } catch {
+      // 表示用の取得失敗は無視する
+    }
+  }, [brew.id]);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const [serverRes, logRes] = await Promise.all([
+          fetch(`/api/brews/${brew.id}/tap/server`),
+          fetch(`/api/brews/${brew.id}/tap/log`),
+        ]);
+        if (cancelled) return;
+        if (serverRes.ok) setServer((await serverRes.json()) as ServerState);
+        if (logRes.ok) {
+          const json = (await logRes.json()) as { lines?: string[] };
+          setLogLines(json.lines ?? []);
+        }
+      } catch {
+        // 表示用の取得失敗は無視する
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [brew.id]);
+
+  const hasProgress = brew.buildProgress !== null;
+  useEffect(() => {
+    if (!hasProgress || buildBusy) return;
+    const timer = setInterval(() => {
+      void refresh();
+      void fetchLog();
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [hasProgress, buildBusy, refresh, fetchLog]);
+
+  async function build() {
+    setBuildBusy(true);
+    onBusyChange(true);
+    setError(null);
+    const timer = setInterval(() => {
+      void refresh();
+      void fetchLog();
+    }, 1000);
+    try {
+      const res = await fetch(`/api/brews/${brew.id}/tap/build`, { method: "POST" });
+      clearInterval(timer);
+      const json = (await res.json()) as Brew | ErrorBody;
+      if (!res.ok) throw new Error("error" in json ? json.error : "エラーが発生しました。");
+      onUpdate(json as Brew);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+    } finally {
+      clearInterval(timer);
+      try {
+        await refresh();
+      } catch {
+        // refreshが失敗してもbusy解除は必ず行う(タブが永久ロックされるのを防ぐ)
+      }
+      void fetchLog();
+      setBuildBusy(false);
+      onBusyChange(false);
+    }
+  }
+
+  async function cancelBuild() {
+    setError(null);
+    try {
+      const res = await fetch(`/api/brews/${brew.id}/tap/cancel`, { method: "POST" });
+      const json = (await res.json()) as Brew | ErrorBody;
+      if (!res.ok) throw new Error("error" in json ? json.error : "エラーが発生しました。");
+      if ("schemaVersion" in json) onUpdate(json);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+    }
+  }
+
+  async function serverAction(action: "start" | "stop") {
+    setServerBusy(true);
+    onBusyChange(true);
+    setError(null);
+    try {
+      const res = await fetch(`/api/brews/${brew.id}/tap/server`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ action }),
+      });
+      const json = (await res.json()) as ServerState | ErrorBody;
+      if (!res.ok) throw new Error("error" in json ? json.error : "エラーが発生しました。");
+      setServer(json as ServerState);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setServerBusy(false);
+      onBusyChange(false);
+    }
+  }
+
+  const building = buildBusy || brew.buildProgress !== null;
+
+  return (
+    <section>
+      <h2 className="text-lg font-bold text-amber-100">タップ(1stバッチ)</h2>
+
+      {brew.buildProgress && (
+        <p className="mt-2 text-amber-200" aria-live="polite">
+          {PHASE_LABELS[brew.buildProgress.phase]}: {brew.buildProgress.detail}
+        </p>
+      )}
+
+      {!building && !batch && (
+        <button
+          onClick={build}
+          className="mt-4 rounded bg-amber-600 px-4 py-2 font-bold text-black hover:bg-amber-500"
+        >
+          ビルド開始(1stバッチ)
+        </button>
+      )}
+
+      {building && (
+        <button
+          onClick={cancelBuild}
+          className="mt-4 rounded border border-amber-700 px-4 py-2 font-bold text-amber-200 hover:border-amber-500"
+        >
+          ビルド中断
+        </button>
+      )}
+
+      {!building && batch?.status === "failed" && (
+        <div className="mt-4">
+          <p className="text-red-400">ビルド失敗: {batch.error}</p>
+          <button
+            onClick={build}
+            className="mt-2 rounded bg-amber-600 px-4 py-2 font-bold text-black hover:bg-amber-500"
+          >
+            再ビルド
+          </button>
+        </div>
+      )}
+
+      {!building && batch?.status === "cancelled" && (
+        <div className="mt-4">
+          <p className="text-amber-200/70">ビルドは中断されました。</p>
+          <button
+            onClick={build}
+            className="mt-2 rounded bg-amber-600 px-4 py-2 font-bold text-black hover:bg-amber-500"
+          >
+            ビルド開始(1stバッチ)
+          </button>
+        </div>
+      )}
+
+      {!building && batch?.status === "succeeded" && (
+        <div className="mt-4 space-y-3">
+          <p className="text-amber-200">
+            1stバッチ完成(
+            {batch.finishedAt
+              ? `${Math.round((Date.parse(batch.finishedAt) - Date.parse(batch.startedAt)) / 1000)}秒`
+              : "-"}
+            )
+          </p>
+          {server.running && server.port !== null ? (
+            <div className="flex items-center gap-3">
+              <a
+                href={`http://localhost:${server.port}`}
+                target="_blank"
+                rel="noreferrer"
+                className="font-bold text-amber-300 underline"
+              >
+                http://localhost:{server.port}
+              </a>
+              <button
+                onClick={() => serverAction("stop")}
+                disabled={busy}
+                className="rounded border border-amber-700 px-4 py-2 font-bold text-amber-200 hover:border-amber-500 disabled:opacity-50"
+              >
+                止める
+              </button>
+            </div>
+          ) : (
+            <button
+              onClick={() => serverAction("start")}
+              disabled={busy}
+              className="rounded bg-amber-600 px-4 py-2 font-bold text-black hover:bg-amber-500 disabled:opacity-50"
+            >
+              注ぐ(サーバー起動)
+            </button>
+          )}
+        </div>
+      )}
+
+      {error && (
+        <p className="mt-3 text-red-400" aria-live="polite">
+          {error}
+        </p>
+      )}
+
+      {logLines.length > 0 && (
+        <pre className="mt-4 max-h-64 overflow-auto rounded border border-amber-900/60 bg-black/40 p-3 text-xs text-amber-100/80">
+          {logLines.join("\n")}
+        </pre>
+      )}
+    </section>
+  );
+}
