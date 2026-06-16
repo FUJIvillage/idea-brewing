@@ -1,6 +1,8 @@
-import { existsSync, readdirSync, rmSync } from "node:fs";
+import { existsSync, readdirSync } from "node:fs";
 import path from "node:path";
 import { expect, test } from "@playwright/test";
+
+test.setTimeout(180_000);
 
 test("原料投入からタップ提供までのハッピーパス", async ({ page }) => {
   let brewId: string | null = null;
@@ -72,8 +74,9 @@ test("原料投入からタップ提供までのハッピーパス", async ({ pa
     const link = page.getByRole("link", { name: /^http:\/\/localhost:\d+$/ });
     await expect(link).toBeVisible({ timeout: 60_000 });
     const href = await link.getAttribute("href");
-    expect(href).toMatch(/^http:\/\/localhost:\d+$/);
+    expect(href).not.toBeNull();
     if (!href) throw new Error("タップサーバーのリンクURLを取得できませんでした。");
+    expect(href).toMatch(/^http:\/\/localhost:\d+$/);
     const res = await page.request.get(href);
     expect(res.ok()).toBe(true);
     expect(await res.text()).toContain("フェイクタップアプリ");
@@ -85,11 +88,13 @@ test("原料投入からタップ提供までのハッピーパス", async ({ pa
     ).toBeVisible({ timeout: 30_000 });
     tapServerStartRequested = false;
   } finally {
+    if (brewId) {
+      await page.request.post(`/api/brews/${brewId}/tap/cancel`).catch(() => undefined);
+    }
     if (brewId && tapServerStartRequested) {
       await page.request
         .post(`/api/brews/${brewId}/tap/server`, { data: { action: "stop" } })
         .catch(() => undefined);
     }
-    rmSync(e2eDataDir, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 });
   }
 });

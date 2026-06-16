@@ -2061,6 +2061,12 @@ Run: `npx tsc --noEmit; npm run lint; npm run test; npm run e2e; npm run build` 
 test: E2Eハッピーパスをタップ提供(ビルド・注ぐ・停止)まで延長
 ```
 
+レビュー後修正(2026-06-17):
+- E2E本体の `finally` では `.e2e-data` 全体を削除しない。失敗調査ログ、Playwright retry、webServer ライフサイクルを壊さないため。
+- `.e2e-data/**` は `eslint.config.mjs` の ignore に追加して lint 対象外にする。
+- 失敗時 cleanup は `tap/cancel` と `tap/server stop` の best-effort に限定する。
+- 追加工程込みで Windows/OneDrive 環境でも余裕を持つよう、この spec の timeout を 180 秒にする。
+
 ---
 
 ### タスク11: READMEと最終確認
