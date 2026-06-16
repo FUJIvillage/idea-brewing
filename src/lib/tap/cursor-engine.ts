@@ -41,6 +41,7 @@ export function createCursorEngine(opts: CursorEngineOptions): BuildEngine {
             currentRun = run;
             onLog(`[cursor] run開始: ${run.id}`);
             if (pendingCancel) {
+              pendingCancel = false;
               const runId = run.id;
               await cancelRun(run).catch((err) => {
                 onLog(
