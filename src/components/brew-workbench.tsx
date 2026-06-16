@@ -35,6 +35,7 @@ export function BrewWorkbench({ initial }: { initial: Brew }) {
     recipe: brew.grill.finished,
     tap: brew.recipeGeneratedAt !== null,
   };
+  const tabsBusy = busy || brew.buildProgress !== null;
 
   return (
     <main className="mx-auto max-w-4xl p-6">
@@ -43,7 +44,7 @@ export function BrewWorkbench({ initial }: { initial: Brew }) {
         {TABS.map((t) => (
           <button
             key={t.id}
-            disabled={!enabled[t.id] || busy}
+            disabled={!enabled[t.id] || tabsBusy}
             onClick={() => setTab(t.id)}
             className={`px-4 py-2 font-bold ${
               tab === t.id

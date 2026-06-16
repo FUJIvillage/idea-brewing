@@ -43,4 +43,18 @@ describe("BrewWorkbench", () => {
     expect(html).toContain("レシピ");
     expect(html).toContain("タップ");
   });
+
+  it("リモートビルド進捗がある間はタブを無効化する", () => {
+    const html = renderToStaticMarkup(
+      React.createElement(BrewWorkbench, {
+        initial: {
+          ...recipeReadyBrew(),
+          buildProgress: { phase: "generating", detail: "別クライアントでビルド中" },
+        },
+      }),
+    );
+
+    expect(html).toContain("タップ");
+    expect((html.match(/disabled=\"\"/g) ?? []).length).toBeGreaterThanOrEqual(5);
+  });
 });
