@@ -93,8 +93,14 @@ async function sendWithCancel(
   if (cancel?.cancelled) return { ok: false, summary: "中断されました" };
   if (!cancel) return session.send(prompt);
 
+  let cancelRequested = false;
   const watcher = setInterval(() => {
-    if (cancel.cancelled) void session.cancel();
+    if (cancel.cancelled && !cancelRequested) {
+      cancelRequested = true;
+      void session.cancel().catch(() => {
+        // cancel失敗はsend本体の結果で扱う。未捕捉rejectだけ防ぐ。
+      });
+    }
   }, 500);
   try {
     return await session.send(prompt);
@@ -121,6 +127,10 @@ function errorMessage(err: unknown): string {
   return err instanceof Error ? err.message : String(err);
 }
 
+function isProgrammerError(err: unknown): boolean {
+  return err instanceof TypeError || err instanceof ReferenceError;
+}
+
 export async function runBuild(brew: Brew, deps: BuildDeps): Promise<Brew> {
   if (!brew.recipeGeneratedAt) {
     throw new Error("レシピがまだ生成されていません。");
@@ -143,10 +153,11 @@ export async function runBuild(brew: Brew, deps: BuildDeps): Promise<Brew> {
   await deps.onProgress?.(current);
 
   let session: BuildSession | null = null;
+  let log: ((line: string) => void) | null = null;
   try {
     const batchDir = await prepareBatchDir(brew.id, 1, deps.template);
     const logPath = path.join(batchDir, "build.log");
-    const log = (line: string) => {
+    log = (line: string) => {
       appendFileSync(logPath, `[${new Date().toISOString()}] ${line}\n`, "utf8");
     };
 
@@ -218,9 +229,18 @@ export async function runBuild(brew: Brew, deps: BuildDeps): Promise<Brew> {
 
     return finishBatch(current, "failed", "不明な状態");
   } catch (err) {
+    if (isProgrammerError(err)) throw err;
     const status: BatchStatus = deps.cancel?.cancelled ? "cancelled" : "failed";
     return finishBatch(current, status, status === "cancelled" ? null : errorMessage(err));
   } finally {
-    await session?.dispose();
+    try {
+      await session?.dispose();
+    } catch (err) {
+      try {
+        log?.(`[build] セッション破棄に失敗: ${errorMessage(err)}`);
+      } catch {
+        // dispose失敗で本来のビルド結果を上書きしない
+      }
+    }
   }
 }

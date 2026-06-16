@@ -1237,6 +1237,11 @@ Run: `npx tsc --noEmit; npm run lint; npm run test; npm run build` → Expected:
 feat: ビルドオーケストレータ(生成・検証・修理・中断)を追加
 ```
 
+レビュー後修正(2026-06-16):
+- `session.dispose()` の失敗で、直前に返すはずだった `succeeded` / `failed` / `cancelled` の Brew を失わないようにする。dispose 失敗は build.log に記録し、戻り値を上書きしない。
+- cancel watcher は `session.cancel()` を一度だけ発火し、reject を捕捉して未処理 rejection を防ぐ。
+- `TypeError` / `ReferenceError` などのプログラマエラーは `failed` Brew に変換せず再throwする。運用上のビルド失敗とは区別する。
+
 ---
 
 ### タスク6: Cursor SDKエンジンとエンジン選択

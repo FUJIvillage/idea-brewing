@@ -8,6 +8,7 @@ import type { Brew } from "@/lib/store/types";
 import { createFakeBuildEngine } from "@/lib/tap/fake-engine";
 import { normalizeStaleBatch, runBuild } from "@/lib/tap";
 import { createFakeRunner } from "@/lib/tap/runner";
+import type { BuildEngine, BuildSession } from "@/lib/tap/engine";
 
 let tmp: string;
 
@@ -136,6 +137,49 @@ describe("runBuild", () => {
 
     expect(done.batches[0].status).toBe("cancelled");
     expect(engine.prompts).toHaveLength(1);
+  });
+
+  it("disposeが失敗してもterminal Brewを返す", async () => {
+    const brew = await setupBrew("## タスクA\nx");
+    const engine: BuildEngine = {
+      async createSession() {
+        const session: BuildSession = {
+          async send() {
+            return { ok: true, summary: "ok" };
+          },
+          async cancel() {},
+          async dispose() {
+            throw new Error("dispose failed");
+          },
+        };
+        return session;
+      },
+    };
+
+    const done = await runBuild(brew, {
+      engine,
+      runner: createFakeRunner(),
+      template: "tap-fake",
+    });
+
+    expect(done.stage).toBe("built");
+    expect(done.batches[0].status).toBe("succeeded");
+    expect(done.buildProgress).toBeNull();
+  });
+
+  it("プログラマエラーはfailed Brewに変換せず再throwする", async () => {
+    const brew = await setupBrew("## タスクA\nx");
+    await expect(
+      runBuild(brew, {
+        engine: createFakeBuildEngine(),
+        runner: {
+          async run() {
+            throw new TypeError("programmer bug");
+          },
+        },
+        template: "tap-fake",
+      }),
+    ).rejects.toThrow("programmer bug");
   });
 });
 
