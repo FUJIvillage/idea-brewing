@@ -43,6 +43,8 @@ describe("runBuild", () => {
       engine,
       runner,
       template: "tap-fake",
+      batch: 1,
+      mode: { kind: "initial" },
       onProgress: (b) => {
         if (b.buildProgress) phases.push(b.buildProgress.phase);
       },
@@ -66,6 +68,8 @@ describe("runBuild", () => {
       engine,
       runner: createFakeRunner(),
       template: "tap-fake",
+      batch: 1,
+      mode: { kind: "initial" },
     });
 
     expect(done.batches[0].status).toBe("succeeded");
@@ -80,7 +84,13 @@ describe("runBuild", () => {
       { ok: true },
     ]);
 
-    const done = await runBuild(brew, { engine, runner, template: "tap-fake" });
+    const done = await runBuild(brew, {
+      engine,
+      runner,
+      template: "tap-fake",
+      batch: 1,
+      mode: { kind: "initial" },
+    });
 
     expect(done.batches[0].status).toBe("succeeded");
     expect(engine.prompts.some((p) => p.includes("TS2304"))).toBe(true);
@@ -98,6 +108,8 @@ describe("runBuild", () => {
       engine: createFakeBuildEngine(),
       runner,
       template: "tap-fake",
+      batch: 1,
+      mode: { kind: "initial" },
     });
 
     expect(done.batches[0].status).toBe("failed");
@@ -113,6 +125,8 @@ describe("runBuild", () => {
       engine: createFakeBuildEngine({ failSends: 1 }),
       runner: createFakeRunner(),
       template: "tap-fake",
+      batch: 1,
+      mode: { kind: "initial" },
     });
 
     expect(done.batches[0].status).toBe("failed");
@@ -132,6 +146,8 @@ describe("runBuild", () => {
       engine,
       runner: createFakeRunner(),
       template: "tap-fake",
+      batch: 1,
+      mode: { kind: "initial" },
       cancel,
     });
 
@@ -152,7 +168,13 @@ describe("runBuild", () => {
     });
     const runner = createFakeRunner();
 
-    const done = await runBuild(brew, { engine, runner, template: "tap-fake" });
+    const done = await runBuild(brew, {
+      engine,
+      runner,
+      template: "tap-fake",
+      batch: 1,
+      mode: { kind: "initial" },
+    });
 
     expect(done.batches[0].status).toBe("succeeded");
     expect(runner.commands).toEqual(["node --version"]);
@@ -179,6 +201,8 @@ describe("runBuild", () => {
       engine,
       runner: createFakeRunner(),
       template: "tap-fake",
+      batch: 1,
+      mode: { kind: "initial" },
     });
 
     expect(done.stage).toBe("built");
@@ -197,6 +221,8 @@ describe("runBuild", () => {
           },
         },
         template: "tap-fake",
+        batch: 1,
+        mode: { kind: "initial" },
       }),
     ).rejects.toThrow("programmer bug");
   });

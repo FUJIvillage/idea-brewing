@@ -56,3 +56,50 @@ export async function readManifest(batchDir: string): Promise<TapManifest> {
   }
   return { verify: parsed.verify };
 }
+
+const REPAIR_EXCLUDES = new Set([
+  "node_modules",
+  "dist",
+  "screenshots",
+  "build.log",
+  "evaluation.md",
+  "agent-log.txt",
+]);
+
+/** 修理コピーで引き継がないパスを判定する(バッチ実行時の生成物・ログ類を除外) */
+export function shouldCopyRepairPath(root: string, src: string): boolean {
+  const segments = path.relative(root, src).split(path.sep).filter(Boolean);
+  return !segments.some((s) => REPAIR_EXCLUDES.has(s));
+}
+
+/** 前バッチのフォルダを次バッチへコピーする(repair 戦略の準備) */
+export async function prepareRepairDir(
+  brewId: string,
+  fromBatch: number,
+  toBatch: number,
+): Promise<string> {
+  const src = tapDir(brewId, fromBatch);
+  const dest = tapDir(brewId, toBatch);
+  await fs.rm(dest, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 });
+  await fs.cp(src, dest, {
+    recursive: true,
+    filter: (p) => shouldCopyRepairPath(src, p),
+  });
+  return dest;
+}
+
+/** 改善指示を docs/recipe/07-improvement-notes.md として書き込む */
+export async function writeImprovementNotes(
+  batchDir: string,
+  instructions: string[],
+): Promise<void> {
+  const docsDir = path.join(batchDir, "docs", "recipe");
+  await fs.mkdir(docsDir, { recursive: true });
+  const body = [
+    "# 改善指示(前バッチの自己評価より)",
+    "",
+    ...instructions.map((s, i) => `${i + 1}. ${s}`),
+    "",
+  ].join("\n");
+  await fs.writeFile(path.join(docsDir, "07-improvement-notes.md"), body, "utf8");
+}
