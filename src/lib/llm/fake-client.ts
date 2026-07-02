@@ -8,6 +8,7 @@ export interface FakeLlm extends LlmClient {
 
 export function createFakeClient(): FakeLlm {
   let grillCount = 0;
+  let evaluateCount = 0;
   const calls: GenerateOptions[] = [];
 
   const fakeObjectFor = (tag: string): unknown => {
@@ -42,6 +43,19 @@ export function createFakeClient(): FakeLlm {
           content: `回答を反映した ${key} の内容`,
           sufficiency: "full",
         })),
+      };
+    }
+    if (tag === "evaluate") {
+      evaluateCount += 1;
+      const score = evaluateCount === 1 ? 3 : 5; // 2回目以降は改善済みとして高評価(autoループの停止テスト用)
+      return {
+        axes: [
+          { name: "機能完成度", score, comment: `フェイク講評(${evaluateCount}回目)` },
+          { name: "UI/UX", score, comment: `フェイク講評(${evaluateCount}回目)` },
+        ],
+        summary: `フェイク総評(${evaluateCount}回目)`,
+        improvements: ["見出しの階層を整理する", "主要ボタンのコントラストを上げる"],
+        strategy: "repair",
       };
     }
     throw new Error(`fake client: 未対応の tag です: ${tag}`);
