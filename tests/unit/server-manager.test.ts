@@ -81,6 +81,14 @@ describe("server-manager", () => {
     await fs.cp(path.join(process.cwd(), "templates", "tap-fake"), tapDir(brew.id, 2), {
       recursive: true,
     });
+    // batch-2のレスポンスに目印を入れ、どちらのディレクトリが配信されているか区別できるようにする
+    const batch2Server = path.join(tapDir(brew.id, 2), "server.js");
+    const source = await fs.readFile(batch2Server, "utf8");
+    await fs.writeFile(
+      batch2Server,
+      source.replace("フェイクタップアプリ", "フェイクタップアプリ(バッチ2)"),
+      "utf8",
+    );
 
     await startServer(brew.id, 1);
     expect(serverStatus(brew.id).batch).toBe(1);
@@ -88,6 +96,8 @@ describe("server-manager", () => {
     const { port } = await startServer(brew.id, 2);
     const status = serverStatus(brew.id);
     expect(status).toEqual({ running: true, port, batch: 2 });
+    const res = await fetch(`http://localhost:${port}/`);
+    expect(await res.text()).toContain("フェイクタップアプリ(バッチ2)");
 
     await stopServer(brew.id);
     brewId = null;

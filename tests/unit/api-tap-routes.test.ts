@@ -205,4 +205,44 @@ describe("tap log route", () => {
     expect(body.lines[0]).toBe("line-6");
     expect(body.lines[199]).toBe("line-205");
   });
+
+  it("batchが不正なら400を返す", async () => {
+    const brew = await createBrew("不正batch");
+
+    for (const value of ["0", "abc"]) {
+      const res = await logGet(new Request(`http://localhost?batch=${value}`), ctx(brew.id));
+
+      expect(res.status).toBe(400);
+      expect(await json(res)).toEqual({ error: "batch は1以上の整数で指定してください。" });
+    }
+  });
+
+  it("batch指定はそのバッチのログを、省略時は最新バッチのログを返す", async () => {
+    const brew = await createBrew("バッチ別ログ");
+    for (const batch of [1, 2]) {
+      const dir = tapDir(brew.id, batch);
+      await fs.mkdir(dir, { recursive: true });
+      await fs.writeFile(path.join(dir, "build.log"), `batch-${batch}-log`, "utf8");
+    }
+    await writeBrew({
+      ...brew,
+      batches: [1, 2].map((number) => ({
+        number,
+        status: "succeeded" as const,
+        startedAt: "2026-01-01T00:00:00.000Z",
+        finishedAt: "2026-01-01T00:01:00.000Z",
+        error: null,
+        evaluation: null,
+      })),
+    });
+
+    const batch1 = await logGet(new Request("http://localhost?batch=1"), ctx(brew.id));
+    expect(await json(batch1)).toEqual({ lines: ["batch-1-log"] });
+
+    const batch2 = await logGet(new Request("http://localhost?batch=2"), ctx(brew.id));
+    expect(await json(batch2)).toEqual({ lines: ["batch-2-log"] });
+
+    const omitted = await logGet(new Request("http://localhost"), ctx(brew.id));
+    expect(await json(omitted)).toEqual({ lines: ["batch-2-log"] });
+  });
 });
