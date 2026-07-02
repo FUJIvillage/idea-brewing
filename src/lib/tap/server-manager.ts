@@ -8,6 +8,7 @@ interface RunningServer {
   child: ChildProcess;
   pid: number;
   port: number;
+  batch: number;
   startedAt: string;
   readyPromise: Promise<{ port: number }>;
 }
@@ -15,6 +16,7 @@ interface RunningServer {
 export interface ServerStatus {
   running: boolean;
   port: number | null;
+  batch: number | null;
 }
 
 const servers = new Map<string, RunningServer>();
@@ -105,15 +107,23 @@ async function respondsOk(port: number): Promise<boolean> {
   }
 }
 
-export async function startServer(brewId: string): Promise<{ port: number }> {
-  const existing = servers.get(brewId);
-  if (existing && !hasExited(existing.child)) return existing.readyPromise;
-  if (existing) servers.delete(brewId);
-
+export async function startServer(brewId: string, batch: number): Promise<{ port: number }> {
   const starting = startPromises.get(brewId);
-  if (starting) return starting;
+  if (starting) {
+    // 起動途中のサーバーがあれば完了(または失敗)を待ってから判断する
+    await starting.catch(() => undefined);
+  }
 
-  const promise = startFreshServer(brewId);
+  const existing = servers.get(brewId);
+  if (existing && !hasExited(existing.child)) {
+    if (existing.batch === batch) return existing.readyPromise;
+    // 別バッチのサーバーは止めてから起動し直す(1ブリュー1サーバー)
+    await stopEntryIfCurrent(brewId, existing);
+  } else if (existing) {
+    servers.delete(brewId);
+  }
+
+  const promise = startFreshServer(brewId, batch);
   startPromises.set(brewId, promise);
   try {
     return await promise;
@@ -122,8 +132,8 @@ export async function startServer(brewId: string): Promise<{ port: number }> {
   }
 }
 
-async function startFreshServer(brewId: string): Promise<{ port: number }> {
-  const cwd = tapDir(brewId, 1);
+async function startFreshServer(brewId: string, batch: number): Promise<{ port: number }> {
+  const cwd = tapDir(brewId, batch);
   const port = await findFreePort();
   const command = existsSync(path.join(cwd, "server.js"))
     ? `node server.js --port ${port}`
@@ -144,6 +154,7 @@ async function startFreshServer(brewId: string): Promise<{ port: number }> {
     child,
     pid: child.pid ?? -1,
     port,
+    batch,
     startedAt: new Date().toISOString(),
     readyPromise: Promise.resolve({ port }),
   };
@@ -162,7 +173,7 @@ async function startFreshServer(brewId: string): Promise<{ port: number }> {
     }
     await stopEntryIfCurrent(brewId, entry);
     throw new Error(
-      "devサーバーが30秒以内に応答しませんでした。build.logと taps/batch-1 を確認してください。",
+      `devサーバーが30秒以内に応答しませんでした。build.logと taps/batch-${batch} を確認してください。`,
     );
   })();
 
@@ -187,10 +198,10 @@ export async function stopServer(brewId: string): Promise<void> {
 
 export function serverStatus(brewId: string): ServerStatus {
   const entry = servers.get(brewId);
-  if (!entry) return { running: false, port: null };
+  if (!entry) return { running: false, port: null, batch: null };
   if (hasExited(entry.child)) {
     servers.delete(brewId);
-    return { running: false, port: null };
+    return { running: false, port: null, batch: null };
   }
-  return { running: true, port: entry.port };
+  return { running: true, port: entry.port, batch: entry.batch };
 }

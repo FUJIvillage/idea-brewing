@@ -142,7 +142,7 @@ describe("tap server route", () => {
     const res = await serverGet(new Request("http://localhost"), ctx(brew.id));
 
     expect(res.status).toBe(200);
-    expect(await json(res)).toEqual({ running: false, port: null });
+    expect(await json(res)).toEqual({ running: false, port: null, batch: null });
   });
 
   it("POSTはブリューが無ければ404を返す", async () => {
