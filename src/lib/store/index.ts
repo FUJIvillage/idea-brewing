@@ -69,6 +69,7 @@ export async function createBrew(name: string): Promise<Brew> {
     recipeGeneratedAt: null,
     batches: [],
     buildProgress: null,
+    maturationProgress: null,
   };
   await fs.mkdir(path.join(brewDir(brew.id), "ingredients"), { recursive: true });
   return writeBrew(brew);
@@ -77,11 +78,12 @@ export async function createBrew(name: string): Promise<Brew> {
 export async function readBrew(id: string): Promise<Brew> {
   const raw = await fs.readFile(path.join(brewDir(id), "brew.json"), "utf8");
   const parsed = JSON.parse(raw) as Brew;
-  // 第1版で作られた brew.json には batches / buildProgress が無いので補完する
+  // 旧バージョンの brew.json に無いフィールドを補完する
   return {
     ...parsed,
-    batches: parsed.batches ?? [],
+    batches: (parsed.batches ?? []).map((b) => ({ ...b, evaluation: b.evaluation ?? null })),
     buildProgress: parsed.buildProgress ?? null,
+    maturationProgress: parsed.maturationProgress ?? null,
   };
 }
 

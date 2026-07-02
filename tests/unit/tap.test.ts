@@ -214,6 +214,7 @@ describe("normalizeStaleBatch", () => {
           startedAt: "2026-01-01T00:00:00Z",
           finishedAt: null,
           error: null,
+          evaluation: null,
         },
       ],
       buildProgress: { phase: "generating", detail: "残留" },

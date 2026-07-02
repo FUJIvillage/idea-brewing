@@ -146,6 +146,7 @@ export async function runBuild(brew: Brew, deps: BuildDeps): Promise<Brew> {
         startedAt: new Date().toISOString(),
         finishedAt: null,
         error: null,
+        evaluation: null,
       },
     ],
   };
