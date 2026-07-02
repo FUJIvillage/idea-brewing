@@ -2,9 +2,9 @@ import { promises as fs } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { createBrew, recipeDir, tapDir, writeBrew, writeSettings } from "@/lib/store";
+import { createBrew, readBrew, recipeDir, tapDir, writeBrew, writeSettings } from "@/lib/store";
 import type { Brew, Settings } from "@/lib/store/types";
-import { maturingBrews } from "@/lib/mature/mature-state";
+import { matureCancelTokens, maturingBrews } from "@/lib/mature/mature-state";
 import { buildingBrews } from "@/lib/tap/build-state";
 
 let tmp: string;
@@ -35,6 +35,7 @@ afterEach(async () => {
     process.env.CURSOR_API_KEY = previousCursorApiKey;
   }
   maturingBrews.clear();
+  matureCancelTokens.clear();
   buildingBrews.clear();
   await fs.rm(tmp, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 });
 });
@@ -161,9 +162,30 @@ describe("POST /mature/auto", () => {
     expect(json.batches).toHaveLength(2);
     expect(json.batches[1].evaluation?.overall).toBe(5);
   });
+
+  it("ボディなしはデフォルト値(targetScore 4 / maxBatches 3)で実行する", async () => {
+    const brew = await builtBrew();
+    const { POST } = await import("@/app/api/brews/[id]/mature/auto/route");
+    const res = await POST(new Request("http://test/", { method: "POST" }), ctx(brew.id));
+    expect(res.status).toBe(200);
+    const json = (await res.json()) as Brew;
+    expect(json.batches).toHaveLength(2);
+    expect(json.batches[1].evaluation?.overall).toBe(5);
+  });
 });
 
 describe("POST /mature/cancel", () => {
+  it("実行中トークンがあれば中断フラグを立てて200を返す", async () => {
+    const brew = await builtBrew();
+    const token = { cancelled: false };
+    matureCancelTokens.set(brew.id, token);
+    const { POST } = await import("@/app/api/brews/[id]/mature/cancel/route");
+    const res = await POST(new Request("http://test/"), ctx(brew.id));
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ ok: true });
+    expect(token.cancelled).toBe(true);
+  });
+
   it("実行中でなく残留progressがあれば補正して返す", async () => {
     const brew = await builtBrew();
     await writeBrew({
@@ -204,6 +226,12 @@ describe("GET /mature/report と /mature/screenshot", () => {
     const { GET } = await import("@/app/api/brews/[id]/mature/report/route");
     expect((await GET(new Request("http://test/?batch=zero"), ctx(brew.id))).status).toBe(400);
     expect((await GET(new Request("http://test/?batch=9"), ctx(brew.id))).status).toBe(404);
+  });
+
+  it("batchパラメータ未指定は400", async () => {
+    const brew = await builtBrew();
+    const { GET } = await import("@/app/api/brews/[id]/mature/report/route");
+    expect((await GET(new Request("http://test/"), ctx(brew.id))).status).toBe(400);
   });
 
   it("screenshot: name不正は400、ファイルなしは404、あればPNGを返す", async () => {
@@ -250,5 +278,32 @@ describe("相互ロック", () => {
     buildingBrews.add(brew.id);
     const { POST } = await import("@/app/api/brews/[id]/mature/evaluate/route");
     expect((await POST(new Request("http://test/"), ctx(brew.id))).status).toBe(409);
+  });
+
+  it("熟成中のtap/cancelは409で、実行中のbuildingバッチを書き換えない", async () => {
+    const brew = await builtBrew();
+    // 熟成中に runNextBatch が永続化する building バッチを再現する
+    await writeBrew({
+      ...brew,
+      batches: [
+        ...brew.batches,
+        {
+          number: 2,
+          status: "building",
+          startedAt: new Date().toISOString(),
+          finishedAt: null,
+          error: null,
+          evaluation: null,
+        },
+      ],
+    });
+    maturingBrews.add(brew.id);
+
+    const { POST } = await import("@/app/api/brews/[id]/tap/cancel/route");
+    const res = await POST(new Request("http://test/"), ctx(brew.id));
+    expect(res.status).toBe(409);
+
+    const stored = await readBrew(brew.id);
+    expect(stored.batches[1].status).toBe("building");
   });
 });

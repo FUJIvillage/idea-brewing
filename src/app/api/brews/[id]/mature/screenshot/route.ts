@@ -34,7 +34,8 @@ export async function GET(req: Request, ctx: { params: Promise<{ id: string }> }
       return NextResponse.json({ error: "スクリーンショットが見つかりません。" }, { status: 404 });
     }
     return new NextResponse(new Uint8Array(buffer), {
-      headers: { "content-type": "image/png" },
+      // 再評価でスクリーンショットが上書きされるためキャッシュさせない
+      headers: { "content-type": "image/png", "cache-control": "no-store" },
     });
   } catch (err) {
     return errorResponse(err);

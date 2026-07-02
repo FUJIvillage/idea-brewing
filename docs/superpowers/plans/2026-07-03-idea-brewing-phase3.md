@@ -2991,7 +2991,8 @@ export async function GET(req: Request, ctx: { params: Promise<{ id: string }> }
       return NextResponse.json({ error: "スクリーンショットが見つかりません。" }, { status: 404 });
     }
     return new NextResponse(new Uint8Array(buffer), {
-      headers: { "content-type": "image/png" },
+      // 再評価でスクリーンショットが上書きされるためキャッシュさせない
+      headers: { "content-type": "image/png", "cache-control": "no-store" },
     });
   } catch (err) {
     return errorResponse(err);
@@ -3033,6 +3034,8 @@ POST の `start` 分岐の先頭にガードを追加:
       }
       const target = latestSucceededBatch(brew);
 ```
+
+`src/app/api/brews/[id]/tap/cancel/route.ts`(Phase 2 のファイル)にもガードを追加する: トークンチェックの直後・残留補正の前に `maturingBrews.has(id)` なら 409 を返す。熟成中は `runNextBatch` が building 状態のバッチを永続化するため、残留補正が実行中のバッチを failed に書き換えてしまうのを防ぐ。
 
 - [ ] **Step 8: テスト実行とコミット**
 
