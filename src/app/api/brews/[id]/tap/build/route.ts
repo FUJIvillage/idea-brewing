@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { errorResponse } from "@/lib/api";
+import { isBrewBusy } from "@/lib/mature/mature-state";
 import { readBrew, readSettings, writeBrew } from "@/lib/store";
 import type { Brew } from "@/lib/store/types";
 import { normalizeStaleBatch, runBuild } from "@/lib/tap";
@@ -10,8 +11,8 @@ import { realRunner } from "@/lib/tap/runner";
 
 export async function POST(_req: Request, ctx: { params: Promise<{ id: string }> }) {
   const { id } = await ctx.params;
-  if (buildingBrews.has(id)) {
-    return NextResponse.json({ error: "ビルド中です。" }, { status: 409 });
+  if (isBrewBusy(id)) {
+    return NextResponse.json({ error: "実行中の工程があります。" }, { status: 409 });
   }
 
   buildingBrews.add(id);
