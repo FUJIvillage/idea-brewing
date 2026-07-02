@@ -2215,7 +2215,11 @@ export async function runEvaluate(brew: Brew, deps: EvaluateDeps): Promise<Brew>
       maturationProgress: null,
     };
   } catch (err) {
-    await deps.onProgress?.({ ...current, maturationProgress: null });
+    try {
+      await deps.onProgress?.({ ...current, maturationProgress: null });
+    } catch {
+      // 進捗クリアの失敗より元のエラーを優先する
+    }
     throw err;
   }
 }
@@ -2260,7 +2264,11 @@ export async function runNextBatch(brew: Brew, deps: NextBatchDeps): Promise<Bre
     });
     return { ...done, buildProgress: null, maturationProgress: null };
   } catch (err) {
-    await deps.onProgress?.({ ...current, maturationProgress: null });
+    try {
+      await deps.onProgress?.({ ...current, maturationProgress: null });
+    } catch {
+      // 進捗クリアの失敗より元のエラーを優先する
+    }
     throw err;
   }
 }

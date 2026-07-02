@@ -3,6 +3,8 @@ import { existsSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import type { z } from "zod";
+import type { GenerateOptions, LlmClient } from "@/lib/llm/client";
 import { createFakeClient } from "@/lib/llm/fake-client";
 import {
   normalizeStaleMaturation,
@@ -13,6 +15,7 @@ import {
 } from "@/lib/mature";
 import { createBrew, recipeDir, tapDir, writeBrew } from "@/lib/store";
 import type { Brew } from "@/lib/store/types";
+import type { BuildEngine } from "@/lib/tap/engine";
 import { createFakeBuildEngine } from "@/lib/tap/fake-engine";
 import type { CommandRunner } from "@/lib/tap/runner";
 
@@ -77,6 +80,17 @@ function deps(overrides?: Partial<MatureDeps>): MatureDeps {
   };
 }
 
+/** generateObject の呼び出しに割り込んでから base に委譲するスパイクライアント */
+function spyClient(base: LlmClient, onGenerateObject: (opts: GenerateOptions) => void): LlmClient {
+  return {
+    async generateObject<T>(schema: z.ZodType<T>, opts: GenerateOptions): Promise<T> {
+      onGenerateObject(opts);
+      return base.generateObject(schema, opts);
+    },
+    generateText: (opts) => base.generateText(opts),
+  };
+}
+
 describe("runEvaluate", () => {
   it("最新成功バッチを評価してevaluationとレポートを保存する", async () => {
     const brew = await builtBrew();
@@ -102,10 +116,57 @@ describe("runEvaluate", () => {
     expect(progress[progress.length - 1].maturationProgress).toBeNull();
   });
 
+  it("進捗クリアのonProgressが失敗しても元のエラーを維持する", async () => {
+    const brew = await builtBrew();
+    // ルーブリックを消して素材収集を失敗させる
+    await fs.rm(path.join(recipeDir(brew.id), "06-evaluation-criteria.md"));
+    await expect(
+      runEvaluate(
+        brew,
+        deps({
+          onProgress: (b) => {
+            // catch節の進捗クリア呼び出し(maturationProgress: null)だけを失敗させる
+            if (b.maturationProgress === null) throw new Error("進捗の保存に失敗");
+          },
+        }),
+      ),
+    ).rejects.toThrow(/06-evaluation-criteria/);
+  });
+
+  it("読めるスクリーンショットだけをLLMに渡す(読めないパスはスキップ)", async () => {
+    const brew = await builtBrew();
+    const realShot = path.join(tmp, "shot.png");
+    await fs.writeFile(realShot, Buffer.from([0x89, 0x50, 0x4e, 0x47]));
+    const missingShot = path.join(tmp, "no-such-dir", "missing.png");
+    const imageCounts: number[] = [];
+    const client = spyClient(createFakeClient(), (opts) => {
+      imageCounts.push(opts.images?.length ?? 0);
+    });
+    const done = await runEvaluate(
+      brew,
+      deps({ client, capture: async () => [realShot, missingShot] }),
+    );
+    expect(imageCounts).toEqual([1]);
+    expect(done.batches[0].evaluation?.screenshotsUsed).toBe(true);
+  });
+
   it("キャンセル済みなら評価を保存せず進捗なしで返す", async () => {
     const brew = await builtBrew();
     const done = await runEvaluate(brew, deps({ cancel: { cancelled: true } }));
     expect(done.batches[0].evaluation).toBeNull();
+    expect(done.maturationProgress).toBeNull();
+  });
+
+  it("採点後・保存前にキャンセルされたら評価もレポートも保存しない", async () => {
+    const brew = await builtBrew();
+    const cancel = { cancelled: false };
+    // 採点(generateObject)の完了と同時に中断を要求する
+    const client = spyClient(createFakeClient(), () => {
+      cancel.cancelled = true;
+    });
+    const done = await runEvaluate(brew, deps({ client, cancel }));
+    expect(done.batches[0].evaluation).toBeNull();
+    expect(existsSync(path.join(tapDir(brew.id, 1), "evaluation.md"))).toBe(false);
     expect(done.maturationProgress).toBeNull();
   });
 });
@@ -135,6 +196,30 @@ describe("runNextBatch", () => {
     const building = progress.filter((b) => b.maturationProgress?.phase === "building");
     expect(building.length).toBeGreaterThan(0);
     expect(building.every((b) => b.buildProgress === null)).toBe(true);
+  });
+
+  it("エラー時はonProgressで進捗をクリアして再throwする", async () => {
+    const brew = await builtBrew();
+    const evaluated = await runEvaluate(brew, deps());
+    // プログラマーエラー(TypeError)は runBuild が失敗バッチに変換せずそのまま投げる
+    const engine: BuildEngine = {
+      async createSession() {
+        throw new TypeError("エンジンが壊れています");
+      },
+    };
+    const progress: Brew[] = [];
+    await expect(
+      runNextBatch(evaluated, deps({ engine, onProgress: (b) => void progress.push(b) })),
+    ).rejects.toThrow(/エンジンが壊れています/);
+    expect(progress[progress.length - 1].maturationProgress).toBeNull();
+  });
+
+  it("キャンセル済みなら次バッチを作らず進捗なしで返す", async () => {
+    const brew = await builtBrew();
+    const evaluated = await runEvaluate(brew, deps());
+    const done = await runNextBatch(evaluated, deps({ cancel: { cancelled: true } }));
+    expect(done.batches.map((b) => b.number)).toEqual([1]);
+    expect(done.maturationProgress).toBeNull();
   });
 });
 
