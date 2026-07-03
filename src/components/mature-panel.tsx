@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import type { BatchEvaluation, BatchStatus, Brew, MaturationPhase } from "@/lib/store/types";
 import { latestSucceededBatch } from "@/lib/tap/batches";
@@ -41,9 +41,16 @@ export function MaturePanel({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [selected, setSelected] = useState<number | null>(null);
-  const [report, setReport] = useState<Report | null>(null);
+  const [report, setReport] = useState<{ batch: number; data: Report } | null>(null);
   const [targetScore, setTargetScore] = useState("4.0");
   const [maxBatches, setMaxBatches] = useState("3");
+
+  const selectedRef = useRef<number | null>(null);
+  const inFlightRef = useRef(false);
+
+  useEffect(() => {
+    selectedRef.current = selected;
+  }, [selected]);
 
   const latest = latestSucceededBatch(brew);
   const running = brew.maturationProgress !== null;
@@ -53,7 +60,9 @@ export function MaturePanel({
     async (batch: number) => {
       try {
         const res = await fetch(`/api/brews/${brew.id}/mature/report?batch=${batch}`);
-        if (res.ok) setReport((await res.json()) as Report);
+        if (!res.ok) return;
+        if (selectedRef.current !== batch) return;
+        setReport({ batch, data: (await res.json()) as Report });
       } catch {
         // 表示用の取得失敗は無視する
       }
@@ -70,7 +79,9 @@ export function MaturePanel({
     (async () => {
       try {
         const res = await fetch(`/api/brews/${brew.id}/mature/report?batch=${batch}`);
-        if (!cancelled && res.ok) setReport((await res.json()) as Report);
+        if (cancelled || !res.ok) return;
+        if (selectedRef.current !== null && selectedRef.current !== batch) return;
+        setReport({ batch, data: (await res.json()) as Report });
       } catch {
         // 表示用の取得失敗は無視する
       }
@@ -90,14 +101,19 @@ export function MaturePanel({
 
   async function selectBatch(batch: number) {
     setSelected(batch);
+    selectedRef.current = batch;
+    setReport(null);
     await fetchReport(batch);
   }
 
   async function post(pathSuffix: string, body?: unknown) {
+    if (inFlightRef.current) return;
+    inFlightRef.current = true;
     setBusy(true);
     onBusyChange(true);
     setError(null);
     const timer = setInterval(() => void refresh(), 1000);
+    let updatedBrew: Brew | null = null;
     try {
       const res = await fetch(`/api/brews/${brew.id}/mature/${pathSuffix}`, {
         method: "POST",
@@ -110,7 +126,8 @@ export function MaturePanel({
       if (!res.ok) {
         throw new Error("error" in json && json.error ? json.error : "エラーが発生しました。");
       }
-      onUpdate(json as Brew);
+      updatedBrew = json as Brew;
+      onUpdate(updatedBrew);
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
     } finally {
@@ -120,7 +137,18 @@ export function MaturePanel({
       } catch {
         // refreshが失敗してもbusy解除は必ず行う(タブが永久ロックされるのを防ぐ)
       }
-      if (selected !== null) void fetchReport(selected);
+      if (updatedBrew) {
+        const latestBatch = latestSucceededBatch(updatedBrew);
+        if (latestBatch) {
+          setSelected(latestBatch.number);
+          selectedRef.current = latestBatch.number;
+          await fetchReport(latestBatch.number);
+        }
+      } else {
+        const batch = selectedRef.current;
+        if (batch !== null) void fetchReport(batch);
+      }
+      inFlightRef.current = false;
       setBusy(false);
       onBusyChange(false);
     }
@@ -137,6 +165,12 @@ export function MaturePanel({
       if ("schemaVersion" in json) onUpdate(json);
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
+    } finally {
+      try {
+        await refresh();
+      } catch {
+        // キャンセル後の再同期失敗は無視する
+      }
     }
   }
 
@@ -270,12 +304,12 @@ export function MaturePanel({
       )}
 
       {/* 評価レポート */}
-      {selected !== null && report && (
+      {selected !== null && report?.batch === selected && (
         <div className="mt-6">
           <h3 className="font-bold text-amber-100">バッチ{selected} 評価レポート</h3>
-          {report.screenshots.length > 0 && (
+          {report.data.screenshots.length > 0 && (
             <div className="mt-3 flex flex-wrap gap-3">
-              {report.screenshots.map((name) => (
+              {report.data.screenshots.map((name) => (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
                   key={name}
@@ -286,9 +320,9 @@ export function MaturePanel({
               ))}
             </div>
           )}
-          {report.markdown ? (
+          {report.data.markdown ? (
             <article className="prose prose-invert mt-4 max-w-none rounded-lg border border-amber-900/40 bg-black/20 p-6">
-              <ReactMarkdown>{report.markdown}</ReactMarkdown>
+              <ReactMarkdown>{report.data.markdown}</ReactMarkdown>
             </article>
           ) : (
             <p className="mt-3 text-amber-200/60">このバッチはまだ評価されていません。</p>
