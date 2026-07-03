@@ -57,6 +57,6 @@ describe("BrewWorkbench", () => {
 
     expect(html).toContain("タップ");
     expect((html.match(/disabled=\"\"/g) ?? []).length).toBeGreaterThanOrEqual(5);
-    expect(html).toContain("タップ(1stバッチ)");
+    expect(html).toContain("ビルド中断");
   });
 });

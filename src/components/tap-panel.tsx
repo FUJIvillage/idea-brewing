@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import type { Brew, BuildPhase } from "@/lib/store/types";
+import { latestSucceededBatch } from "@/lib/tap/batches";
 
 const PHASE_LABELS: Record<BuildPhase, string> = {
   preparing: "準備",
@@ -13,6 +14,7 @@ const PHASE_LABELS: Record<BuildPhase, string> = {
 type ServerState = {
   running: boolean;
   port: number | null;
+  batch: number | null;
 };
 
 type ErrorBody = {
@@ -37,9 +39,14 @@ export function TapPanel({
   const [server, setServer] = useState<ServerState>({
     running: false,
     port: null,
+    batch: null,
   });
 
-  const batch = brew.batches[0] ?? null;
+  const newest =
+    brew.batches.length > 0
+      ? brew.batches.reduce((a, b) => (b.number > a.number ? b : a))
+      : null;
+  const succeeded = latestSucceededBatch(brew);
   const busy = buildBusy || serverBusy;
 
   const fetchLog = useCallback(async () => {
@@ -153,7 +160,7 @@ export function TapPanel({
 
   return (
     <section>
-      <h2 className="text-lg font-bold text-amber-100">タップ(1stバッチ)</h2>
+      <h2 className="text-lg font-bold text-amber-100">タップ</h2>
 
       {brew.buildProgress && (
         <p className="mt-2 text-amber-200" aria-live="polite">
@@ -161,7 +168,7 @@ export function TapPanel({
         </p>
       )}
 
-      {!building && !batch && (
+      {!building && !newest && (
         <button
           onClick={build}
           className="mt-4 rounded bg-amber-600 px-4 py-2 font-bold text-black hover:bg-amber-500"
@@ -179,9 +186,9 @@ export function TapPanel({
         </button>
       )}
 
-      {!building && batch?.status === "failed" && (
+      {!building && !succeeded && newest?.status === "failed" && (
         <div className="mt-4">
-          <p className="text-red-400">ビルド失敗: {batch.error}</p>
+          <p className="text-red-400">ビルド失敗: {newest.error}</p>
           <button
             onClick={build}
             className="mt-2 rounded bg-amber-600 px-4 py-2 font-bold text-black hover:bg-amber-500"
@@ -191,7 +198,7 @@ export function TapPanel({
         </div>
       )}
 
-      {!building && batch?.status === "cancelled" && (
+      {!building && !succeeded && newest?.status === "cancelled" && (
         <div className="mt-4">
           <p className="text-amber-200/70">ビルドは中断されました。</p>
           <button
@@ -203,12 +210,12 @@ export function TapPanel({
         </div>
       )}
 
-      {!building && batch?.status === "succeeded" && (
+      {!building && succeeded && (
         <div className="mt-4 space-y-3">
           <p className="text-amber-200">
-            1stバッチ完成(
-            {batch.finishedAt
-              ? `${Math.round((Date.parse(batch.finishedAt) - Date.parse(batch.startedAt)) / 1000)}秒`
+            バッチ{succeeded.number} 完成(
+            {succeeded.finishedAt
+              ? `${Math.round((Date.parse(succeeded.finishedAt) - Date.parse(succeeded.startedAt)) / 1000)}秒`
               : "-"}
             )
           </p>
@@ -222,6 +229,9 @@ export function TapPanel({
               >
                 http://localhost:{server.port}
               </a>
+              {server.batch !== null && (
+                <span className="text-sm text-amber-200/70">バッチ{server.batch} を提供中</span>
+              )}
               <button
                 onClick={() => serverAction("stop")}
                 disabled={busy}
