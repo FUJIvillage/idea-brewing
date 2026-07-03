@@ -28,6 +28,7 @@ function recipeReadyBrew(): Brew {
     recipeGeneratedAt: "2026-01-01T00:00:00.000Z",
     batches: [],
     buildProgress: null,
+    maturationProgress: null,
   };
 }
 
@@ -56,6 +57,55 @@ describe("BrewWorkbench", () => {
 
     expect(html).toContain("タップ");
     expect((html.match(/disabled=\"\"/g) ?? []).length).toBeGreaterThanOrEqual(5);
-    expect(html).toContain("タップ(1stバッチ)");
+    expect(html).toContain("ビルド中断");
+  });
+
+  it("成功バッチがあるとき熟成タブが有効になる", () => {
+    const html = renderToStaticMarkup(
+      React.createElement(BrewWorkbench, {
+        initial: {
+          ...recipeReadyBrew(),
+          batches: [
+            {
+              number: 1,
+              status: "succeeded",
+              startedAt: "2026-01-01T00:00:00.000Z",
+              finishedAt: "2026-01-01T00:01:00.000Z",
+              error: null,
+              evaluation: null,
+            },
+          ],
+        },
+      }),
+    );
+
+    expect(html).toContain("熟成");
+    expect(html.match(/disabled=\"\"/g) ?? []).toHaveLength(0);
+  });
+
+  it("熟成進捗中は熟成パネルを表示しタブを無効化する", () => {
+    const detail = "評価レポート生成中";
+    const html = renderToStaticMarkup(
+      React.createElement(BrewWorkbench, {
+        initial: {
+          ...recipeReadyBrew(),
+          batches: [
+            {
+              number: 1,
+              status: "succeeded",
+              startedAt: "2026-01-01T00:00:00.000Z",
+              finishedAt: "2026-01-01T00:01:00.000Z",
+              error: null,
+              evaluation: null,
+            },
+          ],
+          maturationProgress: { phase: "evaluating", detail, batch: 1 },
+        },
+      }),
+    );
+
+    expect(html).toContain(detail);
+    expect(html).toContain("熟成(自己評価バッチループ)");
+    expect((html.match(/disabled=\"\"/g) ?? []).length).toBeGreaterThanOrEqual(5);
   });
 });

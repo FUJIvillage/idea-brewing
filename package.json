@@ -19,6 +19,7 @@
     "ai": "^6.0.203",
     "cheerio": "^1.2.0",
     "next": "16.2.9",
+    "playwright": "^1.61.1",
     "react": "19.2.4",
     "react-dom": "19.2.4",
     "react-markdown": "^10.1.0",
@@ -26,7 +27,7 @@
     "zod": "^4.4.3"
   },
   "devDependencies": {
-    "@playwright/test": "^1.60.0",
+    "@playwright/test": "^1.61.1",
     "@tailwindcss/postcss": "^4",
     "@tailwindcss/typography": "^0.5.20",
     "@types/node": "^20",

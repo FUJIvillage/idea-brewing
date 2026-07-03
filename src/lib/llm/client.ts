@@ -1,6 +1,6 @@
 import type { z } from "zod";
 
-export type LlmTag = "mash" | "grill-next" | "grill-apply" | "recipe" | "connection-test";
+export type LlmTag = "mash" | "grill-next" | "grill-apply" | "recipe" | "evaluate" | "connection-test";
 
 export interface LlmImage {
   data: Buffer;

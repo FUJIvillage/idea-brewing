@@ -7,6 +7,7 @@ import { SheetPanel } from "./sheet-panel";
 import { GrillPanel } from "./grill-panel";
 import { RecipePanel } from "./recipe-panel";
 import { TapPanel } from "./tap-panel";
+import { MaturePanel } from "./mature-panel";
 
 const TABS = [
   { id: "ingredients", label: "原料" },
@@ -14,13 +15,20 @@ const TABS = [
   { id: "grill", label: "グリル" },
   { id: "recipe", label: "レシピ" },
   { id: "tap", label: "タップ" },
+  { id: "mature", label: "熟成" },
 ] as const;
 type TabId = (typeof TABS)[number]["id"];
 
 export function BrewWorkbench({ initial }: { initial: Brew }) {
   const [brew, setBrew] = useState(initial);
   const [tab, setTab] = useState<TabId>(
-    initial.buildProgress !== null ? "tap" : initial.sheet ? "sheet" : "ingredients",
+    initial.maturationProgress !== null
+      ? "mature"
+      : initial.buildProgress !== null
+        ? "tap"
+        : initial.sheet
+          ? "sheet"
+          : "ingredients",
   );
   // 長時間処理(レシピ生成・グリルauto)中はタブ切替を禁止し、パネルのアンマウントを防ぐ
   const [busy, setBusy] = useState(false);
@@ -36,9 +44,11 @@ export function BrewWorkbench({ initial }: { initial: Brew }) {
     grill: brew.sheet !== null,
     recipe: brew.grill.finished,
     tap: brew.recipeGeneratedAt !== null,
+    mature: brew.batches.some((b) => b.status === "succeeded"),
   };
-  const tabsBusy = busy || brew.buildProgress !== null;
-  const visibleTab: TabId = brew.buildProgress !== null ? "tap" : tab;
+  const tabsBusy = busy || brew.buildProgress !== null || brew.maturationProgress !== null;
+  const visibleTab: TabId =
+    brew.maturationProgress !== null ? "mature" : brew.buildProgress !== null ? "tap" : tab;
 
   return (
     <main className="mx-auto max-w-4xl p-6">
@@ -82,6 +92,14 @@ export function BrewWorkbench({ initial }: { initial: Brew }) {
         )}
         {visibleTab === "tap" && (
           <TapPanel
+            brew={brew}
+            onUpdate={setBrew}
+            refresh={refresh}
+            onBusyChange={setBusy}
+          />
+        )}
+        {visibleTab === "mature" && (
+          <MaturePanel
             brew={brew}
             onUpdate={setBrew}
             refresh={refresh}

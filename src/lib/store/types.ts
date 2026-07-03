@@ -72,11 +72,12 @@ export interface RecipeProgress {
 export type BatchStatus = "building" | "succeeded" | "failed" | "cancelled";
 
 export interface BatchRecord {
-  number: number; // 1始まり。第2版では常に1
+  number: number; // 1始まり
   status: BatchStatus;
   startedAt: string;
   finishedAt: string | null;
   error: string | null;
+  evaluation: BatchEvaluation | null;
 }
 
 export type BuildPhase = "preparing" | "generating" | "verifying" | "repairing";
@@ -84,6 +85,32 @@ export type BuildPhase = "preparing" | "generating" | "verifying" | "repairing";
 export interface BuildProgress {
   phase: BuildPhase;
   detail: string;
+}
+
+export interface AxisScore {
+  name: string; // ルーブリックの観点名
+  score: number; // 1〜5
+  comment: string;
+}
+
+export type NextBatchStrategy = "repair" | "rebuild";
+
+export interface BatchEvaluation {
+  overall: number; // axes の平均(小数1桁)
+  axes: AxisScore[];
+  summary: string;
+  improvements: string[]; // 次バッチへの改善指示
+  strategy: NextBatchStrategy;
+  screenshotsUsed: boolean; // スクリーンショットを採点に使えたか
+  evaluatedAt: string;
+}
+
+export type MaturationPhase = "screenshotting" | "evaluating" | "planning" | "building";
+
+export interface MaturationProgress {
+  phase: MaturationPhase;
+  detail: string;
+  batch: number; // 対象バッチ番号
 }
 
 export type BrewStage = "ingredients" | "grilling" | "fermenting" | "done" | "built";
@@ -102,6 +129,7 @@ export interface Brew {
   recipeGeneratedAt: string | null;
   batches: BatchRecord[];
   buildProgress: BuildProgress | null;
+  maturationProgress: MaturationProgress | null;
 }
 
 export type ProviderId = "openai" | "google" | "ollama" | "openrouter" | "fake";

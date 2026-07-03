@@ -1,5 +1,6 @@
 import Link from "next/link";
 import type { Brew } from "@/lib/store/types";
+import { latestSucceededBatch } from "@/lib/tap/batches";
 
 const STAGE_INFO: Record<Brew["stage"], { label: string; percent: number }> = {
   ingredients: { label: "原料投入中", percent: 20 },
@@ -8,6 +9,15 @@ const STAGE_INFO: Record<Brew["stage"], { label: string; percent: number }> = {
   done: { label: "レシピ完成", percent: 100 },
   built: { label: "提供中(ビルド済み)", percent: 100 },
 };
+
+function stageLabel(brew: Brew): string {
+  if (brew.stage !== "built") return STAGE_INFO[brew.stage].label;
+  const latest = latestSucceededBatch(brew);
+  if (!latest) return STAGE_INFO.built.label;
+  return latest.evaluation
+    ? `提供中(バッチ${latest.number}・スコア${latest.evaluation.overall.toFixed(1)})`
+    : `提供中(バッチ${latest.number})`;
+}
 
 export function TankCard({ brew }: { brew: Brew }) {
   const stage = STAGE_INFO[brew.stage];
@@ -27,7 +37,7 @@ export function TankCard({ brew }: { brew: Brew }) {
         </div>
       </div>
       <h2 className="mt-3 truncate font-bold text-amber-100">{brew.name}</h2>
-      <p className="text-sm text-amber-400">{stage.label}</p>
+      <p className="text-sm text-amber-400">{stageLabel(brew)}</p>
     </Link>
   );
 }

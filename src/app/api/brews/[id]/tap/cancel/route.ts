@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { errorResponse } from "@/lib/api";
+import { maturingBrews } from "@/lib/mature/mature-state";
 import { readBrew, writeBrew } from "@/lib/store";
 import type { Brew } from "@/lib/store/types";
 import { normalizeStaleBatch } from "@/lib/tap";
@@ -11,6 +12,15 @@ export async function POST(_req: Request, ctx: { params: Promise<{ id: string }>
   if (token) {
     token.cancelled = true;
     return NextResponse.json({ ok: true });
+  }
+
+  // 熟成中は runNextBatch が building 状態のバッチを永続化するため、
+  // 残留補正で実行中のバッチを failed に書き換えないようガードする。
+  if (maturingBrews.has(id)) {
+    return NextResponse.json(
+      { error: "熟成が実行中です。中断は熟成タブから行ってください。" },
+      { status: 409 },
+    );
   }
 
   try {

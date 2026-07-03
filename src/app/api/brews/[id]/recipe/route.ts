@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { isBrewBusy } from "@/lib/mature/mature-state";
 import { readBrew, writeBrew } from "@/lib/store";
 import type { Brew } from "@/lib/store/types";
 import { getConfiguredClient } from "@/lib/llm";
@@ -17,6 +18,9 @@ const generating = new Set<string>();
 
 export async function POST(_req: Request, ctx: { params: Promise<{ id: string }> }) {
   const { id } = await ctx.params;
+  if (isBrewBusy(id)) {
+    return NextResponse.json({ error: "実行中の工程があります。" }, { status: 409 });
+  }
   if (generating.has(id)) {
     return NextResponse.json({ error: "レシピを生成中です。" }, { status: 409 });
   }

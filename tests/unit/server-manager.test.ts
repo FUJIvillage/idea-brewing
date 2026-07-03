@@ -30,7 +30,7 @@ describe("server-manager", () => {
       recursive: true,
     });
 
-    const { port } = await startServer(brew.id);
+    const { port } = await startServer(brew.id, 1);
     expect(serverStatus(brew.id).running).toBe(true);
     const res = await fetch(`http://localhost:${port}/`);
     expect(res.ok).toBe(true);
@@ -49,8 +49,8 @@ describe("server-manager", () => {
       recursive: true,
     });
 
-    const first = await startServer(brew.id);
-    const second = await startServer(brew.id);
+    const first = await startServer(brew.id, 1);
+    const second = await startServer(brew.id, 1);
 
     expect(second.port).toBe(first.port);
     await stopServer(brew.id);
@@ -64,10 +64,41 @@ describe("server-manager", () => {
       recursive: true,
     });
 
-    const [first, second] = await Promise.all([startServer(brew.id), startServer(brew.id)]);
+    const [first, second] = await Promise.all([startServer(brew.id, 1), startServer(brew.id, 1)]);
 
     expect(second.port).toBe(first.port);
-    expect(serverStatus(brew.id)).toEqual({ running: true, port: first.port });
+    expect(serverStatus(brew.id)).toEqual({ running: true, port: first.port, batch: 1 });
+    await stopServer(brew.id);
+    brewId = null;
+  }, 60_000);
+
+  it("別バッチを指定すると旧サーバーを止めて起動し直す", async () => {
+    const brew = await createBrew("バッチ切替");
+    brewId = brew.id;
+    await fs.cp(path.join(process.cwd(), "templates", "tap-fake"), tapDir(brew.id, 1), {
+      recursive: true,
+    });
+    await fs.cp(path.join(process.cwd(), "templates", "tap-fake"), tapDir(brew.id, 2), {
+      recursive: true,
+    });
+    // batch-2のレスポンスに目印を入れ、どちらのディレクトリが配信されているか区別できるようにする
+    const batch2Server = path.join(tapDir(brew.id, 2), "server.js");
+    const source = await fs.readFile(batch2Server, "utf8");
+    await fs.writeFile(
+      batch2Server,
+      source.replace("フェイクタップアプリ", "フェイクタップアプリ(バッチ2)"),
+      "utf8",
+    );
+
+    await startServer(brew.id, 1);
+    expect(serverStatus(brew.id).batch).toBe(1);
+
+    const { port } = await startServer(brew.id, 2);
+    const status = serverStatus(brew.id);
+    expect(status).toEqual({ running: true, port, batch: 2 });
+    const res = await fetch(`http://localhost:${port}/`);
+    expect(await res.text()).toContain("フェイクタップアプリ(バッチ2)");
+
     await stopServer(brew.id);
     brewId = null;
   }, 60_000);
