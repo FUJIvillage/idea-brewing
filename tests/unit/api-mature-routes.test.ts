@@ -129,6 +129,39 @@ describe("POST /mature/next", () => {
     expect(json.batches).toHaveLength(2);
     expect(json.batches[1].status).toBe("succeeded");
   });
+
+  it("クラッシュ残留の building バッチを補正して次バッチを生成する", async () => {
+    const brew = await builtBrew();
+    const { POST: evaluate } = await import("@/app/api/brews/[id]/mature/evaluate/route");
+    const { POST: next } = await import("@/app/api/brews/[id]/mature/next/route");
+
+    await evaluate(new Request("http://test/"), ctx(brew.id));
+    const evaluated = await readBrew(brew.id);
+    await writeBrew({
+      ...evaluated,
+      batches: [
+        ...evaluated.batches,
+        {
+          number: 2,
+          status: "building",
+          startedAt: new Date(Date.now() - 60_000).toISOString(),
+          finishedAt: null,
+          error: null,
+          evaluation: null,
+        },
+      ],
+    });
+
+    const res = await next(new Request("http://test/"), ctx(brew.id));
+    expect(res.status).toBe(200);
+    const json = (await res.json()) as Brew;
+    expect(json.batches).toHaveLength(3);
+    const stale = json.batches.find((b) => b.number === 2)!;
+    expect(stale.status).toBe("failed");
+    expect(stale.error).toBe("中断されました(プロセス終了)");
+    const newest = json.batches.find((b) => b.number === 3)!;
+    expect(newest.status).toBe("succeeded");
+  });
 });
 
 describe("POST /mature/auto", () => {
@@ -254,7 +287,7 @@ describe("GET /mature/report と /mature/screenshot", () => {
 });
 
 describe("相互ロック", () => {
-  it("熟成中はtap/buildが409、tap/serverのstartも409", async () => {
+  it("熟成中はtap/buildが409、tap/serverのstart/stopも409", async () => {
     const brew = await builtBrew();
     maturingBrews.add(brew.id);
 
@@ -262,7 +295,7 @@ describe("相互ロック", () => {
     expect((await build(new Request("http://test/"), ctx(brew.id))).status).toBe(409);
 
     const { POST: server } = await import("@/app/api/brews/[id]/tap/server/route");
-    const res = await server(
+    const startRes = await server(
       new Request("http://test/", {
         method: "POST",
         headers: { "content-type": "application/json" },
@@ -270,7 +303,24 @@ describe("相互ロック", () => {
       }),
       ctx(brew.id),
     );
-    expect(res.status).toBe(409);
+    expect(startRes.status).toBe(409);
+
+    const stopRes = await server(
+      new Request("http://test/", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ action: "stop" }),
+      }),
+      ctx(brew.id),
+    );
+    expect(stopRes.status).toBe(409);
+  });
+
+  it("熟成中はrecipe POSTが409", async () => {
+    const brew = await builtBrew();
+    maturingBrews.add(brew.id);
+    const { POST } = await import("@/app/api/brews/[id]/recipe/route");
+    expect((await POST(new Request("http://test/"), ctx(brew.id))).status).toBe(409);
   });
 
   it("ビルド中はmature/evaluateが409", async () => {

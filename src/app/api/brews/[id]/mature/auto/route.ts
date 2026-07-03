@@ -6,6 +6,7 @@ import { resolveEvaluateDeps, resolveNextBatchDeps } from "@/lib/mature/resolve"
 import { readRecipeFile } from "@/lib/recipe";
 import { readBrew, writeBrew } from "@/lib/store";
 import type { Brew } from "@/lib/store/types";
+import { normalizeStaleBatch } from "@/lib/tap";
 import { latestSucceededBatch } from "@/lib/tap/batches";
 import { TapNotConfiguredError } from "@/lib/tap/resolve";
 
@@ -46,6 +47,8 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
     } catch {
       return NextResponse.json({ error: "ブリューが見つかりません。" }, { status: 404 });
     }
+    brew = normalizeStaleBatch(normalizeStaleMaturation(brew));
+
     if (!latestSucceededBatch(brew)) {
       return NextResponse.json({ error: "成功したバッチがありません。" }, { status: 400 });
     }
@@ -70,7 +73,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
     const evalDeps = await resolveEvaluateDeps();
 
     const done = await runAutoMaturation(
-      normalizeStaleMaturation(brew),
+      brew,
       {
         ...evalDeps,
         ...nextDeps,

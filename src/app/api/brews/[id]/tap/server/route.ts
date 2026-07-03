@@ -34,13 +34,13 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
     } catch {
       return NextResponse.json({ error: "不正なアクションです。" }, { status: 400 });
     }
+    if (maturingBrews.has(id)) {
+      return NextResponse.json(
+        { error: "熟成中はサーバーを操作できません。" },
+        { status: 409 },
+      );
+    }
     if (action === "start") {
-      if (maturingBrews.has(id)) {
-        return NextResponse.json(
-          { error: "熟成中はサーバーを起動できません。" },
-          { status: 409 },
-        );
-      }
       const target = latestSucceededBatch(brew);
       if (!target) {
         return NextResponse.json({ error: "ビルドが成功していません。" }, { status: 400 });
