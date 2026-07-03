@@ -2,7 +2,7 @@ import { existsSync } from "node:fs";
 import path from "node:path";
 import { expect, test } from "@playwright/test";
 
-test.setTimeout(180_000);
+test.setTimeout(240_000);
 
 test("原料投入からタップ提供までのハッピーパス", async ({ page }) => {
   let brewId: string | null = null;
@@ -61,7 +61,7 @@ test("原料投入からタップ提供までのハッピーパス", async ({ pa
     // 6. ビルド(タップ・フェイクエンジン)
     await page.getByRole("button", { name: "タップ", exact: true }).click();
     await page.getByRole("button", { name: "ビルド開始(1stバッチ)", exact: true }).click();
-    await expect(page.getByText(/1stバッチ完成/)).toBeVisible({ timeout: 60_000 });
+    await expect(page.getByText(/バッチ1 完成/)).toBeVisible({ timeout: 60_000 });
     await expect(
       page.getByRole("button", { name: "注ぐ(サーバー起動)", exact: true }),
     ).toBeVisible();
@@ -87,9 +87,38 @@ test("原料投入からタップ提供までのハッピーパス", async ({ pa
       page.getByRole("button", { name: "注ぐ(サーバー起動)", exact: true }),
     ).toBeVisible({ timeout: 30_000 });
     tapServerStartRequested = false;
+
+    // 9. 熟成: 評価(フェイクLLM・スクリーンショットはスキップされる)
+    await page.getByRole("button", { name: "熟成", exact: true }).click();
+    await page.getByRole("button", { name: "このバッチを評価", exact: true }).click();
+    await expect(page.getByText("3.0 / 5.0").first()).toBeVisible({ timeout: 60_000 });
+    expect(existsSync(path.join(brewsDir, brewId, "taps", "batch-1", "evaluation.md"))).toBe(true);
+
+    // 10. 改善して次のバッチへ(repair)
+    await page.getByRole("button", { name: /改善して次のバッチへ/ }).click();
+    await expect(page.getByText("バッチ2", { exact: true })).toBeVisible({ timeout: 60_000 });
+    expect(
+      existsSync(
+        path.join(brewsDir, brewId, "taps", "batch-2", "docs", "recipe", "07-improvement-notes.md"),
+      ),
+    ).toBe(true);
+
+    // 11. タップに戻るとバッチ2が提供対象になっている
+    await page.getByRole("button", { name: "タップ", exact: true }).click();
+    await expect(page.getByText(/バッチ2 完成/)).toBeVisible({ timeout: 30_000 });
+    tapServerStartRequested = true;
+    await page.getByRole("button", { name: "注ぐ(サーバー起動)", exact: true }).click();
+    const link2 = page.getByRole("link", { name: /^http:\/\/localhost:\d+$/ });
+    await expect(link2).toBeVisible({ timeout: 60_000 });
+    await page.getByRole("button", { name: "止める", exact: true }).click();
+    await expect(
+      page.getByRole("button", { name: "注ぐ(サーバー起動)", exact: true }),
+    ).toBeVisible({ timeout: 30_000 });
+    tapServerStartRequested = false;
   } finally {
     if (brewId) {
       await page.request.post(`/api/brews/${brewId}/tap/cancel`).catch(() => undefined);
+      await page.request.post(`/api/brews/${brewId}/mature/cancel`).catch(() => undefined);
     }
     if (brewId && tapServerStartRequested) {
       await page.request
