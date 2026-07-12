@@ -241,6 +241,7 @@ describe("normalizeStaleBatch", () => {
           finishedAt: null,
           error: null,
           evaluation: null,
+          pub: null,
         },
       ],
       buildProgress: { phase: "generating", detail: "残留" },

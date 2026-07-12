@@ -78,6 +78,7 @@ export interface BatchRecord {
   finishedAt: string | null;
   error: string | null;
   evaluation: BatchEvaluation | null;
+  pub: PubReport | null;
 }
 
 export type BuildPhase = "preparing" | "generating" | "verifying" | "repairing";
@@ -113,6 +114,61 @@ export interface MaturationProgress {
   batch: number; // 対象バッチ番号
 }
 
+export const PUB_AXES = ["目的達成", "使いやすさ", "見た目・第一印象", "また来たいか"] as const;
+
+export interface PubPersona {
+  name: string; // 例: "忙しい営業のさとみ"
+  profile: string; // 属性・利用文脈・性格
+  goals: string[]; // このアプリで達成したいこと(1〜3件)
+  origin: "auto" | "saved"; // 自動生成 or 常連客
+}
+
+export interface SavedPersona {
+  id: string;
+  name: string;
+  profile: string;
+  goals: string[];
+}
+
+export interface PubTaskResult {
+  goal: string;
+  achieved: boolean;
+  note: string; // 達成/断念の経緯
+}
+
+export interface PubStep {
+  step: number; // 1始まり
+  action: string; // 例: `click [3](追加ボタンを押す)`
+  observation: string; // 実行結果の要約
+}
+
+export type PubPersonaStatus = "completed" | "aborted";
+
+export interface PubPersonaResult {
+  persona: PubPersona;
+  status: PubPersonaStatus; // aborted = LLM失敗・連続操作失敗など
+  taskResults: PubTaskResult[];
+  scores: AxisScore[]; // PUB_AXES 固定4軸
+  overall: number; // 4軸平均(小数1桁)。aborted 時は 0 で集計対象外
+  comment: string; // 客の一言レビュー
+  steps: PubStep[]; // 行動ログ
+}
+
+export interface PubReport {
+  overall: number; // completed ペルソナの overall 平均(小数1桁)
+  personaResults: PubPersonaResult[];
+  summary: string; // 店主向け総括
+  ranAt: string;
+}
+
+export type PubPhase = "opening" | "serving" | "closing";
+
+export interface PubProgress {
+  phase: PubPhase;
+  detail: string; // 例: "ペルソナ 2/3「…」: ステップ 4"
+  batch: number;
+}
+
 export type BrewStage = "ingredients" | "grilling" | "fermenting" | "done" | "built";
 
 export interface Brew {
@@ -130,6 +186,7 @@ export interface Brew {
   batches: BatchRecord[];
   buildProgress: BuildProgress | null;
   maturationProgress: MaturationProgress | null;
+  pubProgress: PubProgress | null;
 }
 
 export type ProviderId = "openai" | "google" | "ollama" | "openrouter" | "fake";

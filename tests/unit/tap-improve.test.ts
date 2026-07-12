@@ -92,6 +92,7 @@ describe("runBuild improve モード", () => {
           finishedAt: new Date().toISOString(),
           error: null,
           evaluation: null,
+          pub: null,
         },
       ],
     };
@@ -131,6 +132,7 @@ describe("runBuild improve モード", () => {
           finishedAt: new Date().toISOString(),
           error: null,
           evaluation: null,
+          pub: null,
         },
       ],
     };
@@ -165,6 +167,7 @@ describe("runBuild improve モード", () => {
           finishedAt: "2026-07-03T00:01:00.000Z",
           error: null,
           evaluation: null,
+          pub: null,
         },
         {
           number: 2,
@@ -173,6 +176,7 @@ describe("runBuild improve モード", () => {
           finishedAt: null,
           error: null,
           evaluation: null,
+          pub: null,
         },
       ],
       buildProgress: { phase: "generating", detail: "x" },
@@ -195,6 +199,7 @@ describe("runBuild improve モード", () => {
           finishedAt: new Date().toISOString(),
           error: null,
           evaluation: null,
+          pub: null,
         },
       ],
     });

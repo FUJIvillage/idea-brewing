@@ -29,6 +29,7 @@ function recipeReadyBrew(): Brew {
     batches: [],
     buildProgress: null,
     maturationProgress: null,
+    pubProgress: null,
   };
 }
 
@@ -73,6 +74,7 @@ describe("BrewWorkbench", () => {
               finishedAt: "2026-01-01T00:01:00.000Z",
               error: null,
               evaluation: null,
+              pub: null,
             },
           ],
         },
@@ -97,6 +99,7 @@ describe("BrewWorkbench", () => {
               finishedAt: "2026-01-01T00:01:00.000Z",
               error: null,
               evaluation: null,
+              pub: null,
             },
           ],
           maturationProgress: { phase: "evaluating", detail, batch: 1 },

@@ -99,6 +99,7 @@ describe("collectMaterials", () => {
           startedAt: "2026-07-03T00:00:00.000Z",
           finishedAt: "2026-07-03T00:01:00.000Z",
           error: null,
+          pub: null,
           evaluation: {
             overall: 3,
             axes: [{ name: "観点X", score: 3, comment: "c" }],
