@@ -26,7 +26,7 @@ export default function NewBrewPage() {
         body: JSON.stringify({ name }),
       });
       const brew = await res.json();
-      if (!res.ok) throw new Error(brew.error);
+      if (!res.ok) throw new Error(brew.error ?? "エラーが発生しました。");
       if (text.trim() || urls.trim() || (files && files.length > 0)) {
         const form = new FormData();
         if (text.trim()) form.set("text", text);
@@ -36,7 +36,7 @@ export default function NewBrewPage() {
           method: "POST",
           body: form,
         });
-        if (!ingRes.ok) throw new Error((await ingRes.json()).error);
+        if (!ingRes.ok) throw new Error((await ingRes.json()).error ?? "エラーが発生しました。");
       }
       router.push(`/brews/${brew.id}`);
     } catch (err) {

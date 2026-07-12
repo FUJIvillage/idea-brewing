@@ -72,7 +72,11 @@ export function useBrewAction({
       } catch {
         // refreshが失敗してもbusy解除は必ず行う(タブが永久ロックされるのを防ぐ)
       }
-      await onSettled?.(updatedBrew);
+      try {
+        await onSettled?.(updatedBrew);
+      } catch {
+        // 後処理の失敗でもbusy解除は必ず行う(タブが永久ロックされるのを防ぐ)
+      }
       inFlightRef.current = false;
       setBusy(false);
       onBusyChange(false);

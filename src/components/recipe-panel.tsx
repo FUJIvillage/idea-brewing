@@ -46,6 +46,14 @@ export function RecipePanel({
     };
   }, [brew.id, brew.recipeGeneratedAt]);
 
+  // リロード後などリモートで生成が進行中でもポーリングして追従する
+  const generating = brew.recipeProgress !== null;
+  useEffect(() => {
+    if (!generating || busy) return;
+    const timer = setInterval(() => void refresh(), 1000);
+    return () => clearInterval(timer);
+  }, [generating, busy, refresh]);
+
   async function generate() {
     setBusy(true);
     onBusyChange(true);
@@ -91,10 +99,10 @@ export function RecipePanel({
       <div className="flex items-center gap-4">
         <button
           onClick={generate}
-          disabled={busy}
+          disabled={busy || generating}
           className="rounded-lg bg-amber-600 px-6 py-3 font-bold text-stone-950 hover:bg-amber-500 disabled:opacity-50"
         >
-          {busy
+          {busy || generating
             ? "発酵中..."
             : brew.recipeGeneratedAt
               ? "再発酵(レシピ再生成)"

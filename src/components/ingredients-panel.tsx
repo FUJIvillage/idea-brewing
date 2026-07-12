@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import type { Brew } from "@/lib/store/types";
 
 const inputCls =
@@ -29,6 +29,7 @@ export function IngredientsPanel({
   const [files, setFiles] = useState<FileList | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   async function addIngredients() {
     setBusy(true);
@@ -49,6 +50,8 @@ export function IngredientsPanel({
       setText("");
       setUrls("");
       setFiles(null);
+      // 非制御のfile inputは表示もクリアしないと、選択済みに見えるのに送信されない状態になる
+      if (fileInputRef.current) fileInputRef.current.value = "";
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
     } finally {
@@ -115,6 +118,7 @@ export function IngredientsPanel({
           className={inputCls}
         />
         <input
+          ref={fileInputRef}
           type="file"
           multiple
           onChange={(e) => setFiles(e.target.files)}
