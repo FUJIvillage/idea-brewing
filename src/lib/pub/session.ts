@@ -153,7 +153,11 @@ export async function runPersonaSession(
   let failures = 0;
   for (let step = 1; step <= MAX_SESSION_STEPS; step++) {
     if (hooks.cancel?.cancelled) return aborted("セッション中断(ユーザー中断)");
-    await hooks.onStep?.(step);
+    try {
+      await hooks.onStep?.(step);
+    } catch {
+      // 進捗通知の失敗でセッションを落とさない(「例外を投げない」契約の維持)
+    }
 
     let action: PubAction;
     try {

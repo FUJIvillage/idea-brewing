@@ -113,13 +113,8 @@ export function renderPubMarkdown(batch: number, report: PubReport): string {
   return lines.join("\n");
 }
 
-async function writePubReport(brewId: string, batch: number, report: PubReport): Promise<void> {
-  await fs.mkdir(pubDir(brewId, batch), { recursive: true });
-  await fs.writeFile(
-    path.join(pubDir(brewId, batch), "report.md"),
-    renderPubMarkdown(batch, report),
-    "utf8",
-  );
+async function writePubReport(dir: string, batch: number, report: PubReport): Promise<void> {
+  await fs.writeFile(path.join(dir, "report.md"), renderPubMarkdown(batch, report), "utf8");
 }
 
 /** 最新成功バッチに AI 客を招いて Pub を実行し、PubReport を保存した Brew を返す */
@@ -128,6 +123,11 @@ export async function runPub(brew: Brew, deps: PubDeps, opts: PubOptions): Promi
   if (!target) throw new Error("成功したバッチがありません。先にビルドを完了してください。");
   const total = opts.autoCount + opts.savedPersonas.length;
   if (total < 1 || total > 5) throw new Error("客の人数は合計1〜5にしてください。");
+
+  // 成果物はステージングに書き、成功時だけ本体(pub/)と入れ替える。
+  // 中断・失敗した再実行で前回のレポートと今回の中途半端なスクリーンショットが混ざるのを防ぐ
+  const finalDir = pubDir(brew.id, target.number);
+  const stagingDir = `${finalDir}-staging`;
 
   let current = withPub(brew, "opening", "生成アプリを起動しています", target.number);
   try {
@@ -146,9 +146,8 @@ export async function runPub(brew: Brew, deps: PubDeps, opts: PubOptions): Promi
       }
       if (deps.cancel?.cancelled) return { ...current, pubProgress: null };
 
-      // 再実行時に前回のスクリーンショット・レポートが混ざらないよう作り直す
-      await fs.rm(pubDir(brew.id, target.number), { recursive: true, force: true });
-      await fs.mkdir(pubDir(brew.id, target.number), { recursive: true });
+      await fs.rm(stagingDir, { recursive: true, force: true });
+      await fs.mkdir(stagingDir, { recursive: true });
       const results: PubPersonaResult[] = [];
       for (let i = 0; i < personas.length; i++) {
         if (deps.cancel?.cancelled) return { ...current, pubProgress: null };
@@ -167,7 +166,7 @@ export async function runPub(brew: Brew, deps: PubDeps, opts: PubOptions): Promi
             },
           });
           await driver
-            .screenshot(path.join(pubDir(brew.id, target.number), `persona-${i + 1}.png`))
+            .screenshot(path.join(stagingDir, `persona-${i + 1}.png`))
             .catch(() => undefined);
           results.push(result);
         } finally {
@@ -194,7 +193,9 @@ export async function runPub(brew: Brew, deps: PubDeps, opts: PubOptions): Promi
         summary,
         ranAt: new Date().toISOString(),
       };
-      await writePubReport(brew.id, target.number, report);
+      await writePubReport(stagingDir, target.number, report);
+      await fs.rm(finalDir, { recursive: true, force: true });
+      await fs.rename(stagingDir, finalDir);
       return {
         ...current,
         batches: upsertBatch(current.batches, { ...target, pub: report }),
@@ -210,5 +211,8 @@ export async function runPub(brew: Brew, deps: PubDeps, opts: PubOptions): Promi
       // 進捗クリアの失敗より元のエラーを優先する
     }
     throw err;
+  } finally {
+    // 成功時はrenameで消えているのでno-op。中断・失敗時に中途半端な成果物を残さない
+    await fs.rm(stagingDir, { recursive: true, force: true }).catch(() => undefined);
   }
 }

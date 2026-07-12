@@ -185,6 +185,23 @@ describe("runPub", () => {
     expect(twice.batches[0].pub!.personaResults).toHaveLength(2);
   });
 
+  it("失敗した再実行では前回のレポートを保持し、中途半端な成果物を残さない", async () => {
+    const brew = await builtBrew();
+    const once = await runPub(brew, deps(), { autoCount: 1, savedPersonas: [] });
+    expect(once.batches[0].pub).not.toBeNull();
+
+    await expect(
+      runPub(once, deps({ client: failingClient("pub-action") }), {
+        autoCount: 0,
+        savedPersonas: [regular],
+      }),
+    ).rejects.toThrow(/すべてのAI客/);
+
+    // 前回の成果物はそのまま、今回のステージングは掃除されている
+    expect(existsSync(path.join(pubDir(brew.id, 1), "report.md"))).toBe(true);
+    expect(existsSync(`${pubDir(brew.id, 1)}-staging`)).toBe(false);
+  });
+
   it("再実行時に前回のスクリーンショットを掃除する", async () => {
     const brew = await builtBrew();
     // 前回の実行痕(古いスクリーンショット)を仕込む
