@@ -119,6 +119,17 @@ describe("POST /pub/run", () => {
     expect(
       (await POST(post({ autoCount: 0, savedPersonaIds: ["ghost"] }), ctx(brew.id))).status,
     ).toBe(400); // 未知の常連客
+    const dup = await writePersonas([
+      { id: "", name: "重複用", profile: "p", goals: ["g"] },
+    ]);
+    expect(
+      (
+        await POST(
+          post({ autoCount: 0, savedPersonaIds: [dup[0].id, dup[0].id] }),
+          ctx(brew.id),
+        )
+      ).status,
+    ).toBe(400); // 常連客の重複
     expect((await POST(post({ autoCount: 3, savedPersonaIds: [1] }), ctx(brew.id))).status).toBe(
       400,
     ); // 型違い

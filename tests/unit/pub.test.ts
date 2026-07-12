@@ -185,6 +185,17 @@ describe("runPub", () => {
     expect(twice.batches[0].pub!.personaResults).toHaveLength(2);
   });
 
+  it("再実行時に前回のスクリーンショットを掃除する", async () => {
+    const brew = await builtBrew();
+    // 前回の実行痕(古いスクリーンショット)を仕込む
+    await fs.mkdir(pubDir(brew.id, 1), { recursive: true });
+    const stale = path.join(pubDir(brew.id, 1), "persona-3.png");
+    await fs.writeFile(stale, Buffer.from([1]));
+    await runPub(brew, deps(), { autoCount: 1, savedPersonas: [] });
+    expect(existsSync(stale)).toBe(false); // 客1人の実行に persona-3.png は残らない
+    expect(existsSync(path.join(pubDir(brew.id, 1), "report.md"))).toBe(true);
+  });
+
   it("サーバーは成功・失敗どちらでも必ず停止される", async () => {
     const brew = await builtBrew();
     let stopped = 0;

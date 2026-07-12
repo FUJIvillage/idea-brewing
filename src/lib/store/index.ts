@@ -135,11 +135,25 @@ function personasPath(): string {
   return path.join(dataDir(), "personas.json");
 }
 
-/** 常連客リスト。ファイルなし・破損時は空配列(settings と同じ寛容な読み込み) */
+/** 保存形式として妥当な常連客か(手編集・破損データの防御) */
+function isValidPersona(p: unknown): p is SavedPersona {
+  if (typeof p !== "object" || p === null) return false;
+  const o = p as Record<string, unknown>;
+  return (
+    (o.id === undefined || typeof o.id === "string") &&
+    typeof o.name === "string" &&
+    typeof o.profile === "string" &&
+    Array.isArray(o.goals) &&
+    o.goals.every((g) => typeof g === "string")
+  );
+}
+
+/** 常連客リスト。ファイルなし・破損時は空配列、形の壊れた要素は読み飛ばす(settings と同じ寛容な読み込み) */
 export async function readPersonas(): Promise<SavedPersona[]> {
   try {
     const parsed = JSON.parse(await fs.readFile(personasPath(), "utf8")) as unknown;
-    return Array.isArray(parsed) ? (parsed as SavedPersona[]) : [];
+    if (!Array.isArray(parsed)) return [];
+    return parsed.filter(isValidPersona).map((p) => ({ ...p, id: p.id ?? "" }));
   } catch {
     return [];
   }
@@ -151,9 +165,12 @@ export async function writePersonas(personas: SavedPersona[]): Promise<SavedPers
     throw new PersonaValidationError(`常連客は最大${MAX_PERSONAS}件までです。`);
   }
   const normalized = personas.map((p) => {
-    const name = (p.name ?? "").trim();
-    const profile = (p.profile ?? "").trim();
-    const goals = (p.goals ?? []).map((g) => g.trim()).filter((g) => g !== "");
+    if (!isValidPersona(p)) {
+      throw new PersonaValidationError("常連客の形式が不正です。");
+    }
+    const name = p.name.trim();
+    const profile = p.profile.trim();
+    const goals = p.goals.map((g) => g.trim()).filter((g) => g !== "");
     if (name === "" || profile === "") {
       throw new PersonaValidationError("常連客の名前とプロフィールは必須です。");
     }

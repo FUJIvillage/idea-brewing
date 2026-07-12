@@ -146,6 +146,8 @@ export async function runPub(brew: Brew, deps: PubDeps, opts: PubOptions): Promi
       }
       if (deps.cancel?.cancelled) return { ...current, pubProgress: null };
 
+      // 再実行時に前回のスクリーンショット・レポートが混ざらないよう作り直す
+      await fs.rm(pubDir(brew.id, target.number), { recursive: true, force: true });
       await fs.mkdir(pubDir(brew.id, target.number), { recursive: true });
       const results: PubPersonaResult[] = [];
       for (let i = 0; i < personas.length; i++) {

@@ -70,10 +70,14 @@ export function PubPanel({
   // 未選択のときは Pub 済みの最新バッチを表示する(導出値。effect での初期化はしない)
   const latestPubNumber = pubBatches.length > 0 ? pubBatches[pubBatches.length - 1].number : null;
   const shownBatch = selected ?? latestPubNumber;
+  const report =
+    shownBatch !== null ? (brew.batches.find((b) => b.number === shownBatch)?.pub ?? null) : null;
 
-  // 表示バッチのスクリーンショット一覧を取得する
+  // 表示バッチのスクリーンショット一覧を取得する。
+  // 依存はレポートの実施日時(brew.updatedAt だと実行中の1秒ポーリングごとに再取得してしまう)
+  const reportRanAt = report?.ranAt ?? null;
   useEffect(() => {
-    if (shownBatch === null) return;
+    if (shownBatch === null || reportRanAt === null) return;
     let cancelled = false;
     (async () => {
       try {
@@ -88,7 +92,7 @@ export function PubPanel({
     return () => {
       cancelled = true;
     };
-  }, [shownBatch, brew.id, brew.updatedAt]);
+  }, [shownBatch, brew.id, reportRanAt]);
 
   // リモートで Pub が進行中でもポーリングして追従する
   useEffect(() => {
@@ -196,9 +200,6 @@ export function PubPanel({
       }
     }
   }
-
-  const report =
-    shownBatch !== null ? (brew.batches.find((b) => b.number === shownBatch)?.pub ?? null) : null;
 
   return (
     <section>

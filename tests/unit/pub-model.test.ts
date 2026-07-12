@@ -68,6 +68,33 @@ describe("常連客ストア", () => {
     const many = Array.from({ length: 21 }, (_, i) => persona({ name: `常連${i}` }));
     await expect(writePersonas(many)).rejects.toThrow(PersonaValidationError);
   });
+
+  it("型が壊れた要素も PersonaValidationError(500にしない)", async () => {
+    await expect(
+      writePersonas([{ name: 123, profile: "x", goals: ["y"] } as never]),
+    ).rejects.toThrow(PersonaValidationError);
+    await expect(writePersonas([null as never])).rejects.toThrow(PersonaValidationError);
+    await expect(
+      writePersonas([persona({ goals: "文字列" as never })]),
+    ).rejects.toThrow(PersonaValidationError);
+  });
+
+  it("readPersonas は形の壊れた要素を読み飛ばす", async () => {
+    await fs.mkdir(dataDir(), { recursive: true });
+    await fs.writeFile(
+      path.join(dataDir(), "personas.json"),
+      JSON.stringify([
+        { id: "a", name: "正常", profile: "p", goals: ["g"] },
+        { id: "b", name: "goals欠落", profile: "p" },
+        null,
+        { id: "c", name: 1, profile: "p", goals: ["g"] },
+      ]),
+      "utf8",
+    );
+    const personas = await readPersonas();
+    expect(personas).toHaveLength(1);
+    expect(personas[0].name).toBe("正常");
+  });
 });
 
 describe("Brew の pub フィールド", () => {

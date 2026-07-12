@@ -1,5 +1,4 @@
 import Link from "next/link";
-import { latestPubBatch } from "@/lib/pub/leaderboard";
 import type { Brew } from "@/lib/store/types";
 import { latestSucceededBatch } from "@/lib/tap/batches";
 
@@ -15,8 +14,8 @@ function stageLabel(brew: Brew): string {
   if (brew.stage !== "built") return STAGE_INFO[brew.stage].label;
   const latest = latestSucceededBatch(brew);
   if (!latest) return STAGE_INFO.built.label;
-  const pub = latestPubBatch(brew)?.pub;
-  const pubSuffix = pub ? `・Pub ${pub.overall.toFixed(1)}` : "";
+  // 表示中のバッチ自身の Pub スコアだけを出す(古いバッチのスコアを混ぜない)
+  const pubSuffix = latest.pub ? `・Pub ${latest.pub.overall.toFixed(1)}` : "";
   return latest.evaluation
     ? `提供中(バッチ${latest.number}・スコア${latest.evaluation.overall.toFixed(1)}${pubSuffix})`
     : `提供中(バッチ${latest.number}${pubSuffix})`;

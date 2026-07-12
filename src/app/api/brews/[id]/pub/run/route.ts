@@ -51,6 +51,9 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
         { status: 400 },
       );
     }
+    if (new Set(savedPersonaIds).size !== savedPersonaIds.length) {
+      return NextResponse.json({ error: "常連客が重複しています。" }, { status: 400 });
+    }
     const all = await readPersonas();
     const savedPersonas: SavedPersona[] = [];
     for (const pid of savedPersonaIds) {

@@ -67,8 +67,14 @@ export async function createPlaywrightPubDriver(baseUrl: string): Promise<PubDri
   // 直近の readState() が列挙した要素。LLM が指定する target 番号と対応する
   let handles: Locator[] = [];
 
-  async function settle(): Promise<void> {
-    await page.waitForLoadState("networkidle", { timeout: SETTLE_TIMEOUT }).catch(() => undefined);
+  /** networkidle まで待つ。タイムアウトしたら false(observation に記録するため) */
+  async function settle(): Promise<boolean> {
+    try {
+      await page.waitForLoadState("networkidle", { timeout: SETTLE_TIMEOUT });
+      return true;
+    } catch {
+      return false;
+    }
   }
 
   return {
@@ -143,8 +149,8 @@ export async function createPlaywrightPubDriver(baseUrl: string): Promise<PubDri
           case "finish":
             return "セッションを終了しました。";
         }
-        await settle();
-        return "操作に成功しました。";
+        const settled = await settle();
+        return settled ? "操作に成功しました。" : "操作に成功しました。応答なし(タイムアウト)。";
       } catch (err) {
         const message = err instanceof Error ? err.message.slice(0, 200) : String(err);
         return `${FAILURE_PREFIX}: ${message}`;
