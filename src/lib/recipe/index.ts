@@ -119,7 +119,11 @@ export async function generateRecipe(
       generated.push(def.file);
     }
   } catch (err) {
-    await onProgress?.({ ...current, recipeProgress: null });
+    try {
+      await onProgress?.({ ...current, recipeProgress: null });
+    } catch {
+      // 進捗クリアの失敗より元のエラーを優先する
+    }
     throw err;
   }
 

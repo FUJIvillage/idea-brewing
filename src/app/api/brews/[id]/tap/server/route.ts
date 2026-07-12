@@ -1,18 +1,12 @@
 import { NextResponse } from "next/server";
-import { errorResponse } from "@/lib/api";
-import { maturingBrews } from "@/lib/mature/mature-state";
-import { readBrew } from "@/lib/store";
-import type { Brew } from "@/lib/store/types";
+import { brewNotFound, errorResponse, findBrew } from "@/lib/api";
+import { isBrewBusy } from "@/lib/mature/mature-state";
 import { latestSucceededBatch } from "@/lib/tap/batches";
 import { serverStatus, startServer, stopServer } from "@/lib/tap/server-manager";
 
 export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> }) {
   const { id } = await ctx.params;
-  try {
-    await readBrew(id);
-  } catch {
-    return NextResponse.json({ error: "ブリューが見つかりません。" }, { status: 404 });
-  }
+  if (!(await findBrew(id))) return brewNotFound();
   return NextResponse.json(serverStatus(id));
 }
 
@@ -20,12 +14,8 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
   const { id } = await ctx.params;
 
   try {
-    let brew: Brew;
-    try {
-      brew = await readBrew(id);
-    } catch {
-      return NextResponse.json({ error: "ブリューが見つかりません。" }, { status: 404 });
-    }
+    const brew = await findBrew(id);
+    if (!brew) return brewNotFound();
 
     let action: unknown;
     try {
@@ -34,9 +24,10 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
     } catch {
       return NextResponse.json({ error: "不正なアクションです。" }, { status: 400 });
     }
-    if (maturingBrews.has(id)) {
+    // 熟成・Pub は対象アプリのサーバーを自分で起動/停止するため、実行中の操作は全工程で拒否する
+    if (isBrewBusy(id)) {
       return NextResponse.json(
-        { error: "熟成中はサーバーを操作できません。" },
+        { error: "実行中の工程があるため、サーバーを操作できません。" },
         { status: 409 },
       );
     }

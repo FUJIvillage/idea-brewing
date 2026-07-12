@@ -63,7 +63,14 @@ export function truncateSnapshot(text: string): string {
 export async function createPlaywrightPubDriver(baseUrl: string): Promise<PubDriver> {
   const { chromium } = await import("playwright");
   const browser = await chromium.launch();
-  const page = await browser.newPage({ viewport: { width: 1280, height: 800 } });
+  let page: Awaited<ReturnType<typeof browser.newPage>>;
+  try {
+    page = await browser.newPage({ viewport: { width: 1280, height: 800 } });
+  } catch (err) {
+    // ドライバが呼び出し側へ渡らないと close() でブラウザを畳む経路がないため、ここで確実に殺す
+    await browser.close().catch(() => undefined);
+    throw err;
+  }
   // 直近の readState() が列挙した要素。LLM が指定する target 番号と対応する
   let handles: Locator[] = [];
 

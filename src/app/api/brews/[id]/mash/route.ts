@@ -1,19 +1,19 @@
 import { NextResponse } from "next/server";
-import { readBrew, readIngredientFile, writeBrew } from "@/lib/store";
-import type { Brew } from "@/lib/store/types";
+import { isBrewBusy } from "@/lib/mature/mature-state";
+import { readIngredientFile, writeBrew } from "@/lib/store";
 import { getConfiguredClient } from "@/lib/llm";
 import type { LlmImage } from "@/lib/llm/client";
 import { runMash } from "@/lib/brew-sheet";
-import { errorResponse } from "@/lib/api";
+import { brewNotFound, errorResponse, findBrew } from "@/lib/api";
 
 export async function POST(_req: Request, ctx: { params: Promise<{ id: string }> }) {
   const { id } = await ctx.params;
-  let brew: Brew;
-  try {
-    brew = await readBrew(id);
-  } catch {
-    return NextResponse.json({ error: "ブリューが見つかりません。" }, { status: 404 });
+  // レシピ生成中などの並行編集はBrew上書きで失われるため拒否する
+  if (isBrewBusy(id)) {
+    return NextResponse.json({ error: "実行中の工程があります。" }, { status: 409 });
   }
+  const brew = await findBrew(id);
+  if (!brew) return brewNotFound();
   try {
     if (brew.recipeGeneratedAt) {
       return NextResponse.json(

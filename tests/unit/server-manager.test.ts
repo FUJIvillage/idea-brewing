@@ -102,4 +102,25 @@ describe("server-manager", () => {
     await stopServer(brew.id);
     brewId = null;
   }, 60_000);
+
+  it("別バッチへの同時切替でも1つのサーバーを共有する(二重起動しない)", async () => {
+    const brew = await createBrew("同時切替");
+    brewId = brew.id;
+    await fs.cp(path.join(process.cwd(), "templates", "tap-fake"), tapDir(brew.id, 1), {
+      recursive: true,
+    });
+    await fs.cp(path.join(process.cwd(), "templates", "tap-fake"), tapDir(brew.id, 2), {
+      recursive: true,
+    });
+
+    await startServer(brew.id, 1);
+    // 旧サーバー停止のawait中に並行要求が入るケース。直列化されていないと2プロセス起動して片方が孤児になる
+    const [first, second] = await Promise.all([startServer(brew.id, 2), startServer(brew.id, 2)]);
+
+    expect(second.port).toBe(first.port);
+    expect(serverStatus(brew.id)).toEqual({ running: true, port: first.port, batch: 2 });
+
+    await stopServer(brew.id);
+    brewId = null;
+  }, 60_000);
 });

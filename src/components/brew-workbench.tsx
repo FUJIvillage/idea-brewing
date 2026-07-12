@@ -30,9 +30,11 @@ export function BrewWorkbench({ initial }: { initial: Brew }) {
         ? "mature"
         : initial.buildProgress !== null
           ? "tap"
-          : initial.sheet
-            ? "sheet"
-            : "ingredients",
+          : initial.recipeProgress !== null
+            ? "recipe"
+            : initial.sheet
+              ? "sheet"
+              : "ingredients",
   );
   // 長時間処理(レシピ生成・グリルauto)中はタブ切替を禁止し、パネルのアンマウントを防ぐ
   const [busy, setBusy] = useState(false);
@@ -53,6 +55,7 @@ export function BrewWorkbench({ initial }: { initial: Brew }) {
   };
   const tabsBusy =
     busy ||
+    brew.recipeProgress !== null ||
     brew.buildProgress !== null ||
     brew.maturationProgress !== null ||
     brew.pubProgress !== null;
@@ -63,7 +66,9 @@ export function BrewWorkbench({ initial }: { initial: Brew }) {
         ? "mature"
         : brew.buildProgress !== null
           ? "tap"
-          : tab;
+          : brew.recipeProgress !== null
+            ? "recipe"
+            : tab;
 
   return (
     <main className="mx-auto max-w-4xl p-6">

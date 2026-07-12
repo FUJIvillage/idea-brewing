@@ -6,7 +6,7 @@ import type { z } from "zod";
 import type { Settings } from "@/lib/store/types";
 import type { GenerateOptions, LlmClient } from "./client";
 
-export function resolveModel(settings: Settings): LanguageModel {
+function resolveModel(settings: Settings): LanguageModel {
   switch (settings.provider) {
     case "openai":
       return createOpenAI({ apiKey: settings.apiKey })(settings.model);

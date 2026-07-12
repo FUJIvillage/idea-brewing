@@ -6,7 +6,7 @@ import type { Brew } from "@/lib/store/types";
 type ErrorBody = { error?: string };
 
 /**
- * mature / pub パネル共通の実行系 POST・中断・busy 管理フック。
+ * 実行系パネル(tap / mature / pub / recipe)共通の POST・中断・busy 管理フック。
  * `/api/brews/{brewId}/{base}/...` に対する post/cancel と、
  * リモート進行中(running)の 1 秒ポーリングを一元化する。
  */
@@ -17,13 +17,16 @@ export function useBrewAction({
   onUpdate,
   refresh,
   onBusyChange,
+  onTick,
 }: {
   brewId: string;
-  base: "mature" | "pub";
+  base: "tap" | "mature" | "pub" | "recipe";
   running: boolean;
   onUpdate: (b: Brew) => void;
   refresh: () => Promise<void>;
   onBusyChange: (busy: boolean) => void;
+  /** ポーリング1秒ごとの追加処理(タップパネルのログ追従など)。useCallback等で安定させること */
+  onTick?: () => void;
 }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -32,11 +35,14 @@ export function useBrewAction({
   // リモートで処理が進行中でもポーリングして追従する
   useEffect(() => {
     if (!running || busy) return;
-    const timer = setInterval(() => void refresh(), 1000);
+    const timer = setInterval(() => {
+      void refresh();
+      onTick?.();
+    }, 1000);
     return () => clearInterval(timer);
-  }, [running, busy, refresh]);
+  }, [running, busy, refresh, onTick]);
 
-  /** 実行系 POST。busy 解除の直前に onSettled(成功時は更新後の Brew、失敗時は null)を呼ぶ */
+  /** 実行系 POST(pathSuffixが空ならbase自体に投げる)。busy 解除の直前に onSettled(成功時は更新後の Brew、失敗時は null)を呼ぶ */
   async function post(
     pathSuffix: string,
     body?: unknown,
@@ -47,10 +53,14 @@ export function useBrewAction({
     setBusy(true);
     onBusyChange(true);
     setError(null);
-    const timer = setInterval(() => void refresh(), 1000);
+    const timer = setInterval(() => {
+      void refresh();
+      onTick?.();
+    }, 1000);
     let updatedBrew: Brew | null = null;
     try {
-      const res = await fetch(`/api/brews/${brewId}/${base}/${pathSuffix}`, {
+      const path = pathSuffix ? `${base}/${pathSuffix}` : base;
+      const res = await fetch(`/api/brews/${brewId}/${path}`, {
         method: "POST",
         ...(body !== undefined
           ? { headers: { "content-type": "application/json" }, body: JSON.stringify(body) }
@@ -72,7 +82,11 @@ export function useBrewAction({
       } catch {
         // refreshが失敗してもbusy解除は必ず行う(タブが永久ロックされるのを防ぐ)
       }
-      await onSettled?.(updatedBrew);
+      try {
+        await onSettled?.(updatedBrew);
+      } catch {
+        // 後処理の失敗でもbusy解除は必ず行う(タブが永久ロックされるのを防ぐ)
+      }
       inFlightRef.current = false;
       setBusy(false);
       onBusyChange(false);

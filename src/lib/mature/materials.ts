@@ -16,6 +16,8 @@ const DIGEST_EXCLUDES = new Set([
   "evaluation.md",
   "agent-log.txt",
   "package-lock.json",
+  "pub",
+  "pub-staging",
 ]);
 
 export interface EvaluationMaterials {
@@ -84,14 +86,25 @@ async function readBuildLogTail(brewId: string, batch: number): Promise<string> 
   }
 }
 
+export const RUBRIC_FILE = "06-evaluation-criteria.md";
+export const RUBRIC_MISSING_ERROR = `自己評価基準(${RUBRIC_FILE})がありません。レシピを再生成してください。`;
+
+/** ルーブリックの存在確認(ルートが実行前に400で弾くための事前検査) */
+export async function hasRubric(brewId: string): Promise<boolean> {
+  try {
+    await readRecipeFile(brewId, RUBRIC_FILE);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 export async function collectMaterials(brew: Brew, batch: number): Promise<EvaluationMaterials> {
   let rubric: string;
   try {
-    rubric = await readRecipeFile(brew.id, "06-evaluation-criteria.md");
+    rubric = await readRecipeFile(brew.id, RUBRIC_FILE);
   } catch {
-    throw new Error(
-      "自己評価基準(06-evaluation-criteria.md)がありません。レシピを再生成してください。",
-    );
+    throw new Error(RUBRIC_MISSING_ERROR);
   }
 
   const codeDigest = await buildCodeDigest(tapDir(brew.id, batch));

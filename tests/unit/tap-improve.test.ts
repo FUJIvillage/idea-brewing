@@ -42,9 +42,11 @@ describe("prepareRepairDir", () => {
     await fs.mkdir(path.join(src, "src"), { recursive: true });
     await fs.mkdir(path.join(src, "node_modules", "x"), { recursive: true });
     await fs.mkdir(path.join(src, "screenshots"), { recursive: true });
+    await fs.mkdir(path.join(src, "pub"), { recursive: true });
     await fs.writeFile(path.join(src, "src", "App.tsx"), "export {}", "utf8");
     await fs.writeFile(path.join(src, "build.log"), "log", "utf8");
     await fs.writeFile(path.join(src, "evaluation.md"), "report", "utf8");
+    await fs.writeFile(path.join(src, "pub", "report.md"), "pub report", "utf8");
     await fs.writeFile(path.join(src, "package.json"), "{}", "utf8");
 
     const dest = await prepareRepairDir(brew.id, 1, 2);
@@ -55,6 +57,7 @@ describe("prepareRepairDir", () => {
     expect(existsSync(path.join(dest, "screenshots"))).toBe(false);
     expect(existsSync(path.join(dest, "build.log"))).toBe(false);
     expect(existsSync(path.join(dest, "evaluation.md"))).toBe(false);
+    expect(existsSync(path.join(dest, "pub"))).toBe(false);
   });
 
   it("shouldCopyRepairPath は除外セグメントを判定する", () => {

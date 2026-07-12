@@ -108,22 +108,24 @@ async function respondsOk(port: number): Promise<boolean> {
 }
 
 export async function startServer(brewId: string, batch: number): Promise<{ port: number }> {
-  const starting = startPromises.get(brewId);
-  if (starting) {
-    // 起動途中のサーバーがあれば完了(または失敗)を待ってから判断する
-    await starting.catch(() => undefined);
+  // 起動途中のサーバーがあれば完了(または失敗)を待ってから判断をやり直す。
+  // 判断(既存確認・旧サーバー停止)を含む全体を startPromises に登録して直列化しないと、
+  // await の隙間に入った並行呼び出しが二重にプロセスを起動し、片方が孤児として残る
+  while (startPromises.has(brewId)) {
+    await startPromises.get(brewId)?.catch(() => undefined);
   }
 
-  const existing = servers.get(brewId);
-  if (existing && !hasExited(existing.child)) {
-    if (existing.batch === batch) return existing.readyPromise;
-    // 別バッチのサーバーは止めてから起動し直す(1ブリュー1サーバー)
-    await stopEntryIfCurrent(brewId, existing);
-  } else if (existing) {
-    servers.delete(brewId);
-  }
-
-  const promise = startFreshServer(brewId, batch);
+  const promise = (async () => {
+    const existing = servers.get(brewId);
+    if (existing && !hasExited(existing.child)) {
+      if (existing.batch === batch) return existing.readyPromise;
+      // 別バッチのサーバーは止めてから起動し直す(1ブリュー1サーバー)
+      await stopEntryIfCurrent(brewId, existing);
+    } else if (existing) {
+      servers.delete(brewId);
+    }
+    return startFreshServer(brewId, batch);
+  })();
   startPromises.set(brewId, promise);
   try {
     return await promise;

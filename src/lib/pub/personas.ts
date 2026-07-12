@@ -2,6 +2,7 @@ import { z } from "zod";
 import type { LlmClient } from "@/lib/llm/client";
 import type { Brew, PubPersona, SavedPersona } from "@/lib/store/types";
 import { SHEET_LABELS } from "@/lib/store/types";
+import { MAX_PUB_GUESTS } from "./constants";
 
 const personasSchema = z.object({
   personas: z
@@ -13,7 +14,7 @@ const personasSchema = z.object({
       }),
     )
     .min(1)
-    .max(5),
+    .max(MAX_PUB_GUESTS),
 });
 
 const PERSONA_SYSTEM = [

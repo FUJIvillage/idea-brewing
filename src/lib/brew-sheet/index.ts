@@ -13,7 +13,7 @@ const fieldSchema = z.object({
   sufficiency: z.enum(["full", "thin", "empty"]),
 });
 
-export const mashOutputSchema = z.object({
+const mashOutputSchema = z.object({
   concept: fieldSchema,
   targetUsers: fieldSchema,
   features: fieldSchema,

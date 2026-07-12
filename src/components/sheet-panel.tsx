@@ -100,7 +100,11 @@ function FieldCard({
           >
             保存
           </button>
-          {error && <p className="text-red-400">{error}</p>}
+          {error && (
+            <p className="text-red-400" aria-live="polite">
+              {error}
+            </p>
+          )}
         </div>
       ) : (
         <p className="whitespace-pre-wrap text-amber-50/90">

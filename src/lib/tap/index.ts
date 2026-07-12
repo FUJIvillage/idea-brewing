@@ -16,7 +16,7 @@ import {
   type TemplateId,
 } from "./template";
 
-export const MAX_REPAIR_ROUNDS = 2;
+const MAX_REPAIR_ROUNDS = 2;
 
 export type BuildMode =
   | { kind: "initial" }

@@ -1,15 +1,10 @@
 import { getConfiguredClient } from "@/lib/llm";
 import { readSettings } from "@/lib/store";
-import type { Settings } from "@/lib/store/types";
-import { resolveEngine } from "@/lib/tap/resolve";
+import { isFakeMode, resolveEngine } from "@/lib/tap/resolve";
 import { realRunner } from "@/lib/tap/runner";
 import { startServer, stopServer } from "@/lib/tap/server-manager";
 import type { EvaluateDeps, NextBatchDeps } from "./index";
 import { captureScreenshots, launchChromium } from "./screenshot";
-
-function isFakeMode(settings: Settings): boolean {
-  return settings.provider === "fake" || process.env.IDEA_BREWING_FAKE_BUILD === "1";
-}
 
 /** 評価用deps。フェイク構成ではスクリーンショット工程をスキップする */
 export async function resolveEvaluateDeps(): Promise<Pick<EvaluateDeps, "client" | "capture">> {

@@ -1,31 +1,25 @@
 import { promises as fs } from "node:fs";
 import path from "node:path";
 import { NextResponse } from "next/server";
-import { errorResponse } from "@/lib/api";
+import { brewNotFound, errorResponse, findBrew, parseBatchParam } from "@/lib/api";
 import { pubDir } from "@/lib/pub";
-import { readBrew } from "@/lib/store";
-
-const NAME_PATTERN = /^persona-[1-5]\.png$/;
+import { PUB_SCREENSHOT_FILES } from "@/lib/pub/constants";
 
 export async function GET(req: Request, ctx: { params: Promise<{ id: string }> }) {
   const { id } = await ctx.params;
   try {
-    try {
-      await readBrew(id);
-    } catch {
-      return NextResponse.json({ error: "ブリューが見つかりません。" }, { status: 404 });
-    }
+    if (!(await findBrew(id))) return brewNotFound();
 
     const url = new URL(req.url);
-    const batch = Number(url.searchParams.get("batch"));
+    const batch = parseBatchParam(req);
     const name = url.searchParams.get("name") ?? "";
-    if (!Number.isInteger(batch) || batch < 1) {
+    if (batch === null) {
       return NextResponse.json(
         { error: "batch は1以上の整数で指定してください。" },
         { status: 400 },
       );
     }
-    if (!NAME_PATTERN.test(name)) {
+    if (!PUB_SCREENSHOT_FILES.includes(name)) {
       return NextResponse.json({ error: "不正なファイル名です。" }, { status: 400 });
     }
 
