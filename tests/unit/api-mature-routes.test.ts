@@ -234,6 +234,47 @@ describe("POST /mature/cancel", () => {
     expect(json.maturationProgress).toBeNull();
   });
 
+  it("残留progressと一緒にbuildingのまま残ったバッチもfailedに補正する", async () => {
+    const brew = await builtBrew();
+    // 熟成中のクラッシュを再現: maturationProgress と building バッチが両方残る
+    await writeBrew({
+      ...brew,
+      maturationProgress: { phase: "building", detail: "x", batch: 2 },
+      batches: [
+        ...brew.batches,
+        {
+          number: 2,
+          status: "building",
+          startedAt: new Date().toISOString(),
+          finishedAt: null,
+          error: null,
+          evaluation: null,
+          pub: null,
+        },
+      ],
+    });
+    const { POST } = await import("@/app/api/brews/[id]/mature/cancel/route");
+    const res = await POST(new Request("http://test/"), ctx(brew.id));
+    expect(res.status).toBe(200);
+    const json = (await res.json()) as Brew;
+    expect(json.maturationProgress).toBeNull();
+    expect(json.batches[1].status).toBe("failed");
+  });
+
+  it("ビルドが本当に実行中なら残留補正せず409を返す", async () => {
+    const brew = await builtBrew();
+    await writeBrew({
+      ...brew,
+      maturationProgress: { phase: "evaluating", detail: "x", batch: 1 },
+    });
+    buildingBrews.add(brew.id);
+    const { POST } = await import("@/app/api/brews/[id]/mature/cancel/route");
+    const res = await POST(new Request("http://test/"), ctx(brew.id));
+    expect(res.status).toBe(409);
+    const stored = await readBrew(brew.id);
+    expect(stored.maturationProgress).not.toBeNull();
+  });
+
   it("実行中でも残留もなければ409", async () => {
     const brew = await builtBrew();
     const { POST } = await import("@/app/api/brews/[id]/mature/cancel/route");

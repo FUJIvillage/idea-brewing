@@ -96,11 +96,11 @@ export async function readBrew(id: string): Promise<Brew> {
 export async function writeBrew(brew: Brew): Promise<Brew> {
   const next = { ...brew, updatedAt: new Date().toISOString() };
   await fs.mkdir(brewDir(brew.id), { recursive: true });
-  await fs.writeFile(
-    path.join(brewDir(brew.id), "brew.json"),
-    JSON.stringify(next, null, 2),
-    "utf8",
-  );
+  // ビルド中は数秒おきに上書きされるため、書き込み途中のクラッシュで
+  // brew.json が壊れないよう一時ファイル経由で原子的に置き換える
+  const tmpPath = path.join(brewDir(brew.id), `brew.json.${randomUUID()}.tmp`);
+  await fs.writeFile(tmpPath, JSON.stringify(next, null, 2), "utf8");
+  await fs.rename(tmpPath, path.join(brewDir(brew.id), "brew.json"));
   return next;
 }
 

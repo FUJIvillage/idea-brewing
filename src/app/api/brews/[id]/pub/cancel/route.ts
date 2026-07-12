@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { errorResponse } from "@/lib/api";
+import { isBrewBusy } from "@/lib/mature/mature-state";
 import { normalizeStalePub } from "@/lib/pub";
 import { pubCancelTokens } from "@/lib/pub/pub-state";
 import { readBrew, writeBrew } from "@/lib/store";
@@ -11,6 +12,11 @@ export async function POST(_req: Request, ctx: { params: Promise<{ id: string }>
   if (token) {
     token.cancelled = true;
     return NextResponse.json({ ok: true });
+  }
+
+  // 別工程が本当に実行中なら、残留補正の書き込みが進捗保存と競合するため何もしない
+  if (isBrewBusy(id)) {
+    return NextResponse.json({ error: "実行中の工程があります。" }, { status: 409 });
   }
 
   try {

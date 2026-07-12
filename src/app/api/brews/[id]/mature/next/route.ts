@@ -3,6 +3,7 @@ import { errorResponse } from "@/lib/api";
 import { normalizeStaleMaturation, runNextBatch } from "@/lib/mature";
 import { isBrewBusy, matureCancelTokens, maturingBrews } from "@/lib/mature/mature-state";
 import { resolveNextBatchDeps } from "@/lib/mature/resolve";
+import { normalizeStalePub } from "@/lib/pub";
 import { readBrew, writeBrew } from "@/lib/store";
 import type { Brew } from "@/lib/store/types";
 import { normalizeStaleBatch } from "@/lib/tap";
@@ -25,7 +26,7 @@ export async function POST(_req: Request, ctx: { params: Promise<{ id: string }>
     } catch {
       return NextResponse.json({ error: "ブリューが見つかりません。" }, { status: 404 });
     }
-    brew = normalizeStaleBatch(normalizeStaleMaturation(brew));
+    brew = normalizeStaleBatch(normalizeStaleMaturation(normalizeStalePub(brew)));
 
     if (!latestSucceededBatch(brew)?.evaluation) {
       return NextResponse.json(

@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { errorResponse } from "@/lib/api";
+import { normalizeStaleMaturation } from "@/lib/mature";
 import { isBrewBusy } from "@/lib/mature/mature-state";
+import { normalizeStalePub } from "@/lib/pub";
 import { readBrew, readSettings, writeBrew } from "@/lib/store";
 import type { Brew } from "@/lib/store/types";
 import { normalizeStaleBatch, runBuild } from "@/lib/tap";
@@ -49,7 +51,8 @@ export async function POST(_req: Request, ctx: { params: Promise<{ id: string }>
       throw err;
     }
 
-    const done = await runBuild(normalizeStaleBatch(brew), {
+    // クラッシュ残留の進捗をまとめて掃除してから開始する(進捗保存で再永続化されるのを防ぐ)
+    const done = await runBuild(normalizeStaleBatch(normalizeStaleMaturation(normalizeStalePub(brew))), {
       engine: resolved.engine,
       template: resolved.template,
       runner: realRunner,

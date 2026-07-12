@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { errorResponse } from "@/lib/api";
 import { maturingBrews } from "@/lib/mature/mature-state";
+import { pubbingBrews } from "@/lib/pub/pub-state";
 import { readBrew, writeBrew } from "@/lib/store";
 import type { Brew } from "@/lib/store/types";
 import { normalizeStaleBatch } from "@/lib/tap";
@@ -19,6 +20,13 @@ export async function POST(_req: Request, ctx: { params: Promise<{ id: string }>
   if (maturingBrews.has(id)) {
     return NextResponse.json(
       { error: "熟成が実行中です。中断は熟成タブから行ってください。" },
+      { status: 409 },
+    );
+  }
+  // Pub中も進捗保存と残留補正の書き込みが競合するためガードする
+  if (pubbingBrews.has(id)) {
+    return NextResponse.json(
+      { error: "Pubが実行中です。中断はPubタブから行ってください。" },
       { status: 409 },
     );
   }
