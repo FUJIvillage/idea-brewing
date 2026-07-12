@@ -100,7 +100,11 @@ export default function NewBrewPage() {
             className="block w-full text-amber-200"
           />
         </div>
-        {error && <p className="text-red-400">{error}</p>}
+        {error && (
+          <p className="text-red-400" aria-live="polite">
+            {error}
+          </p>
+        )}
         <button
           type="submit"
           disabled={busy}

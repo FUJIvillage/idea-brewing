@@ -232,7 +232,11 @@ export function GrillPanel({
         </section>
       )}
 
-      {error && <p className="text-red-400">{error}</p>}
+      {error && (
+        <p className="text-red-400" aria-live="polite">
+          {error}
+        </p>
+      )}
     </div>
   );
 }

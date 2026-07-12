@@ -64,7 +64,8 @@ export function MaturePanel({
       try {
         const res = await fetch(`/api/brews/${brew.id}/mature/report?batch=${batch}`);
         if (!res.ok) return;
-        if (selectedRef.current !== batch) return;
+        // 取得中に別バッチへ切り替わっていたら破棄(未選択=初期表示中はそのまま採用)
+        if (selectedRef.current !== null && selectedRef.current !== batch) return;
         setReport({ batch, data: (await res.json()) as Report });
       } catch {
         // 表示用の取得失敗は無視する
@@ -80,20 +81,13 @@ export function MaturePanel({
     const batch = latest.number;
     let cancelled = false;
     (async () => {
-      try {
-        const res = await fetch(`/api/brews/${brew.id}/mature/report?batch=${batch}`);
-        if (cancelled || !res.ok) return;
-        if (selectedRef.current !== null && selectedRef.current !== batch) return;
-        setReport({ batch, data: (await res.json()) as Report });
-      } catch {
-        // 表示用の取得失敗は無視する
-      }
+      await fetchReport(batch);
       if (!cancelled) setSelected((cur) => cur ?? batch);
     })();
     return () => {
       cancelled = true;
     };
-  }, [selected, latest, brew.id]);
+  }, [selected, latest, fetchReport]);
 
   async function selectBatch(batch: number) {
     setSelected(batch);

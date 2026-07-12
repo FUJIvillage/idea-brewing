@@ -133,7 +133,11 @@ export function IngredientsPanel({
         </button>
       </section>
 
-      {error && <p className="text-red-400">{error}</p>}
+      {error && (
+        <p className="text-red-400" aria-live="polite">
+          {error}
+        </p>
+      )}
 
       <button
         onClick={mash}

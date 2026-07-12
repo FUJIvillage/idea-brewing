@@ -30,7 +30,7 @@ const EVALUATE_SYSTEM = [
   "軽微な修正で改善できるなら strategy は repair、構造的な作り直しが必要なら rebuild を選びます。",
 ].join("\n");
 
-export function buildEvaluatePrompt(materials: EvaluationMaterials): string {
+function buildEvaluatePrompt(materials: EvaluationMaterials): string {
   const sections = [
     "## 採点ルーブリック",
     materials.rubric,

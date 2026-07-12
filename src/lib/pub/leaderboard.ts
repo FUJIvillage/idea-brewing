@@ -11,7 +11,7 @@ export interface LeaderboardEntry {
   ranAt: string;
 }
 
-/** pub を持つ最大番号のバッチ(タンクカード表示にも使う) */
+/** pub を持つ最大番号のバッチ(リーダーボードの集計用。タンクカードは最新成功バッチのpubを直接見る) */
 export function latestPubBatch(brew: Brew): BatchRecord | null {
   let found: BatchRecord | null = null;
   for (const b of brew.batches) {

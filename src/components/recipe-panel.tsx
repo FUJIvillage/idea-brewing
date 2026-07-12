@@ -88,14 +88,18 @@ export function RecipePanel({
               : "レシピ生成"}
         </button>
         {brew.recipeProgress && (
-          <p className="text-amber-300">
+          <p className="text-amber-300" aria-live="polite">
             {brew.recipeProgress.current}/{brew.recipeProgress.total}:{" "}
             {brew.recipeProgress.file} を生成中...
           </p>
         )}
       </div>
 
-      {error && <p className="text-red-400">{error}</p>}
+      {error && (
+        <p className="text-red-400" aria-live="polite">
+          {error}
+        </p>
+      )}
 
       {files.length > 0 && (
         <div className="grid grid-cols-1 gap-6 md:grid-cols-[240px_1fr]">
