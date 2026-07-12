@@ -12,6 +12,7 @@ import type {
 } from "@/lib/store/types";
 import { latestSucceededBatch, upsertBatch } from "@/lib/tap/batches";
 import type { CancelToken } from "@/lib/tap/build-state";
+import { MAX_PUB_GUESTS, pubScreenshotName } from "./constants";
 import type { PubDriver } from "./driver";
 import { generatePersonas, savedToPersona } from "./personas";
 import { runPersonaSession } from "./session";
@@ -122,7 +123,9 @@ export async function runPub(brew: Brew, deps: PubDeps, opts: PubOptions): Promi
   const target = latestSucceededBatch(brew);
   if (!target) throw new Error("成功したバッチがありません。先にビルドを完了してください。");
   const total = opts.autoCount + opts.savedPersonas.length;
-  if (total < 1 || total > 5) throw new Error("客の人数は合計1〜5にしてください。");
+  if (total < 1 || total > MAX_PUB_GUESTS) {
+    throw new Error(`客の人数は合計1〜${MAX_PUB_GUESTS}にしてください。`);
+  }
 
   // 成果物はステージングに書き、成功時だけ本体(pub/)と入れ替える。
   // 中断・失敗した再実行で前回のレポートと今回の中途半端なスクリーンショットが混ざるのを防ぐ
@@ -166,7 +169,7 @@ export async function runPub(brew: Brew, deps: PubDeps, opts: PubOptions): Promi
             },
           });
           await driver
-            .screenshot(path.join(stagingDir, `persona-${i + 1}.png`))
+            .screenshot(path.join(stagingDir, pubScreenshotName(i + 1)))
             .catch(() => undefined);
           results.push(result);
         } finally {

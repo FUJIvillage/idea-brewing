@@ -1,9 +1,8 @@
 import { NextResponse } from "next/server";
-import { errorResponse } from "@/lib/api";
+import { brewNotFound, errorResponse, findBrew } from "@/lib/api";
 import { maturingBrews } from "@/lib/mature/mature-state";
 import { pubbingBrews } from "@/lib/pub/pub-state";
-import { readBrew, writeBrew } from "@/lib/store";
-import type { Brew } from "@/lib/store/types";
+import { writeBrew } from "@/lib/store";
 import { normalizeStaleBatch } from "@/lib/tap";
 import { cancelTokens } from "@/lib/tap/build-state";
 
@@ -32,12 +31,8 @@ export async function POST(_req: Request, ctx: { params: Promise<{ id: string }>
   }
 
   try {
-    let brew: Brew;
-    try {
-      brew = await readBrew(id);
-    } catch {
-      return NextResponse.json({ error: "ブリューが見つかりません。" }, { status: 404 });
-    }
+    const brew = await findBrew(id);
+    if (!brew) return brewNotFound();
 
     // クラッシュで building 残留した場合の復旧経路。
     const normalized = normalizeStaleBatch(brew);

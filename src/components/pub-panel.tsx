@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { MAX_PUB_GUESTS, pubScreenshotName } from "@/lib/pub/constants";
 import type { Brew, PubPhase, SavedPersona } from "@/lib/store/types";
 import { latestSucceededBatch } from "@/lib/tap/batches";
 import { useBrewAction } from "./use-brew-action";
@@ -54,7 +55,12 @@ export function PubPanel({
     .sort((a, b) => a.number - b.number);
   const auto = Number(autoCount);
   const total = (Number.isInteger(auto) ? auto : NaN) + checkedIds.length;
-  const totalValid = Number.isInteger(auto) && auto >= 0 && auto <= 5 && total >= 1 && total <= 5;
+  const totalValid =
+    Number.isInteger(auto) &&
+    auto >= 0 &&
+    auto <= MAX_PUB_GUESTS &&
+    total >= 1 &&
+    total <= MAX_PUB_GUESTS;
 
   useEffect(() => {
     let cancelled = false;
@@ -178,7 +184,7 @@ export function PubPanel({
               開店する
             </button>
             <p className="text-sm text-amber-200/60">
-              合計 {Number.isNaN(total) ? "-" : total} 人(1〜5)
+              合計 {Number.isNaN(total) ? "-" : total} 人(1〜{MAX_PUB_GUESTS})
             </p>
           </div>
           {personas.length > 0 && (
@@ -344,10 +350,10 @@ export function PubPanel({
                   <p className="mt-2 text-sm text-red-300">{r.comment}</p>
                 )}
                 {screenshots?.batch === shownBatch &&
-                  screenshots.names.includes(`persona-${i + 1}.png`) && (
+                  screenshots.names.includes(pubScreenshotName(i + 1)) && (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img
-                      src={`/api/brews/${brew.id}/pub/screenshot?batch=${shownBatch}&name=persona-${i + 1}.png`}
+                      src={`/api/brews/${brew.id}/pub/screenshot?batch=${shownBatch}&name=${pubScreenshotName(i + 1)}`}
                       alt={`${r.persona.name} の最終画面`}
                       className="mt-3 max-h-48 rounded border border-amber-900/60"
                     />

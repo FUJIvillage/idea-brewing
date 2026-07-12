@@ -1,11 +1,8 @@
 import { NextResponse } from "next/server";
-import { readBrew } from "@/lib/store";
+import { brewNotFound, findBrew } from "@/lib/api";
 
 export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> }) {
   const { id } = await ctx.params;
-  try {
-    return NextResponse.json(await readBrew(id));
-  } catch {
-    return NextResponse.json({ error: "ブリューが見つかりません。" }, { status: 404 });
-  }
+  const brew = await findBrew(id);
+  return brew ? NextResponse.json(brew) : brewNotFound();
 }

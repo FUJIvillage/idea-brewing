@@ -1,9 +1,9 @@
 import { NextResponse } from "next/server";
 import { isBrewBusy } from "@/lib/mature/mature-state";
-import { readBrew, writeBrew } from "@/lib/store";
-import { SHEET_KEYS, type Brew, type SheetKey } from "@/lib/store/types";
+import { writeBrew } from "@/lib/store";
+import { SHEET_KEYS, type SheetKey } from "@/lib/store/types";
 import { editSheetField } from "@/lib/brew-sheet";
-import { errorResponse } from "@/lib/api";
+import { brewNotFound, errorResponse, findBrew } from "@/lib/api";
 
 export async function PUT(req: Request, ctx: { params: Promise<{ id: string }> }) {
   const { id } = await ctx.params;
@@ -11,12 +11,8 @@ export async function PUT(req: Request, ctx: { params: Promise<{ id: string }> }
   if (isBrewBusy(id)) {
     return NextResponse.json({ error: "実行中の工程があります。" }, { status: 409 });
   }
-  let brew: Brew;
-  try {
-    brew = await readBrew(id);
-  } catch {
-    return NextResponse.json({ error: "ブリューが見つかりません。" }, { status: 404 });
-  }
+  const brew = await findBrew(id);
+  if (!brew) return brewNotFound();
   try {
     const { key, content } = (await req.json()) as { key: SheetKey; content: string };
     if (!SHEET_KEYS.includes(key)) {

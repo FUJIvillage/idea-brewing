@@ -1,23 +1,18 @@
 import { promises as fs } from "node:fs";
 import path from "node:path";
 import { NextResponse } from "next/server";
-import { errorResponse } from "@/lib/api";
+import { brewNotFound, errorResponse, findBrew, parseBatchParam } from "@/lib/api";
 import { SCREENSHOT_FILES } from "@/lib/mature/screenshot";
-import { readBrew, tapDir } from "@/lib/store";
+import { tapDir } from "@/lib/store";
 
 export async function GET(req: Request, ctx: { params: Promise<{ id: string }> }) {
   const { id } = await ctx.params;
   try {
-    try {
-      await readBrew(id);
-    } catch {
-      return NextResponse.json({ error: "ブリューが見つかりません。" }, { status: 404 });
-    }
+    if (!(await findBrew(id))) return brewNotFound();
 
-    const url = new URL(req.url);
-    const batch = Number(url.searchParams.get("batch"));
-    const name = url.searchParams.get("name") ?? "";
-    if (!Number.isInteger(batch) || batch < 1) {
+    const batch = parseBatchParam(req);
+    const name = new URL(req.url).searchParams.get("name") ?? "";
+    if (batch === null) {
       return NextResponse.json(
         { error: "batch は1以上の整数で指定してください。" },
         { status: 400 },

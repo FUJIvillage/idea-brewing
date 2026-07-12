@@ -10,12 +10,14 @@ export interface ResolvedEngine {
   template: TemplateId;
 }
 
-/**
- * 設定からビルドエンジンとテンプレートを決める。
- * フェイクプロバイダ設定時(E2E)と IDEA_BREWING_FAKE_BUILD=1 のときはフェイク。
- */
+/** フェイクプロバイダ設定時(E2E)と IDEA_BREWING_FAKE_BUILD=1 のときはフェイク構成 */
+export function isFakeMode(settings: Settings): boolean {
+  return settings.provider === "fake" || process.env.IDEA_BREWING_FAKE_BUILD === "1";
+}
+
+/** 設定からビルドエンジンとテンプレートを決める。フェイク構成ではフェイクエンジン */
 export async function resolveEngine(settings: Settings): Promise<ResolvedEngine> {
-  if (settings.provider === "fake" || process.env.IDEA_BREWING_FAKE_BUILD === "1") {
+  if (isFakeMode(settings)) {
     return { engine: createFakeBuildEngine(), template: "tap-fake" };
   }
 

@@ -1,11 +1,10 @@
 import { NextResponse } from "next/server";
 import { isBrewBusy } from "@/lib/mature/mature-state";
 import { generatingRecipeBrews } from "@/lib/recipe/recipe-state";
-import { readBrew, writeBrew } from "@/lib/store";
-import type { Brew } from "@/lib/store/types";
+import { writeBrew } from "@/lib/store";
 import { getConfiguredClient } from "@/lib/llm";
 import { generateRecipe, listRecipeFiles } from "@/lib/recipe";
-import { errorResponse } from "@/lib/api";
+import { brewNotFound, errorResponse, findBrew } from "@/lib/api";
 
 export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> }) {
   const { id } = await ctx.params;
@@ -22,12 +21,8 @@ export async function POST(_req: Request, ctx: { params: Promise<{ id: string }>
   }
   generatingRecipeBrews.add(id);
   try {
-    let brew: Brew;
-    try {
-      brew = await readBrew(id);
-    } catch {
-      return NextResponse.json({ error: "ブリューが見つかりません。" }, { status: 404 });
-    }
+    const brew = await findBrew(id);
+    if (!brew) return brewNotFound();
     if (!brew.grill.finished) {
       return NextResponse.json({ error: "グリルが完了していません。" }, { status: 400 });
     }

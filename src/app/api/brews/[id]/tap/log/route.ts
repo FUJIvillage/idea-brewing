@@ -1,9 +1,8 @@
 import { promises as fs } from "node:fs";
 import path from "node:path";
 import { NextResponse } from "next/server";
-import { errorResponse } from "@/lib/api";
-import { readBrew, tapDir } from "@/lib/store";
-import type { Brew } from "@/lib/store/types";
+import { brewNotFound, errorResponse, findBrew } from "@/lib/api";
+import { tapDir } from "@/lib/store";
 import { maxBatchNumber } from "@/lib/tap/batches";
 
 const TAIL_BYTES = 64 * 1024;
@@ -25,12 +24,8 @@ export async function GET(req: Request, ctx: { params: Promise<{ id: string }> }
   const { id } = await ctx.params;
 
   try {
-    let brew: Brew;
-    try {
-      brew = await readBrew(id);
-    } catch {
-      return NextResponse.json({ error: "ブリューが見つかりません。" }, { status: 404 });
-    }
+    const brew = await findBrew(id);
+    if (!brew) return brewNotFound();
 
     const batchParam = new URL(req.url).searchParams.get("batch");
     let batch: number;

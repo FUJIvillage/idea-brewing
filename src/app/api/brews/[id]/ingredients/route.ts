@@ -1,9 +1,8 @@
 import { NextResponse } from "next/server";
 import { isBrewBusy } from "@/lib/mature/mature-state";
-import { readBrew, writeBrew } from "@/lib/store";
-import type { Brew } from "@/lib/store/types";
+import { writeBrew } from "@/lib/store";
 import { addFileIngredient, addTextIngredient, addUrlIngredient } from "@/lib/ingredients";
-import { errorResponse } from "@/lib/api";
+import { brewNotFound, errorResponse, findBrew } from "@/lib/api";
 
 export async function POST(req: Request, ctx: { params: Promise<{ id: string }> }) {
   const { id } = await ctx.params;
@@ -11,12 +10,8 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
   if (isBrewBusy(id)) {
     return NextResponse.json({ error: "実行中の工程があります。" }, { status: 409 });
   }
-  let brew: Brew;
-  try {
-    brew = await readBrew(id);
-  } catch {
-    return NextResponse.json({ error: "ブリューが見つかりません。" }, { status: 404 });
-  }
+  let brew = await findBrew(id);
+  if (!brew) return brewNotFound();
   try {
     if (brew.recipeGeneratedAt) {
       return NextResponse.json(

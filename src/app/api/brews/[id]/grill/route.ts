@@ -1,9 +1,9 @@
 import { NextResponse } from "next/server";
 import { isBrewBusy } from "@/lib/mature/mature-state";
-import { readBrew, writeBrew } from "@/lib/store";
+import { writeBrew } from "@/lib/store";
 import { getConfiguredClient } from "@/lib/llm";
 import { applyAnswer, finishGrill, nextQuestion, setAutoMode } from "@/lib/grill";
-import { errorResponse } from "@/lib/api";
+import { brewNotFound, errorResponse, findBrew } from "@/lib/api";
 import type { Brew } from "@/lib/store/types";
 
 type GrillRequest =
@@ -18,12 +18,8 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
   if (isBrewBusy(id)) {
     return NextResponse.json({ error: "実行中の工程があります。" }, { status: 409 });
   }
-  let brew: Brew;
-  try {
-    brew = await readBrew(id);
-  } catch {
-    return NextResponse.json({ error: "ブリューが見つかりません。" }, { status: 404 });
-  }
+  const brew = await findBrew(id);
+  if (!brew) return brewNotFound();
   try {
     const body = (await req.json()) as GrillRequest;
 
