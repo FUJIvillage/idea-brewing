@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import type { Brew, BuildPhase } from "@/lib/store/types";
 import { latestSucceededBatch } from "@/lib/tap/batches";
+import { useBrewAction } from "./use-brew-action";
 
 const PHASE_LABELS: Record<BuildPhase, string> = {
   preparing: "準備",
@@ -32,9 +33,7 @@ export function TapPanel({
   refresh: () => Promise<void>;
   onBusyChange: (busy: boolean) => void;
 }) {
-  const [buildBusy, setBuildBusy] = useState(false);
   const [serverBusy, setServerBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const [logLines, setLogLines] = useState<string[]>([]);
   const [server, setServer] = useState<ServerState>({
     running: false,
@@ -47,7 +46,6 @@ export function TapPanel({
       ? brew.batches.reduce((a, b) => (b.number > a.number ? b : a))
       : null;
   const succeeded = latestSucceededBatch(brew);
-  const busy = buildBusy || serverBusy;
 
   const fetchLog = useCallback(async () => {
     try {
@@ -60,6 +58,24 @@ export function TapPanel({
       // 表示用の取得失敗は無視する
     }
   }, [brew.id]);
+
+  const onTick = useCallback(() => void fetchLog(), [fetchLog]);
+  const {
+    busy: buildBusy,
+    error,
+    setError,
+    post: postAction,
+    cancel: cancelBuild,
+  } = useBrewAction({
+    brewId: brew.id,
+    base: "tap",
+    running: brew.buildProgress !== null,
+    onUpdate,
+    refresh,
+    onBusyChange,
+    onTick,
+  });
+  const busy = buildBusy || serverBusy;
 
   useEffect(() => {
     let cancelled = false;
@@ -84,55 +100,8 @@ export function TapPanel({
     };
   }, [brew.id]);
 
-  const hasProgress = brew.buildProgress !== null;
-  useEffect(() => {
-    if (!hasProgress || buildBusy) return;
-    const timer = setInterval(() => {
-      void refresh();
-      void fetchLog();
-    }, 1000);
-    return () => clearInterval(timer);
-  }, [hasProgress, buildBusy, refresh, fetchLog]);
-
   async function build() {
-    setBuildBusy(true);
-    onBusyChange(true);
-    setError(null);
-    const timer = setInterval(() => {
-      void refresh();
-      void fetchLog();
-    }, 1000);
-    try {
-      const res = await fetch(`/api/brews/${brew.id}/tap/build`, { method: "POST" });
-      clearInterval(timer);
-      const json = (await res.json()) as Brew | ErrorBody;
-      if (!res.ok) throw new Error("error" in json ? json.error : "エラーが発生しました。");
-      onUpdate(json as Brew);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
-    } finally {
-      clearInterval(timer);
-      try {
-        await refresh();
-      } catch {
-        // refreshが失敗してもbusy解除は必ず行う(タブが永久ロックされるのを防ぐ)
-      }
-      void fetchLog();
-      setBuildBusy(false);
-      onBusyChange(false);
-    }
-  }
-
-  async function cancelBuild() {
-    setError(null);
-    try {
-      const res = await fetch(`/api/brews/${brew.id}/tap/cancel`, { method: "POST" });
-      const json = (await res.json()) as Brew | ErrorBody;
-      if (!res.ok) throw new Error("error" in json ? json.error : "エラーが発生しました。");
-      if ("schemaVersion" in json) onUpdate(json);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
-    }
+    await postAction("build", undefined, () => void fetchLog());
   }
 
   async function serverAction(action: "start" | "stop") {
@@ -146,7 +115,9 @@ export function TapPanel({
         body: JSON.stringify({ action }),
       });
       const json = (await res.json()) as ServerState | ErrorBody;
-      if (!res.ok) throw new Error("error" in json ? json.error : "エラーが発生しました。");
+      if (!res.ok) {
+        throw new Error("error" in json && json.error ? json.error : "エラーが発生しました。");
+      }
       setServer(json as ServerState);
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));

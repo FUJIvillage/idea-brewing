@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import type { Brew } from "@/lib/store/types";
+import { useBrewAction } from "./use-brew-action";
 
 export function RecipePanel({
   brew,
@@ -18,8 +19,17 @@ export function RecipePanel({
   const [files, setFiles] = useState<string[]>([]);
   const [selected, setSelected] = useState<string | null>(null);
   const [content, setContent] = useState("");
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+
+  // リロード後などリモートで生成が進行中でもポーリングして追従する(フック内)
+  const generating = brew.recipeProgress !== null;
+  const { busy, error, setError, post: postAction } = useBrewAction({
+    brewId: brew.id,
+    base: "recipe",
+    running: generating,
+    onUpdate,
+    refresh,
+    onBusyChange,
+  });
 
   // 再生成後はファイル名が同一のままなので、古い本文を表示し続けないようクリアする
   // (レンダー中の前回値比較パターン: ポーリングによる recipeProgress 更新では発火しない)
@@ -44,41 +54,10 @@ export function RecipePanel({
     return () => {
       cancelled = true;
     };
-  }, [brew.id, brew.recipeGeneratedAt]);
-
-  // リロード後などリモートで生成が進行中でもポーリングして追従する
-  const generating = brew.recipeProgress !== null;
-  useEffect(() => {
-    if (!generating || busy) return;
-    const timer = setInterval(() => void refresh(), 1000);
-    return () => clearInterval(timer);
-  }, [generating, busy, refresh]);
+  }, [brew.id, brew.recipeGeneratedAt, setError]);
 
   async function generate() {
-    setBusy(true);
-    onBusyChange(true);
-    setError(null);
-    const poll = setInterval(() => void refresh(), 1000);
-    try {
-      const res = await fetch(`/api/brews/${brew.id}/recipe`, { method: "POST" });
-      // 進行中ポーリングの古い応答が最新状態を上書きしないよう、
-      // 応答処理の前に止めてから最後に1回だけ取り直す
-      clearInterval(poll);
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.error ?? "エラーが発生しました。");
-      onUpdate(json);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
-    } finally {
-      clearInterval(poll);
-      try {
-        await refresh();
-      } catch {
-        // refreshが失敗してもbusy解除は必ず行う(タブが永久ロックされるのを防ぐ)
-      }
-      setBusy(false);
-      onBusyChange(false);
-    }
+    await postAction(""); // /api/brews/{id}/recipe に直接POSTする
   }
 
   async function open(file: string) {
