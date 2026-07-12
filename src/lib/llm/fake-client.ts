@@ -9,9 +9,12 @@ export interface FakeLlm extends LlmClient {
 export function createFakeClient(): FakeLlm {
   let grillCount = 0;
   let evaluateCount = 0;
+  let pubActionCount = 0;
+  let pubFeedbackCount = 0;
   const calls: GenerateOptions[] = [];
 
-  const fakeObjectFor = (tag: string): unknown => {
+  const fakeObjectFor = (opts: GenerateOptions): unknown => {
+    const tag = opts.tag;
     if (tag === "mash") {
       const field = (sufficiency: string, content: string) => ({ content, sufficiency });
       return {
@@ -58,6 +61,37 @@ export function createFakeClient(): FakeLlm {
         strategy: "repair",
       };
     }
+    if (tag === "pub-persona") {
+      const count = Number(/人数: (\d+)/.exec(opts.prompt)?.[1] ?? "2");
+      return {
+        personas: Array.from({ length: count }, (_, i) => ({
+          name: `フェイク客${i + 1}`,
+          profile: "フェイクのペルソナ(自動生成)",
+          goals: ["トップページを確認する", "主要機能をひとつ試す"],
+        })),
+      };
+    }
+    if (tag === "pub-action") {
+      pubActionCount += 1;
+      if (pubActionCount % 2 === 1) {
+        return { kind: "click", target: 1, reason: `フェイク操作${pubActionCount}` };
+      }
+      return { kind: "finish", reason: "目的を確認できたので終了" };
+    }
+    if (tag === "pub-feedback") {
+      pubFeedbackCount += 1;
+      const high = pubFeedbackCount === 1; // 1人目は高評価(リーダーボード検証を決定論化)
+      return {
+        taskResults: [
+          { achieved: true, note: "フェイクで達成" },
+          { achieved: high, note: "フェイクの経緯" },
+        ],
+        scores: high
+          ? { purpose: 5, usability: 4, looks: 4, revisit: 5 }
+          : { purpose: 4, usability: 3, looks: 3, revisit: 3 },
+        comment: `フェイク客レビュー(${pubFeedbackCount}人目)`,
+      };
+    }
     throw new Error(`fake client: 未対応の tag です: ${tag}`);
   };
 
@@ -65,11 +99,12 @@ export function createFakeClient(): FakeLlm {
     calls,
     async generateObject<T>(schema: z.ZodType<T>, opts: GenerateOptions): Promise<T> {
       calls.push(opts);
-      return schema.parse(fakeObjectFor(opts.tag));
+      return schema.parse(fakeObjectFor(opts));
     },
     async generateText(opts: GenerateOptions): Promise<string> {
       calls.push(opts);
       if (opts.tag === "connection-test") return "pong";
+      if (opts.tag === "pub-summary") return "フェイク総括: 客の評判は上々です。";
       return `# フェイク生成ドキュメント\n\n(tag=${opts.tag})\n\n入力の先頭: ${opts.prompt.slice(0, 200)}`;
     },
   };
