@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { isBrewBusy } from "@/lib/mature/mature-state";
 import { readBrew, writeBrew } from "@/lib/store";
 import { getConfiguredClient } from "@/lib/llm";
 import { applyAnswer, finishGrill, nextQuestion, setAutoMode } from "@/lib/grill";
@@ -13,6 +14,10 @@ type GrillRequest =
 
 export async function POST(req: Request, ctx: { params: Promise<{ id: string }> }) {
   const { id } = await ctx.params;
+  // 実行中の工程が進捗保存でBrew全体を上書きするため、並行編集は失われる前に拒否する
+  if (isBrewBusy(id)) {
+    return NextResponse.json({ error: "実行中の工程があります。" }, { status: 409 });
+  }
   let brew: Brew;
   try {
     brew = await readBrew(id);

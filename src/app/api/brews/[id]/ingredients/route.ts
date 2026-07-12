@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { isBrewBusy } from "@/lib/mature/mature-state";
 import { readBrew, writeBrew } from "@/lib/store";
 import type { Brew } from "@/lib/store/types";
 import { addFileIngredient, addTextIngredient, addUrlIngredient } from "@/lib/ingredients";
@@ -6,6 +7,10 @@ import { errorResponse } from "@/lib/api";
 
 export async function POST(req: Request, ctx: { params: Promise<{ id: string }> }) {
   const { id } = await ctx.params;
+  // レシピ生成中などの並行編集はBrew上書きで失われるため拒否する
+  if (isBrewBusy(id)) {
+    return NextResponse.json({ error: "実行中の工程があります。" }, { status: 409 });
+  }
   let brew: Brew;
   try {
     brew = await readBrew(id);

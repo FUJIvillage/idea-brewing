@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { errorResponse } from "@/lib/api";
-import { maturingBrews } from "@/lib/mature/mature-state";
+import { isBrewBusy } from "@/lib/mature/mature-state";
 import { readBrew } from "@/lib/store";
 import type { Brew } from "@/lib/store/types";
 import { latestSucceededBatch } from "@/lib/tap/batches";
@@ -34,9 +34,10 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
     } catch {
       return NextResponse.json({ error: "不正なアクションです。" }, { status: 400 });
     }
-    if (maturingBrews.has(id)) {
+    // 熟成・Pub は対象アプリのサーバーを自分で起動/停止するため、実行中の操作は全工程で拒否する
+    if (isBrewBusy(id)) {
       return NextResponse.json(
-        { error: "熟成中はサーバーを操作できません。" },
+        { error: "実行中の工程があるため、サーバーを操作できません。" },
         { status: 409 },
       );
     }

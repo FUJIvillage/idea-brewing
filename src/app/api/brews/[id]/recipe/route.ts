@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { isBrewBusy } from "@/lib/mature/mature-state";
+import { generatingRecipeBrews } from "@/lib/recipe/recipe-state";
 import { readBrew, writeBrew } from "@/lib/store";
 import type { Brew } from "@/lib/store/types";
 import { getConfiguredClient } from "@/lib/llm";
@@ -11,20 +12,15 @@ export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> 
   return NextResponse.json({ files: await listRecipeFiles(id) });
 }
 
-// 生成中ロックはディスク(recipeProgress)ではなくメモリで持つ。
-// クラッシュ時にフラグが残留してブリューが永久ロックされるのを防ぎ、
-// 最初の進捗書き込みまでの数msの隙間も塞ぐ(再起動でリセットされるのは許容)。
-const generating = new Set<string>();
-
 export async function POST(_req: Request, ctx: { params: Promise<{ id: string }> }) {
   const { id } = await ctx.params;
+  if (generatingRecipeBrews.has(id)) {
+    return NextResponse.json({ error: "レシピを生成中です。" }, { status: 409 });
+  }
   if (isBrewBusy(id)) {
     return NextResponse.json({ error: "実行中の工程があります。" }, { status: 409 });
   }
-  if (generating.has(id)) {
-    return NextResponse.json({ error: "レシピを生成中です。" }, { status: 409 });
-  }
-  generating.add(id);
+  generatingRecipeBrews.add(id);
   try {
     let brew: Brew;
     try {
@@ -43,6 +39,6 @@ export async function POST(_req: Request, ctx: { params: Promise<{ id: string }>
   } catch (err) {
     return errorResponse(err);
   } finally {
-    generating.delete(id);
+    generatingRecipeBrews.delete(id);
   }
 }

@@ -2,7 +2,9 @@ import { promises as fs } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { pubbingBrews } from "@/lib/pub/pub-state";
 import { RECIPE_FILES } from "@/lib/recipe";
+import { generatingRecipeBrews } from "@/lib/recipe/recipe-state";
 import { createBrew, recipeDir, tapDir, writeBrew, writeSettings } from "@/lib/store";
 import type { Brew } from "@/lib/store/types";
 import { POST as buildPost } from "@/app/api/brews/[id]/tap/build/route";
@@ -57,6 +59,19 @@ describe("tap build route", () => {
 
     expect(res.status).toBe(400);
     expect(await json(res)).toEqual({ error: "レシピがまだ生成されていません。" });
+  });
+
+  it("レシピ生成中なら409を返す(生成ロックも相互排他に含まれる)", async () => {
+    const brew = await createRecipeReadyBrew();
+    generatingRecipeBrews.add(brew.id);
+    try {
+      const res = await buildPost(new Request("http://localhost"), ctx(brew.id));
+
+      expect(res.status).toBe(409);
+      expect(await json(res)).toEqual({ error: "実行中の工程があります。" });
+    } finally {
+      generatingRecipeBrews.delete(brew.id);
+    }
   });
 
   it("Cursor未設定なら日本語メッセージの400を返す", async () => {
@@ -169,6 +184,26 @@ describe("tap server route", () => {
 
     expect(res.status).toBe(400);
     expect(await json(res)).toEqual({ error: "不正なアクションです。" });
+  });
+
+  it("POSTはPub実行中なら409を返す(テスト対象アプリを止めさせない)", async () => {
+    const brew = await createBrew("Pub中");
+    pubbingBrews.add(brew.id);
+    try {
+      const req = new Request("http://localhost", {
+        method: "POST",
+        body: JSON.stringify({ action: "stop" }),
+      });
+
+      const res = await serverPost(req, ctx(brew.id));
+
+      expect(res.status).toBe(409);
+      expect(await json(res)).toEqual({
+        error: "実行中の工程があるため、サーバーを操作できません。",
+      });
+    } finally {
+      pubbingBrews.delete(brew.id);
+    }
   });
 });
 
