@@ -10,12 +10,17 @@ export default async function Home() {
     <main className="mx-auto max-w-5xl p-6">
       <div className="mb-6 flex items-center justify-between">
         <h1 className="text-2xl font-bold text-amber-100">醸造タンク</h1>
-        <Link
-          href="/brews/new"
-          className="rounded-lg bg-amber-600 px-4 py-2 font-bold text-stone-950 hover:bg-amber-500"
-        >
-          新しい仕込み
-        </Link>
+        <div className="flex items-center gap-4">
+          <Link href="/leaderboard" className="text-amber-300 hover:text-amber-200">
+            リーダーボード
+          </Link>
+          <Link
+            href="/brews/new"
+            className="rounded-lg bg-amber-600 px-4 py-2 font-bold text-stone-950 hover:bg-amber-500"
+          >
+            新しい仕込み
+          </Link>
+        </div>
       </div>
       {brews.length === 0 ? (
         <p className="text-amber-400">
