@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import type { BatchEvaluation, BatchStatus, Brew, MaturationPhase } from "@/lib/store/types";
 import { latestSucceededBatch } from "@/lib/tap/batches";
+import { useBrewAction } from "./use-brew-action";
 
 const STATUS_LABELS: Record<BatchStatus, string> = {
   building: "ビルド中",
@@ -25,8 +26,6 @@ type Report = {
   screenshots: string[];
 };
 
-type ErrorBody = { error?: string };
-
 export function MaturePanel({
   brew,
   onUpdate,
@@ -38,15 +37,12 @@ export function MaturePanel({
   refresh: () => Promise<void>;
   onBusyChange: (busy: boolean) => void;
 }) {
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const [selected, setSelected] = useState<number | null>(null);
   const [report, setReport] = useState<{ batch: number; data: Report } | null>(null);
   const [targetScore, setTargetScore] = useState("4.0");
   const [maxBatches, setMaxBatches] = useState("3");
 
   const selectedRef = useRef<number | null>(null);
-  const inFlightRef = useRef(false);
 
   useEffect(() => {
     selectedRef.current = selected;
@@ -54,6 +50,13 @@ export function MaturePanel({
 
   const latest = latestSucceededBatch(brew);
   const running = brew.maturationProgress !== null;
+  const {
+    busy,
+    error,
+    setError,
+    post: postAction,
+    cancel: cancelMaturation,
+  } = useBrewAction({ brewId: brew.id, base: "mature", running, onUpdate, refresh, onBusyChange });
   const working = busy || running;
 
   const fetchReport = useCallback(
@@ -92,13 +95,6 @@ export function MaturePanel({
     };
   }, [selected, latest, brew.id]);
 
-  // リモートで熟成が進行中でもポーリングして追従する
-  useEffect(() => {
-    if (!running || busy) return;
-    const timer = setInterval(() => void refresh(), 1000);
-    return () => clearInterval(timer);
-  }, [running, busy, refresh]);
-
   async function selectBatch(batch: number) {
     setSelected(batch);
     selectedRef.current = batch;
@@ -107,38 +103,9 @@ export function MaturePanel({
   }
 
   async function post(pathSuffix: string, body?: unknown) {
-    if (inFlightRef.current) return;
-    inFlightRef.current = true;
-    setBusy(true);
-    onBusyChange(true);
-    setError(null);
-    const timer = setInterval(() => void refresh(), 1000);
-    let updatedBrew: Brew | null = null;
-    try {
-      const res = await fetch(`/api/brews/${brew.id}/mature/${pathSuffix}`, {
-        method: "POST",
-        ...(body !== undefined
-          ? { headers: { "content-type": "application/json" }, body: JSON.stringify(body) }
-          : {}),
-      });
-      clearInterval(timer);
-      const json = (await res.json()) as Brew | ErrorBody;
-      if (!res.ok) {
-        throw new Error("error" in json && json.error ? json.error : "エラーが発生しました。");
-      }
-      updatedBrew = json as Brew;
-      onUpdate(updatedBrew);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
-    } finally {
-      clearInterval(timer);
-      try {
-        await refresh();
-      } catch {
-        // refreshが失敗してもbusy解除は必ず行う(タブが永久ロックされるのを防ぐ)
-      }
-      if (updatedBrew) {
-        const latestBatch = latestSucceededBatch(updatedBrew);
+    await postAction(pathSuffix, body, async (updated) => {
+      if (updated) {
+        const latestBatch = latestSucceededBatch(updated);
         if (latestBatch) {
           setSelected(latestBatch.number);
           selectedRef.current = latestBatch.number;
@@ -148,30 +115,7 @@ export function MaturePanel({
         const batch = selectedRef.current;
         if (batch !== null) void fetchReport(batch);
       }
-      inFlightRef.current = false;
-      setBusy(false);
-      onBusyChange(false);
-    }
-  }
-
-  async function cancelMaturation() {
-    setError(null);
-    try {
-      const res = await fetch(`/api/brews/${brew.id}/mature/cancel`, { method: "POST" });
-      const json = (await res.json()) as Brew | ErrorBody;
-      if (!res.ok) {
-        throw new Error("error" in json && json.error ? json.error : "エラーが発生しました。");
-      }
-      if ("schemaVersion" in json) onUpdate(json);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
-    } finally {
-      try {
-        await refresh();
-      } catch {
-        // キャンセル後の再同期失敗は無視する
-      }
-    }
+    });
   }
 
   function startAuto() {
