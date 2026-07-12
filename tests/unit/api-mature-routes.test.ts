@@ -67,6 +67,7 @@ async function builtBrew(): Promise<Brew> {
         finishedAt: new Date().toISOString(),
         error: null,
         evaluation: null,
+        pub: null,
       },
     ],
   });
@@ -148,6 +149,7 @@ describe("POST /mature/next", () => {
           finishedAt: null,
           error: null,
           evaluation: null,
+          pub: null,
         },
       ],
     });
@@ -344,6 +346,7 @@ describe("相互ロック", () => {
           finishedAt: null,
           error: null,
           evaluation: null,
+          pub: null,
         },
       ],
     });

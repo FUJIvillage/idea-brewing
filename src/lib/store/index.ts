@@ -1,7 +1,7 @@
 import { promises as fs } from "node:fs";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
-import type { Brew, Settings } from "./types";
+import type { Brew, SavedPersona, Settings } from "./types";
 
 export function dataDir(): string {
   return process.env.IDEA_BREWING_DATA_DIR ?? path.join(process.cwd(), "data");
@@ -70,6 +70,7 @@ export async function createBrew(name: string): Promise<Brew> {
     batches: [],
     buildProgress: null,
     maturationProgress: null,
+    pubProgress: null,
   };
   await fs.mkdir(path.join(brewDir(brew.id), "ingredients"), { recursive: true });
   return writeBrew(brew);
@@ -81,9 +82,14 @@ export async function readBrew(id: string): Promise<Brew> {
   // 旧バージョンの brew.json に無いフィールドを補完する
   return {
     ...parsed,
-    batches: (parsed.batches ?? []).map((b) => ({ ...b, evaluation: b.evaluation ?? null })),
+    batches: (parsed.batches ?? []).map((b) => ({
+      ...b,
+      evaluation: b.evaluation ?? null,
+      pub: b.pub ?? null,
+    })),
     buildProgress: parsed.buildProgress ?? null,
     maturationProgress: parsed.maturationProgress ?? null,
+    pubProgress: parsed.pubProgress ?? null,
   };
 }
 
@@ -119,4 +125,44 @@ export async function listBrews(): Promise<Brew[]> {
 
 export async function readIngredientFile(brewId: string, relPath: string): Promise<Buffer> {
   return fs.readFile(path.join(brewDir(brewId), relPath));
+}
+
+export class PersonaValidationError extends Error {}
+
+const MAX_PERSONAS = 20;
+
+function personasPath(): string {
+  return path.join(dataDir(), "personas.json");
+}
+
+/** 常連客リスト。ファイルなし・破損時は空配列(settings と同じ寛容な読み込み) */
+export async function readPersonas(): Promise<SavedPersona[]> {
+  try {
+    const parsed = JSON.parse(await fs.readFile(personasPath(), "utf8")) as unknown;
+    return Array.isArray(parsed) ? (parsed as SavedPersona[]) : [];
+  } catch {
+    return [];
+  }
+}
+
+/** 常連客リストを全置換保存する。id が空の要素は採番する */
+export async function writePersonas(personas: SavedPersona[]): Promise<SavedPersona[]> {
+  if (personas.length > MAX_PERSONAS) {
+    throw new PersonaValidationError(`常連客は最大${MAX_PERSONAS}件までです。`);
+  }
+  const normalized = personas.map((p) => {
+    const name = (p.name ?? "").trim();
+    const profile = (p.profile ?? "").trim();
+    const goals = (p.goals ?? []).map((g) => g.trim()).filter((g) => g !== "");
+    if (name === "" || profile === "") {
+      throw new PersonaValidationError("常連客の名前とプロフィールは必須です。");
+    }
+    if (goals.length < 1 || goals.length > 3) {
+      throw new PersonaValidationError("常連客の目的は1〜3件で指定してください。");
+    }
+    return { id: p.id?.trim() ? p.id : randomUUID(), name, profile, goals };
+  });
+  await fs.mkdir(dataDir(), { recursive: true });
+  await fs.writeFile(personasPath(), JSON.stringify(normalized, null, 2), "utf8");
+  return normalized;
 }

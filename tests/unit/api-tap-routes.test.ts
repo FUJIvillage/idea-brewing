@@ -105,6 +105,7 @@ describe("tap cancel route", () => {
           finishedAt: null,
           error: null,
           evaluation: null,
+          pub: null,
         },
       ],
       buildProgress: { phase: "generating", detail: "残留" },
@@ -233,6 +234,7 @@ describe("tap log route", () => {
         finishedAt: "2026-01-01T00:01:00.000Z",
         error: null,
         evaluation: null,
+        pub: null,
       })),
     });
 

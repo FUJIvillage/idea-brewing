@@ -26,6 +26,7 @@ function record(number: number, status: BatchRecord["status"]): BatchRecord {
     finishedAt: null,
     error: null,
     evaluation: null,
+    pub: null,
   };
 }
 

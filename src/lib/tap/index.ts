@@ -186,6 +186,7 @@ export async function runBuild(brew: Brew, deps: BuildDeps): Promise<Brew> {
       finishedAt: null,
       error: null,
       evaluation: null,
+      pub: null,
     }),
   };
 

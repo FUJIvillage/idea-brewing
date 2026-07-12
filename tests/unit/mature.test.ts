@@ -64,6 +64,7 @@ async function builtBrew(): Promise<Brew> {
         finishedAt: new Date().toISOString(),
         error: null,
         evaluation: null,
+        pub: null,
       },
     ],
   });
