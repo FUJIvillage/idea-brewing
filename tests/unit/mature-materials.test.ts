@@ -22,10 +22,12 @@ async function batchWithFiles(brew: Brew): Promise<string> {
   const dir = tapDir(brew.id, 1);
   await fs.mkdir(path.join(dir, "src"), { recursive: true });
   await fs.mkdir(path.join(dir, "node_modules", "pkg"), { recursive: true });
+  await fs.mkdir(path.join(dir, "pub"), { recursive: true });
   await fs.writeFile(path.join(dir, "src", "App.tsx"), "export const App = 1;", "utf8");
   await fs.writeFile(path.join(dir, "index.html"), "<html></html>", "utf8");
   await fs.writeFile(path.join(dir, "node_modules", "pkg", "x.js"), "x", "utf8");
   await fs.writeFile(path.join(dir, "build.log"), "verify ok", "utf8");
+  await fs.writeFile(path.join(dir, "pub", "persona-1.png"), "png", "utf8");
   return dir;
 }
 
@@ -41,6 +43,7 @@ describe("buildCodeDigest", () => {
     expect(digest).toContain("export const App = 1;");
     expect(digest).not.toContain("node_modules");
     expect(digest).not.toContain("build.log");
+    expect(digest).not.toContain("persona-1.png");
   });
 
   it("サイズ上限を超えたファイルは省略注記になる", async () => {

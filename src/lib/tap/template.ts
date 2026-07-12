@@ -64,6 +64,7 @@ const REPAIR_EXCLUDES = new Set([
   "build.log",
   "evaluation.md",
   "agent-log.txt",
+  "pub",
 ]);
 
 /** 修理コピーで引き継がないパスを判定する(バッチ実行時の生成物・ログ類を除外) */

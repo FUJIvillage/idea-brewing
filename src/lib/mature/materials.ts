@@ -16,6 +16,7 @@ const DIGEST_EXCLUDES = new Set([
   "evaluation.md",
   "agent-log.txt",
   "package-lock.json",
+  "pub",
 ]);
 
 export interface EvaluationMaterials {
