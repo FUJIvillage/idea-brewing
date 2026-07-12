@@ -84,26 +84,46 @@ export async function createPlaywrightPubDriver(baseUrl: string): Promise<PubDri
     },
 
     async readState(): Promise<PubPageState> {
-      const all = await page.locator(INTERACTIVE_SELECTOR).all();
+      const locator = page.locator(INTERACTIVE_SELECTOR);
+      // 要素ごとの isVisible / 属性取得の往復を避け、1回の evaluate で全要素分を読み取る。
+      // all() の nth ロケータと evaluateAll の配列は同じセレクタの DOM 順なので index が対応する
+      const [all, infos] = await Promise.all([
+        locator.all(),
+        locator
+          .evaluateAll((els) =>
+            els.map((el) => {
+              const rect = el.getBoundingClientRect();
+              const visible =
+                rect.width > 0 &&
+                rect.height > 0 &&
+                getComputedStyle(el).visibility !== "hidden";
+              const tag = el.tagName.toLowerCase();
+              const aria = el.getAttribute("aria-label");
+              const raw = (el as HTMLElement).innerText;
+              const text = aria ?? (typeof raw === "string" ? raw.trim() : "");
+              const isInput = tag === "input" || tag === "textarea" || tag === "select";
+              return {
+                visible,
+                kind: el.getAttribute("role") ?? tag,
+                label: (text || el.getAttribute("placeholder") || "").slice(0, 60),
+                value: isInput ? (el as HTMLInputElement).value : null,
+              };
+            }),
+          )
+          .catch(() => []),
+      ]);
       handles = [];
       const elements: PubElement[] = [];
-      for (const h of all) {
+      for (let i = 0; i < all.length && i < infos.length; i++) {
         if (elements.length >= MAX_ELEMENTS) break;
-        if (!(await h.isVisible().catch(() => false))) continue;
-        const kind = await h
-          .evaluate((el) => el.getAttribute("role") ?? el.tagName.toLowerCase())
-          .catch(() => "unknown");
-        const aria = await h.getAttribute("aria-label").catch(() => null);
-        const text = aria ?? (await h.innerText().catch(() => "")).trim();
-        const placeholder = await h.getAttribute("placeholder").catch(() => null);
-        const label = (text || placeholder || "").slice(0, 60);
-        const value = await h.inputValue().catch(() => undefined);
-        handles.push(h);
+        const info = infos[i];
+        if (!info.visible) continue;
+        handles.push(all[i]);
         elements.push({
           index: handles.length,
-          kind,
-          label,
-          ...(value !== undefined ? { value } : {}),
+          kind: info.kind,
+          label: info.label,
+          ...(info.value !== null ? { value: info.value } : {}),
         });
       }
       let snapshot = "";
