@@ -115,10 +115,38 @@ test("原料投入からタップ提供までのハッピーパス", async ({ pa
       page.getByRole("button", { name: "注ぐ(サーバー起動)", exact: true }),
     ).toBeVisible({ timeout: 30_000 });
     tapServerStartRequested = false;
+
+    // 12. Pub: 常連客を登録して開店(フェイクLLM+フェイクドライバ)
+    await page.getByRole("button", { name: "Pub", exact: true }).click();
+    await page.getByText("常連客の管理").click();
+    await page.getByLabel("名前").fill("テスト常連");
+    await page.getByLabel("プロフィール").fill("毎日来る");
+    await page.getByLabel("目的(1行に1件)").fill("トップページを見る");
+    await page.getByRole("button", { name: "常連客を追加", exact: true }).click();
+    const regularCheckbox = page.getByRole("checkbox", { name: "テスト常連" });
+    await expect(regularCheckbox).toBeVisible({ timeout: 30_000 });
+    await regularCheckbox.check();
+    await page.getByLabel("自動生成の人数").fill("1");
+    await page.getByRole("button", { name: "開店する", exact: true }).click();
+
+    // 常連(1人目=高評価4.5) + 自動生成(2人目=3.3) → 総合 3.9
+    await expect(page.getByText(/3\.9 \/ 5\.0/)).toBeVisible({ timeout: 60_000 });
+    await expect(page.getByText("常連", { exact: true })).toBeVisible();
+    expect(
+      existsSync(path.join(brewsDir, brewId, "taps", "batch-2", "pub", "report.md")),
+    ).toBe(true);
+
+    // 13. リーダーボードに載る
+    await page.goto("/leaderboard");
+    await expect(page.getByRole("link", { name: "最高のtodoアプリ" })).toBeVisible({
+      timeout: 30_000,
+    });
+    await expect(page.getByText("3.9", { exact: true })).toBeVisible();
   } finally {
     if (brewId) {
       await page.request.post(`/api/brews/${brewId}/tap/cancel`).catch(() => undefined);
       await page.request.post(`/api/brews/${brewId}/mature/cancel`).catch(() => undefined);
+      await page.request.post(`/api/brews/${brewId}/pub/cancel`).catch(() => undefined);
     }
     if (brewId && tapServerStartRequested) {
       await page.request
