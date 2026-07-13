@@ -1,11 +1,13 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { MAX_PUB_GUESTS, pubScreenshotName } from "@/lib/pub/constants";
+import { MAX_PUB_GUESTS } from "@/lib/pub/constants";
 import type { Brew, PubPhase, SavedPersona } from "@/lib/store/types";
 import { latestSucceededBatch } from "@/lib/tap/batches";
 import { useBrewAction } from "./use-brew-action";
 import { confirmSound } from "@/components/ps1/sound";
+import { PubBarScene } from "@/components/pub/pub-bar-scene";
+import { PubReportView } from "@/components/pub/pub-report-view";
 
 const PHASE_LABELS: Record<PubPhase, string> = {
   opening: "開店準備",
@@ -155,10 +157,13 @@ export function PubPanel({
   return (
     <div className="flex flex-col gap-4">
       {brew.pubProgress && (
-        <p className="m-0 text-[#e0a83c]" aria-live="polite">
-          {PHASE_LABELS[brew.pubProgress.phase]}(バッチ{brew.pubProgress.batch}):{" "}
-          {brew.pubProgress.detail}
-        </p>
+        <div className="flex flex-col gap-3">
+          <PubBarScene result={null} sign={null} />
+          <p className="m-0 text-[#e0a83c]" aria-live="polite">
+            {PHASE_LABELS[brew.pubProgress.phase]}(バッチ{brew.pubProgress.batch}):{" "}
+            {brew.pubProgress.detail}
+          </p>
+        </div>
       )}
 
       {!working && latest && (
@@ -305,85 +310,13 @@ export function PubPanel({
       )}
 
       {report && shownBatch !== null && (
-        <div>
-          <h3 className="m-0 text-[17px] font-normal tracking-wide text-[#ffd88a]">
-            ▸ {brew.name} バッチ{shownBatch} Pubレポート — {report.overall.toFixed(1)} / 5.0(客
-            {report.personaResults.length}人)
-          </h3>
-          <p className="mt-2 whitespace-pre-wrap text-[#e8c07a]">{report.summary}</p>
-
-          <div className="mt-4 flex flex-col gap-4">
-            {report.personaResults.map((r, i) => (
-              <div key={i} className="border-2 border-[#3a2a12] bg-[#0e0804] p-4">
-                <p className="m-0 text-[16px] text-[#ffe9c0]">
-                  {r.persona.name}
-                  {r.persona.origin === "saved" && (
-                    <span className="ml-2 bg-[#d98a12] px-2 py-0.5 text-[12px] text-[#140a02]">
-                      常連
-                    </span>
-                  )}
-                  {r.status === "aborted" && (
-                    <span
-                      className="ml-2 px-2 py-0.5 text-[12px]"
-                      style={{ border: "1px solid #ff8a8a", color: "#ff8a8a" }}
-                    >
-                      中断
-                    </span>
-                  )}
-                </p>
-                <p className="mt-1 mb-0 text-[13px]" style={{ color: "rgba(255,220,160,.55)" }}>
-                  {r.persona.profile}
-                </p>
-                {r.status === "completed" ? (
-                  <>
-                    <p className="mt-2 mb-0 text-[#f5a623]">
-                      {r.overall.toFixed(1)} / 5.0
-                      <span className="ml-3 text-[13px] text-[#e0a83c]">
-                        {r.scores.map((s) => `${s.name} ${s.score}`).join(" / ")}
-                      </span>
-                    </p>
-                    <p className="mt-1 mb-0 text-[#ffe9c0]">「{r.comment}」</p>
-                    <ul className="mt-2 list-none space-y-1 p-0 text-[14px]">
-                      {r.taskResults.map((t, j) => (
-                        <li key={j}>
-                          <span style={{ color: t.achieved ? "#8adc8a" : "#ff8a8a" }}>
-                            {t.achieved ? "○" : "✕"}
-                          </span>{" "}
-                          {t.goal} — {t.note}
-                        </li>
-                      ))}
-                    </ul>
-                  </>
-                ) : (
-                  <p className="mt-2 mb-0 text-[14px] text-[#ff8a8a]">{r.comment}</p>
-                )}
-                {screenshots?.batch === shownBatch &&
-                  screenshots.names.includes(pubScreenshotName(i + 1)) && (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      src={`/api/brews/${brew.id}/pub/screenshot?batch=${shownBatch}&name=${pubScreenshotName(i + 1)}`}
-                      alt={`${r.persona.name} の最終画面`}
-                      className="mt-3 max-h-48 border-2 border-[#3a2a12]"
-                    />
-                  )}
-                {r.steps.length > 0 && (
-                  <details className="mt-3">
-                    <summary className="cursor-pointer text-[13px] text-[#e0a83c]">
-                      行動ログ({r.steps.length}件)
-                    </summary>
-                    <ol className="mt-2 space-y-1 text-[13px]" style={{ color: "rgba(255,220,160,.7)" }}>
-                      {r.steps.map((s) => (
-                        <li key={s.step}>
-                          {s.step}. {s.action} → {s.observation}
-                        </li>
-                      ))}
-                    </ol>
-                  </details>
-                )}
-              </div>
-            ))}
-          </div>
-        </div>
+        <PubReportView
+          key={shownBatch}
+          report={report}
+          batch={shownBatch}
+          brewId={brew.id}
+          screenshots={screenshots}
+        />
       )}
     </div>
   );
