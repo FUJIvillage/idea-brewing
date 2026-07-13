@@ -42,7 +42,14 @@ describe("runPersonaSession", () => {
 
   it("ステップ上限で打ち切っても評価聴取して completed になる", async () => {
     const client = stubClient({
-      "pub-action": () => ({ kind: "click", target: 1, reason: "延々押す" }),
+      "pub-action": () => ({
+        kind: "click",
+        target: 1,
+        value: null,
+        key: null,
+        path: null,
+        reason: "延々押す",
+      }),
     });
     const result = await runPersonaSession(client, createFakePubDriver(), persona);
     expect(result.status).toBe("completed");
@@ -53,7 +60,14 @@ describe("runPersonaSession", () => {
     const driver = createFakePubDriver();
     driver.act = async () => "操作に失敗しました: フェイク失敗";
     const client = stubClient({
-      "pub-action": () => ({ kind: "click", target: 1, reason: "押す" }),
+      "pub-action": () => ({
+        kind: "click",
+        target: 1,
+        value: null,
+        key: null,
+        path: null,
+        reason: "押す",
+      }),
     });
     const result = await runPersonaSession(client, driver, persona);
     expect(result.status).toBe("aborted");
@@ -88,7 +102,8 @@ describe("runPersonaSession", () => {
     const client = stubClient({
       "pub-action": () => {
         calls += 1;
-        return { kind: "fill", value: "x", reason: "対象指定漏れ" };
+        // target: null = LLMが対象指定を漏らしたケース
+        return { kind: "fill", target: null, value: "x", key: null, path: null, reason: "対象指定漏れ" };
       },
     });
     const driver = createFakePubDriver();

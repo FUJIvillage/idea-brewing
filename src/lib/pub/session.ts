@@ -8,12 +8,14 @@ import { isFailureObservation, type PubAction, type PubDriver, type PubPageState
 export const MAX_SESSION_STEPS = 15;
 const MAX_CONSECUTIVE_FAILURES = 3;
 
+// OpenAIのstrict structured outputsはoptionalプロパティを拒否するため、
+// 全フィールド必須+null許容(nullable)にする。nullish(=optional)はNG
 const actionSchema = z.object({
   kind: z.enum(["click", "fill", "select", "press", "goto", "finish"]),
-  target: z.number().int().min(1).nullish(),
-  value: z.string().nullish(),
-  key: z.string().nullish(),
-  path: z.string().nullish(),
+  target: z.number().int().min(1).nullable(),
+  value: z.string().nullable(),
+  key: z.string().nullable(),
+  path: z.string().nullable(),
   reason: z.string().min(1),
 });
 
