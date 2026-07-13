@@ -76,3 +76,27 @@ test("質問数が上限に達したら強制終了する", async () => {
   expect(entry).toBeNull();
   expect(done.boil.finished).toBe(true);
 });
+
+test("質問上限は引数で変更できる", async () => {
+  const { brew, fake } = await mashedBrew();
+  const entries: BoilEntry[] = Array.from({ length: 3 }, (_, i) => ({
+    id: String(i),
+    question: `q${i}`,
+    options: [],
+    askedAt: new Date().toISOString(),
+  }));
+  const stuffed: Brew = { ...brew, boil: { ...brew.boil, entries } };
+  const callsBefore = fake.calls.length;
+  const { brew: done, entry } = await nextQuestion(stuffed, fake, { maxQuestions: 3 });
+  expect(entry).toBeNull();
+  expect(done.boil.finished).toBe(true);
+  expect(fake.calls.length).toBe(callsBefore);
+});
+
+test("clampBoilMaxQuestions は範囲外を丸める", async () => {
+  const { clampBoilMaxQuestions } = await import("@/lib/boil");
+  expect(clampBoilMaxQuestions(0)).toBe(1);
+  expect(clampBoilMaxQuestions(3.7)).toBe(3);
+  expect(clampBoilMaxQuestions(999)).toBe(100);
+  expect(clampBoilMaxQuestions(NaN)).toBe(MAX_QUESTIONS);
+});

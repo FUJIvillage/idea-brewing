@@ -97,6 +97,7 @@ describe("tap build route", () => {
       cursorEffort: "",
       cursorFast: "",
       effort: "",
+      boilMaxQuestions: 20,
     });
 
     const res = await buildPost(new Request("http://localhost"), ctx(brew.id));

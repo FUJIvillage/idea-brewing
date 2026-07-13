@@ -20,6 +20,7 @@ const FAKE_SETTINGS: Settings = {
   cursorModel: "composer-2.5",
   cursorEffort: "",
   cursorFast: "",
+  boilMaxQuestions: 20,
 };
 
 beforeEach(async () => {

@@ -95,7 +95,19 @@ export function BoilPanel({
       onUpdate(current);
       let guard = 0;
       let networkHits = 0;
-      while (!cancelRef.current && !current.boil.finished && guard < 50) {
+      let maxSteps = 50;
+      try {
+        const settingsRes = await fetch("/api/settings");
+        if (settingsRes.ok) {
+          const settings = (await settingsRes.json()) as { boilMaxQuestions?: number };
+          const maxQ =
+            typeof settings.boilMaxQuestions === "number" ? settings.boilMaxQuestions : 20;
+          maxSteps = Math.max(50, maxQ * 2 + 10);
+        }
+      } catch {
+        // 設定取得失敗時は既定のガードを使う
+      }
+      while (!cancelRef.current && !current.boil.finished && guard < maxSteps) {
         guard += 1;
         const pendingEntry = current.boil.entries.find((e) => !e.answer);
         const beforeUpdatedAt = current.updatedAt;

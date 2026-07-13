@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { isBrewBusy } from "@/lib/mature/mature-state";
-import { writeBrew } from "@/lib/store";
+import { readSettings, writeBrew } from "@/lib/store";
 import { getConfiguredClient } from "@/lib/llm";
 import { applyAnswer, finishBoil, nextQuestion, setAutoMode } from "@/lib/boil";
 import { brewNotFound, errorResponse, findBrew } from "@/lib/api";
@@ -36,7 +36,10 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
 
     const client = await getConfiguredClient();
     if (body.action === "next") {
-      const { brew: asked, entry } = await nextQuestion(brew, client);
+      const settings = await readSettings();
+      const { brew: asked, entry } = await nextQuestion(brew, client, {
+        maxQuestions: settings.boilMaxQuestions,
+      });
       // LLM 側の判断で煮沸が終わったら発酵待ちステージへ進める
       const next: Brew =
         asked.boil.finished && asked.stage === "boiling"

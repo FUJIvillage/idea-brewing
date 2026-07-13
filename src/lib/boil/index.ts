@@ -10,6 +10,21 @@ import {
 } from "@/lib/store/types";
 
 export const MAX_QUESTIONS = 20;
+export const MIN_BOIL_MAX_QUESTIONS = 1;
+export const ABS_MAX_BOIL_MAX_QUESTIONS = 100;
+
+export function clampBoilMaxQuestions(value: unknown): number {
+  const n = typeof value === "number" ? value : Number(value);
+  if (!Number.isFinite(n)) return MAX_QUESTIONS;
+  return Math.min(
+    ABS_MAX_BOIL_MAX_QUESTIONS,
+    Math.max(MIN_BOIL_MAX_QUESTIONS, Math.floor(n)),
+  );
+}
+
+export interface NextQuestionOptions {
+  maxQuestions?: number;
+}
 
 const nextSchema = z.object({
   done: z.boolean(),
@@ -62,15 +77,17 @@ function historyDump(entries: BoilEntry[]): string {
 export async function nextQuestion(
   brew: Brew,
   client: LlmClient,
+  opts: NextQuestionOptions = {},
 ): Promise<{ brew: Brew; entry: BoilEntry | null }> {
   if (!brew.sheet) throw new Error("シートがまだありません。先に仕込みを実行してください。");
+  const maxQuestions = clampBoilMaxQuestions(opts.maxQuestions ?? MAX_QUESTIONS);
   const finish = (b: Brew): { brew: Brew; entry: null } => ({
     brew: { ...b, boil: { ...b.boil, finished: true } },
     entry: null,
   });
 
   if (brew.boil.finished) return { brew, entry: null };
-  if (brew.boil.entries.length >= MAX_QUESTIONS) return finish(brew);
+  if (brew.boil.entries.length >= maxQuestions) return finish(brew);
   if (SHEET_KEYS.every((k) => brew.sheet![k].sufficiency === "full")) return finish(brew);
 
   const out = await client.generateObject(nextSchema, {

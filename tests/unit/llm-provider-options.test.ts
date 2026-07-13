@@ -12,6 +12,7 @@ const base: Settings = {
   cursorModel: "composer-2.5",
   cursorEffort: "",
   cursorFast: "",
+  boilMaxQuestions: 20,
 };
 
 describe("buildLlmProviderOptions", () => {

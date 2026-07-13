@@ -1,6 +1,7 @@
 import { promises as fs } from "node:fs";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
+import { clampBoilMaxQuestions } from "@/lib/boil";
 import type { Brew, SavedPersona, Settings } from "./types";
 
 export function dataDir(): string {
@@ -36,22 +37,29 @@ const DEFAULT_SETTINGS: Settings = {
   cursorModel: "composer-2.5",
   cursorEffort: "",
   cursorFast: "",
+  boilMaxQuestions: 20,
 };
 
 export async function readSettings(): Promise<Settings> {
   try {
     const raw = await fs.readFile(path.join(dataDir(), "settings.json"), "utf8");
-    return { ...DEFAULT_SETTINGS, ...(JSON.parse(raw) as Partial<Settings>) };
+    const merged = { ...DEFAULT_SETTINGS, ...(JSON.parse(raw) as Partial<Settings>) };
+    merged.boilMaxQuestions = clampBoilMaxQuestions(merged.boilMaxQuestions);
+    return merged;
   } catch {
     return { ...DEFAULT_SETTINGS };
   }
 }
 
 export async function writeSettings(settings: Settings): Promise<void> {
+  const normalized: Settings = {
+    ...settings,
+    boilMaxQuestions: clampBoilMaxQuestions(settings.boilMaxQuestions),
+  };
   await fs.mkdir(dataDir(), { recursive: true });
   await fs.writeFile(
     path.join(dataDir(), "settings.json"),
-    JSON.stringify(settings, null, 2),
+    JSON.stringify(normalized, null, 2),
     "utf8",
   );
 }

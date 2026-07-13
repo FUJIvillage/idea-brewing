@@ -207,6 +207,29 @@ export default function SettingsPage() {
           </p>
         </div>
 
+        <div>
+          <label htmlFor="boilMaxQuestions" className="ps-label">
+            ▸ 煮沸の質問上限
+          </label>
+          <input
+            id="boilMaxQuestions"
+            type="number"
+            min={1}
+            max={100}
+            value={s.boilMaxQuestions}
+            onChange={(e) =>
+              setSettings({
+                ...s,
+                boilMaxQuestions: Number(e.target.value),
+              })
+            }
+            className="ps-input"
+          />
+          <p className="mt-1 text-[12px]" style={{ color: "rgba(255,220,160,.4)" }}>
+            1〜100。達すると煮沸を自動完了します(既定: 20)。
+          </p>
+        </div>
+
         <div className="border-t-2 border-[#3a2a12] pt-4">
           <h2 className="m-0 text-[17px] font-normal tracking-[2px] text-[#f5b94a]">
             ◆ ビルドエンジン(Cursor)

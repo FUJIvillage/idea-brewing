@@ -206,4 +206,6 @@ export interface Settings {
   cursorEffort: string;
   /** タップ工程の Cursor モデル fast ("true" | "false")。空なら未指定 */
   cursorFast: string;
+  /** 煮沸の質問上限(1〜100)。既定 20 */
+  boilMaxQuestions: number;
 }

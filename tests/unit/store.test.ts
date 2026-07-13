@@ -30,6 +30,7 @@ test("設定の既定値に Cursor 用フィールドが入る", async () => {
   expect(s.cursorEffort).toBe("");
   expect(s.cursorFast).toBe("");
   expect(s.effort).toBe("");
+  expect(s.boilMaxQuestions).toBe(20);
 });
 
 test("設定の保存と読み出し", async () => {
@@ -43,6 +44,7 @@ test("設定の保存と読み出し", async () => {
     cursorModel: "composer-2.5",
     cursorEffort: "max",
     cursorFast: "true",
+    boilMaxQuestions: 35,
   });
   const s = await readSettings();
   expect(s.provider).toBe("ollama");
@@ -50,6 +52,7 @@ test("設定の保存と読み出し", async () => {
   expect(s.effort).toBe("high");
   expect(s.cursorEffort).toBe("max");
   expect(s.cursorFast).toBe("true");
+  expect(s.boilMaxQuestions).toBe(35);
 });
 
 test("ブリューの作成・読み出し・一覧", async () => {
@@ -109,4 +112,5 @@ test("旧形式 settings.json でも Cursor フィールドが補完される", 
   expect(s.cursorEffort).toBe("");
   expect(s.cursorFast).toBe("");
   expect(s.effort).toBe("");
+  expect(s.boilMaxQuestions).toBe(20);
 });
