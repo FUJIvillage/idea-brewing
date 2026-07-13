@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import type { Brew, BoilEntry } from "@/lib/store/types";
+import { postBoilOrRecover } from "@/lib/boil/network";
 import { blip, confirmSound } from "@/components/ps1/sound";
 
 async function postBoil(
@@ -15,6 +16,13 @@ async function postBoil(
   });
   const json = await res.json();
   if (!res.ok) throw new Error(json.error ?? "煮沸操作に失敗しました");
+  return json;
+}
+
+async function loadBrew(brewId: string): Promise<Brew> {
+  const res = await fetch(`/api/brews/${brewId}`);
+  const json = await res.json();
+  if (!res.ok) throw new Error(json.error ?? "ブリューの再取得に失敗しました");
   return json;
 }
 
@@ -54,9 +62,12 @@ export function BoilPanel({
     }
   }
 
+  const resilientPost = (body: unknown) =>
+    postBoilOrRecover(brew.id, body, { post: postBoil, load: loadBrew });
+
   const next = () =>
     run(async () => {
-      const { brew: b } = await postBoil(brew.id, { action: "next" });
+      const { brew: b } = await resilientPost({ action: "next" });
       onUpdate(b);
       confirmSound();
     });
@@ -64,7 +75,7 @@ export function BoilPanel({
   const answer = (text: string, by: "user" | "auto") =>
     run(async () => {
       if (!pending) return;
-      const { brew: b } = await postBoil(brew.id, {
+      const { brew: b } = await resilientPost({
         action: "answer",
         entryId: pending.id,
         answer: text,
@@ -80,32 +91,62 @@ export function BoilPanel({
   const runAuto = () => {
     cancelRef.current = false;
     return run(async () => {
-      let current = (await postBoil(brew.id, { action: "auto", auto: true })).brew;
+      let current = (await resilientPost({ action: "auto", auto: true })).brew;
       onUpdate(current);
       let guard = 0;
+      let networkHits = 0;
       while (!cancelRef.current && !current.boil.finished && guard < 50) {
         guard += 1;
         const pendingEntry = current.boil.entries.find((e) => !e.answer);
+        const beforeUpdatedAt = current.updatedAt;
         if (pendingEntry) {
           await sleep(900);
           if (cancelRef.current) break;
           const rec =
             pendingEntry.options.find((o) => o.recommended) ?? pendingEntry.options[0];
-          current = (
-            await postBoil(brew.id, {
-              action: "answer",
-              entryId: pendingEntry.id,
-              answer: rec?.label ?? "おまかせ",
-              by: "auto",
-            })
-          ).brew;
+          const result = await resilientPost({
+            action: "answer",
+            entryId: pendingEntry.id,
+            answer: rec?.label ?? "おまかせ",
+            by: "auto",
+          });
+          current = result.brew;
+          if (result.recovered) {
+            if (current.updatedAt === beforeUpdatedAt) {
+              networkHits += 1;
+              if (networkHits >= 3) {
+                throw new Error(
+                  "通信が何度も切れました。サーバー側は進んでいることがあります。ページを再読み込みして続行してください。",
+                );
+              }
+            } else {
+              networkHits = 0;
+            }
+          } else {
+            networkHits = 0;
+          }
         } else {
-          current = (await postBoil(brew.id, { action: "next" })).brew;
+          const result = await resilientPost({ action: "next" });
+          current = result.brew;
+          if (result.recovered) {
+            if (current.updatedAt === beforeUpdatedAt) {
+              networkHits += 1;
+              if (networkHits >= 3) {
+                throw new Error(
+                  "通信が何度も切れました。サーバー側は進んでいることがあります。ページを再読み込みして続行してください。",
+                );
+              }
+            } else {
+              networkHits = 0;
+            }
+          } else {
+            networkHits = 0;
+          }
         }
         onUpdate(current);
       }
       if (cancelRef.current === "auto-off") {
-        const { brew: b } = await postBoil(brew.id, { action: "auto", auto: false });
+        const { brew: b } = await resilientPost({ action: "auto", auto: false });
         onUpdate(b);
       }
     });
@@ -113,7 +154,7 @@ export function BoilPanel({
 
   const finish = () =>
     run(async () => {
-      const { brew: b } = await postBoil(brew.id, { action: "finish" });
+      const { brew: b } = await resilientPost({ action: "finish" });
       onUpdate(b);
       confirmSound();
     });
@@ -149,7 +190,7 @@ export function BoilPanel({
                     cancelRef.current = "auto-off";
                   } else {
                     void run(async () => {
-                      const { brew: b } = await postBoil(brew.id, {
+                      const { brew: b } = await resilientPost({
                         action: "auto",
                         auto: false,
                       });
