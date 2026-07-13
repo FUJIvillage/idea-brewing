@@ -48,16 +48,21 @@ Cursor APIキーは設定画面に保存する代わりに、環境変数 `CURSO
 
 ```text
 data/
-  settings.json
+  settings.json                … LLM/Cursor の設定・APIキー
+  personas.json                … 保存済みの常連客(上限20件)
   brews/
     <ID>/
-      brew.json
-      recipe/
+      brew.json                … そのブリューの全状態(工程・シート・バッチ等)
+      ingredients/             … 投入した原料ファイル
+      recipe/                  … 発酵で生成した実装資料(Markdown 7ファイル)
       taps/
-        batch-1/
+        batch-<N>/             … タップ工程で生成したアプリ(Vite+React)+ tap.json / build.log
+          evaluation.md        … 熟成の評価(実行時)
+          screenshots/         … 熟成の撮影(実行時)
+          pub/                 … Pub の report.md と persona-*.png(実行時)
 ```
 
-データの保存先ディレクトリは環境変数 `IDEA_BREWING_DATA_DIR` で変更できます(既定: プロジェクト直下の `data/`)。
+データの保存先ディレクトリは環境変数 `IDEA_BREWING_DATA_DIR` で変更できます(既定: プロジェクト直下の `data/`)。`data/` は `.gitignore` 済みです。
 
 ## 熟成(自己評価バッチループ)
 
@@ -113,6 +118,7 @@ data/
 ```powershell
 npm run test   # 単体テスト(Vitest)
 npm run e2e    # E2E(Playwright + フェイクLLM)
+npm run lint   # ESLint(生成物 data/・templates・デザインハンドオフは対象外)
 ```
 
 `npm run e2e` は内部で開発サーバーを起動するため、`npm run dev` の実行中に走らせると失敗します(Next 16 は同一ディレクトリでの開発サーバー二重起動を禁止しています)。先に dev サーバーを止めてください。
