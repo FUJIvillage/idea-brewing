@@ -10,21 +10,29 @@ test("原料投入からタップ提供までのハッピーパス", async ({ pa
   const e2eDataDir = path.join(process.cwd(), ".e2e-data");
 
   try {
+    // PS1起動画面(PRESS START)をスキップする。キーは ps1-prefs.tsx の BOOT_KEY と対応
+    // (キーが変わると起動画面が再表示されてこのテストがタイムアウトするので気づける)
+    await page.addInitScript(() => {
+      window.sessionStorage.setItem("idea-brewing-ps1-boot", "1");
+    });
+
     // 1. 新しい仕込み
     await page.goto("/");
     await page.getByRole("link", { name: "新しい仕込み" }).click();
     await page.getByLabel("ブリュー名").fill("最高のtodoアプリ");
     await page.getByLabel("アイデアメモ").fill("最高のtodoアプリ");
     await page.getByRole("button", { name: "仕込みを始める" }).click();
-    await page.waitForURL(/\/brews\/(?!new$)[^/]+$/);
-    const match = page.url().match(/\/brews\/([^/?#]+)$/);
+    // 作成後は /brews/{id}?tab=ingredients に遷移する(クエリ付きでもIDを取れるようパスだけ見る)
+    await page.waitForURL((url) => /^\/brews\/(?!new$)[^/]+$/.test(url.pathname));
+    const match = new URL(page.url()).pathname.match(/^\/brews\/([^/]+)$/);
     if (!match) throw new Error("作成したブリューIDをURLから取得できませんでした。");
     brewId = decodeURIComponent(match[1]);
 
     // 2. 仕込み(マッシュ)
     // マッシュAPI + Next devの初回コンパイルを跨ぐためデフォルト5秒では不足しうる
     await page.getByRole("button", { name: "仕込み開始(マッシュ)" }).click();
-    await expect(page.getByRole("heading", { name: "コンセプト", exact: true })).toBeVisible({
+    // PS1 UIでは見出しが「▸ コンセプト」になる
+    await expect(page.getByRole("heading", { name: /コンセプト/ })).toBeVisible({
       timeout: 30_000,
     });
 
@@ -60,17 +68,17 @@ test("原料投入からタップ提供までのハッピーパス", async ({ pa
 
     // 6. ビルド(タップ・フェイクエンジン)
     await page.getByRole("button", { name: "タップ", exact: true }).click();
-    await page.getByRole("button", { name: "ビルド開始(1stバッチ)", exact: true }).click();
+    await page.getByRole("button", { name: "ビルド開始(1stバッチ)" }).click();
     await expect(page.getByText(/バッチ1 完成/)).toBeVisible({ timeout: 60_000 });
     await expect(
-      page.getByRole("button", { name: "注ぐ(サーバー起動)", exact: true }),
+      page.getByRole("button", { name: "注ぐ(サーバー起動)" }),
     ).toBeVisible();
     expect(existsSync(path.join(brewsDir, brewId, "taps", "batch-1", "tap.json"))).toBe(true);
     expect(existsSync(path.join(brewsDir, brewId, "taps", "batch-1", "build.log"))).toBe(true);
 
     // 7. 注ぐ(devサーバー起動)
     tapServerStartRequested = true;
-    await page.getByRole("button", { name: "注ぐ(サーバー起動)", exact: true }).click();
+    await page.getByRole("button", { name: "注ぐ(サーバー起動)" }).click();
     const link = page.getByRole("link", { name: /^http:\/\/localhost:\d+$/ });
     await expect(link).toBeVisible({ timeout: 60_000 });
     const href = await link.getAttribute("href");
@@ -84,19 +92,20 @@ test("原料投入からタップ提供までのハッピーパス", async ({ pa
     // 8. 止める
     await page.getByRole("button", { name: "止める", exact: true }).click();
     await expect(
-      page.getByRole("button", { name: "注ぐ(サーバー起動)", exact: true }),
+      page.getByRole("button", { name: "注ぐ(サーバー起動)" }),
     ).toBeVisible({ timeout: 30_000 });
     tapServerStartRequested = false;
 
     // 9. 熟成: 評価(フェイクLLM・スクリーンショットはスキップされる)
     await page.getByRole("button", { name: "熟成", exact: true }).click();
-    await page.getByRole("button", { name: "このバッチを評価", exact: true }).click();
+    await page.getByRole("button", { name: "このバッチを評価" }).click();
     await expect(page.getByText("3.0 / 5.0").first()).toBeVisible({ timeout: 60_000 });
     expect(existsSync(path.join(brewsDir, brewId, "taps", "batch-1", "evaluation.md"))).toBe(true);
 
     // 10. 改善して次のバッチへ(repair)
     await page.getByRole("button", { name: /改善して次のバッチへ/ }).click();
-    await expect(page.getByText("バッチ2", { exact: true })).toBeVisible({ timeout: 60_000 });
+    // バッチカードは選択中だと「▶ バッチ2」になるためロール+部分一致で待つ
+    await expect(page.getByRole("button", { name: /バッチ2/ })).toBeVisible({ timeout: 60_000 });
     expect(
       existsSync(
         path.join(brewsDir, brewId, "taps", "batch-2", "docs", "recipe", "07-improvement-notes.md"),
@@ -107,12 +116,12 @@ test("原料投入からタップ提供までのハッピーパス", async ({ pa
     await page.getByRole("button", { name: "タップ", exact: true }).click();
     await expect(page.getByText(/バッチ2 完成/)).toBeVisible({ timeout: 30_000 });
     tapServerStartRequested = true;
-    await page.getByRole("button", { name: "注ぐ(サーバー起動)", exact: true }).click();
+    await page.getByRole("button", { name: "注ぐ(サーバー起動)" }).click();
     const link2 = page.getByRole("link", { name: /^http:\/\/localhost:\d+$/ });
     await expect(link2).toBeVisible({ timeout: 60_000 });
     await page.getByRole("button", { name: "止める", exact: true }).click();
     await expect(
-      page.getByRole("button", { name: "注ぐ(サーバー起動)", exact: true }),
+      page.getByRole("button", { name: "注ぐ(サーバー起動)" }),
     ).toBeVisible({ timeout: 30_000 });
     tapServerStartRequested = false;
 
@@ -127,7 +136,7 @@ test("原料投入からタップ提供までのハッピーパス", async ({ pa
     await expect(regularCheckbox).toBeVisible({ timeout: 30_000 });
     await regularCheckbox.check();
     await page.getByLabel("自動生成の人数").fill("1");
-    await page.getByRole("button", { name: "開店する", exact: true }).click();
+    await page.getByRole("button", { name: "開店する" }).click();
 
     // 常連(1人目=高評価4.5) + 自動生成(2人目=3.3) → 総合 3.9
     await expect(page.getByText(/3\.9 \/ 5\.0/)).toBeVisible({ timeout: 60_000 });

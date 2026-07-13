@@ -6,7 +6,7 @@ import {
   useContext,
   useEffect,
   useMemo,
-  useState,
+  useSyncExternalStore,
   type ReactNode,
 } from "react";
 import { setSoundMuted } from "./sound";
@@ -26,52 +26,68 @@ const SOUND_KEY = "idea-brewing-ps1-sound";
 const CRT_KEY = "idea-brewing-ps1-crt";
 const BOOT_KEY = "idea-brewing-ps1-boot";
 
+// ストレージを唯一の置き場にして useSyncExternalStore で購読する。
+// (マウント後の effect で setState する初期化は、SSR初期値→実値のカスケード再レンダーになるため)
+// サーバースナップショットは従来のSSR初期値と同じ true(起動画面はハイドレーション後に判定)
+const listeners = new Set<() => void>();
+
+function emit(): void {
+  for (const listener of listeners) listener();
+}
+
+function subscribe(listener: () => void): () => void {
+  listeners.add(listener);
+  return () => {
+    listeners.delete(listener);
+  };
+}
+
 function readBool(key: string, fallback: boolean): boolean {
-  if (typeof window === "undefined") return fallback;
   const raw = window.localStorage.getItem(key);
   if (raw === null) return fallback;
   return raw === "1";
 }
 
 export function Ps1PrefsProvider({ children }: { children: ReactNode }) {
-  const [soundOn, setSoundOn] = useState(true);
-  const [crtOn, setCrtOnState] = useState(true);
-  const [bootDone, setBootDone] = useState(true);
-  const [ready, setReady] = useState(false);
+  const soundOn = useSyncExternalStore(
+    subscribe,
+    () => readBool(SOUND_KEY, true),
+    () => true,
+  );
+  const crtOn = useSyncExternalStore(
+    subscribe,
+    () => readBool(CRT_KEY, true),
+    () => true,
+  );
+  const bootDone = useSyncExternalStore(
+    subscribe,
+    () => window.sessionStorage.getItem(BOOT_KEY) === "1",
+    () => true,
+  );
 
+  // サウンドモジュール(外部システム)のミュート状態を購読値に同期する
   useEffect(() => {
-    const sound = readBool(SOUND_KEY, true);
-    const crt = readBool(CRT_KEY, true);
-    const boot = sessionStorage.getItem(BOOT_KEY) === "1";
-    setSoundOn(sound);
-    setCrtOnState(crt);
-    setBootDone(boot);
-    setSoundMuted(!sound);
-    setReady(true);
-  }, []);
+    setSoundMuted(!soundOn);
+  }, [soundOn]);
 
   const toggleSound = useCallback(() => {
-    setSoundOn((prev) => {
-      const next = !prev;
-      localStorage.setItem(SOUND_KEY, next ? "1" : "0");
-      setSoundMuted(!next);
-      return next;
-    });
+    localStorage.setItem(SOUND_KEY, readBool(SOUND_KEY, true) ? "0" : "1");
+    emit();
   }, []);
 
   const setCrtOn = useCallback((on: boolean) => {
-    setCrtOnState(on);
     localStorage.setItem(CRT_KEY, on ? "1" : "0");
+    emit();
   }, []);
 
   const dismissBoot = useCallback(() => {
     sessionStorage.setItem(BOOT_KEY, "1");
-    setBootDone(true);
+    emit();
   }, []);
 
   const value = useMemo(
-    () => ({ soundOn, crtOn, bootDone: !ready || bootDone, toggleSound, setCrtOn, dismissBoot }),
-    [soundOn, crtOn, bootDone, ready, toggleSound, setCrtOn, dismissBoot],
+    () => ({ soundOn, crtOn, bootDone, toggleSound, setCrtOn, dismissBoot }),
+    [soundOn, crtOn, bootDone, toggleSound, setCrtOn, dismissBoot],
   );
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
