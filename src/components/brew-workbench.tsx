@@ -87,12 +87,16 @@ export function BrewWorkbench({
             ? "recipe"
             : tab;
 
+  // キーボードショートカット(下のkeydownリスナー)から最新値を読むためのref。
+  // レンダー中のref書き込みは不可なので、毎レンダー後のeffectで同期する
   const enabledRef = useRef(enabled);
   const tabsBusyRef = useRef(tabsBusy);
   const visibleTabRef = useRef(visibleTab);
-  enabledRef.current = enabled;
-  tabsBusyRef.current = tabsBusy;
-  visibleTabRef.current = visibleTab;
+  useEffect(() => {
+    enabledRef.current = enabled;
+    tabsBusyRef.current = tabsBusy;
+    visibleTabRef.current = visibleTab;
+  });
 
   const selectTab = useCallback((id: WorkbenchTab) => {
     if (!enabledRef.current[id] || tabsBusyRef.current) return;

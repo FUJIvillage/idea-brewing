@@ -55,13 +55,16 @@ export function Ps1Tank({
   className?: string;
 }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const tRef = useRef(Math.random() * Math.PI * 2);
+  const tRef = useRef(-1); // 負=未シード。初期位相の乱数はレンダー中に呼べないためeffectで入れる
   const lastRef = useRef(0);
   const fillRef = useRef(fill);
   const speedRef = useRef(speed);
 
-  fillRef.current = fill;
-  speedRef.current = speed;
+  // 描画ループから最新のprops値を読むためのref(レンダー中の書き込みは不可なのでeffectで同期)
+  useEffect(() => {
+    fillRef.current = fill;
+    speedRef.current = speed;
+  }, [fill, speed]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -69,6 +72,7 @@ export function Ps1Tank({
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
     let running = true;
+    if (tRef.current < 0) tRef.current = Math.random() * Math.PI * 2;
     lastRef.current = performance.now();
 
     const draw = () => {
