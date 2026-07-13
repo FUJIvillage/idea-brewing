@@ -42,8 +42,9 @@ interface CursorSdkModule {
 }
 
 async function loadCursorSdk(): Promise<CursorSdkModule> {
-  const specifier = ["@cursor", "sdk"].join("/");
-  return import(specifier) as Promise<CursorSdkModule>;
+  // serverExternalPackages で外部化しているので、静的指定子でも実行時の Node require に解決される
+  // (動的な指定子だと Turbopack が「expression is too dynamic」で解決できない)
+  return import("@cursor/sdk") as unknown as Promise<CursorSdkModule>;
 }
 
 function isCursorAgentError(err: unknown): err is CursorAgentErrorLike {
