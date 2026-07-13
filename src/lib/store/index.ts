@@ -79,7 +79,7 @@ export async function createBrew(name: string): Promise<Brew> {
 export async function readBrew(id: string): Promise<Brew> {
   const raw = await fs.readFile(path.join(brewDir(id), "brew.json"), "utf8");
   // 旧名(grill/grilling)で保存された brew.json も読めるよう、boil/boiling へ寄せる
-  const legacy = JSON.parse(raw) as Brew & {
+  const legacy = JSON.parse(raw) as Omit<Brew, "stage"> & {
     grill?: Brew["boil"];
     stage: Brew["stage"] | "grilling";
   };
