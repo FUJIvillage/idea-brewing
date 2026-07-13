@@ -7,7 +7,7 @@ import {
   SHEET_LABELS,
   type Brew,
   type BrewSheet,
-  type GrillEntry,
+  type BoilEntry,
 } from "@/lib/store/types";
 
 export interface RecipeFileDef {
@@ -63,7 +63,7 @@ export const RECIPE_FILES: RecipeFileDef[] = [
 
 const RECIPE_SYSTEM = [
   "あなたは idea brewing の発酵職人です。",
-  "確定したブリューシートとグリルでの質疑応答をもとに、後続の実装AIエージェントがそのまま使える実装資料を Markdown で書きます。",
+  "確定したブリューシートと煮沸での質疑応答をもとに、後続の実装AIエージェントがそのまま使える実装資料を Markdown で書きます。",
   "資料は日本語。見出し構造を明確にし、曖昧な表現を避け、具体的に書きます。",
   "ファイルの先頭は「# <資料タイトル>」の見出しで始めてください。",
 ].join("\n");
@@ -74,7 +74,7 @@ function sheetDump(sheet: BrewSheet): string {
   );
 }
 
-function qaDump(entries: GrillEntry[]): string {
+function qaDump(entries: BoilEntry[]): string {
   const answered = entries.filter((e) => e.answer);
   if (answered.length === 0) return "(質疑なし)";
   return answered.map((e, i) => `Q${i + 1}: ${e.question}\nA${i + 1}: ${e.answer}`).join("\n");
@@ -108,8 +108,8 @@ export async function generateRecipe(
         `指示: ${def.instructions}`,
         `## ブリューシート(確定版)`,
         sheetDump(current.sheet!),
-        `## グリルでの質疑応答`,
-        qaDump(current.grill.entries),
+        `## 煮沸での質疑応答`,
+        qaDump(current.boil.entries),
         `## 生成済みの資料`,
         generated.length > 0 ? generated.join(", ") : "(なし)",
       ].join("\n\n");

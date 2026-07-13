@@ -23,8 +23,8 @@ export async function POST(_req: Request, ctx: { params: Promise<{ id: string }>
   try {
     const brew = await findBrew(id);
     if (!brew) return brewNotFound();
-    if (!brew.grill.finished) {
-      return NextResponse.json({ error: "グリルが完了していません。" }, { status: 400 });
+    if (!brew.boil.finished) {
+      return NextResponse.json({ error: "煮沸が完了していません。" }, { status: 400 });
     }
     const client = await getConfiguredClient();
     const done = await generateRecipe(brew, client, async (b) => {

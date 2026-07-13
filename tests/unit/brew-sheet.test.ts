@@ -12,7 +12,7 @@ beforeEach(() => {
   process.env.IDEA_BREWING_DATA_DIR = mkdtempSync(path.join(tmpdir(), "ib-sheet-"));
 });
 
-test("マッシュでブリューシート7項目が生成され stage が grilling になる", async () => {
+test("マッシュでブリューシート7項目が生成され stage が boiling になる", async () => {
   const fake = createFakeClient();
   let brew = await createBrew("t");
   brew = addTextIngredient(brew, "最高のtodoアプリ");
@@ -22,7 +22,7 @@ test("マッシュでブリューシート7項目が生成され stage が grill
     expect(next.sheet![key].content).toBeDefined();
     expect(["full", "thin", "empty"]).toContain(next.sheet![key].sufficiency);
   }
-  expect(next.stage).toBe("grilling");
+  expect(next.stage).toBe("boiling");
   expect(fake.calls[0].tag).toBe("mash");
   expect(fake.calls[0].prompt).toContain("最高のtodoアプリ");
 });
@@ -39,15 +39,15 @@ test("ユーザー確定済み項目は再マッシュで上書きされない",
   expect(again.sheet!.targetUsers.userEdited).toBe(false);
 });
 
-test("グリル完了後の再マッシュで grill.finished がリセットされ stage が grilling になる", async () => {
+test("煮沸完了後の再マッシュで boil.finished がリセットされ stage が boiling になる", async () => {
   const fake = createFakeClient();
   let brew = await createBrew("t");
   brew = addTextIngredient(brew, "メモ");
   brew = await runMash(brew, fake);
-  brew = { ...brew, grill: { ...brew.grill, finished: true } };
+  brew = { ...brew, boil: { ...brew.boil, finished: true } };
   const again = await runMash(brew, fake);
-  expect(again.grill.finished).toBe(false);
-  expect(again.stage).toBe("grilling");
+  expect(again.boil.finished).toBe(false);
+  expect(again.stage).toBe("boiling");
 });
 
 test("シート手動編集は userEdited を立て、充足度を再判定する", async () => {

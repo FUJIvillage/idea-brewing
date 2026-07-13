@@ -3,7 +3,7 @@ import type { Brew } from "@/lib/store/types";
 export type WorkbenchTab =
   | "ingredients"
   | "sheet"
-  | "grill"
+  | "boil"
   | "recipe"
   | "tap"
   | "mature"
@@ -22,8 +22,8 @@ export function defaultTabForBrew(brew: Brew): WorkbenchTab {
     case "fermenting":
     case "done":
       return "recipe";
-    case "grilling":
-      return "grill";
+    case "boiling":
+      return "boil";
     case "ingredients":
     default:
       return "ingredients";
@@ -34,7 +34,7 @@ export function progressPercent(stage: Brew["stage"]): number {
   switch (stage) {
     case "ingredients":
       return 20;
-    case "grilling":
+    case "boiling":
       return 55;
     case "fermenting":
       return 85;
@@ -57,7 +57,7 @@ export function parseTabParam(raw: string | null | undefined): WorkbenchTab | nu
   const tabs: WorkbenchTab[] = [
     "ingredients",
     "sheet",
-    "grill",
+    "boil",
     "recipe",
     "tap",
     "mature",

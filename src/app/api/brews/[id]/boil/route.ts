@@ -2,11 +2,11 @@ import { NextResponse } from "next/server";
 import { isBrewBusy } from "@/lib/mature/mature-state";
 import { writeBrew } from "@/lib/store";
 import { getConfiguredClient } from "@/lib/llm";
-import { applyAnswer, finishGrill, nextQuestion, setAutoMode } from "@/lib/grill";
+import { applyAnswer, finishBoil, nextQuestion, setAutoMode } from "@/lib/boil";
 import { brewNotFound, errorResponse, findBrew } from "@/lib/api";
 import type { Brew } from "@/lib/store/types";
 
-type GrillRequest =
+type BoilRequest =
   | { action: "next" }
   | { action: "answer"; entryId: string; answer: string; by: "user" | "auto" }
   | { action: "finish" }
@@ -21,7 +21,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
   const brew = await findBrew(id);
   if (!brew) return brewNotFound();
   try {
-    const body = (await req.json()) as GrillRequest;
+    const body = (await req.json()) as BoilRequest;
 
     if (body.action === "auto") {
       const next = setAutoMode(brew, body.auto);
@@ -29,7 +29,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
       return NextResponse.json({ brew: saved, entry: null });
     }
     if (body.action === "finish") {
-      const next = finishGrill(brew);
+      const next = finishBoil(brew);
       const saved = await writeBrew(next);
       return NextResponse.json({ brew: saved, entry: null });
     }
@@ -37,9 +37,9 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
     const client = await getConfiguredClient();
     if (body.action === "next") {
       const { brew: asked, entry } = await nextQuestion(brew, client);
-      // LLM 側の判断でグリルが終わったら発酵待ちステージへ進める
+      // LLM 側の判断で煮沸が終わったら発酵待ちステージへ進める
       const next: Brew =
-        asked.grill.finished && asked.stage === "grilling"
+        asked.boil.finished && asked.stage === "boiling"
           ? { ...asked, stage: "fermenting" }
           : asked;
       const saved = await writeBrew(next);

@@ -43,22 +43,22 @@ export interface Ingredient {
   addedAt: string;
 }
 
-export interface GrillOption {
+export interface BoilOption {
   label: string;
   recommended: boolean;
 }
 
-export interface GrillEntry {
+export interface BoilEntry {
   id: string;
   question: string;
-  options: GrillOption[];
+  options: BoilOption[];
   answer?: string;
   answeredBy?: "user" | "auto";
   askedAt: string;
 }
 
-export interface GrillState {
-  entries: GrillEntry[];
+export interface BoilState {
+  entries: BoilEntry[];
   auto: boolean;
   finished: boolean;
 }
@@ -169,7 +169,7 @@ export interface PubProgress {
   batch: number;
 }
 
-export type BrewStage = "ingredients" | "grilling" | "fermenting" | "done" | "built";
+export type BrewStage = "ingredients" | "boiling" | "fermenting" | "done" | "built";
 
 export interface Brew {
   schemaVersion: 1;
@@ -180,7 +180,7 @@ export interface Brew {
   stage: BrewStage;
   ingredients: Ingredient[];
   sheet: BrewSheet | null;
-  grill: GrillState;
+  boil: BoilState;
   recipeProgress: RecipeProgress | null;
   recipeGeneratedAt: string | null;
   batches: BatchRecord[];

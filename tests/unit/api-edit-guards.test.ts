@@ -4,7 +4,7 @@ import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { createBrew } from "@/lib/store";
 import { buildingBrews } from "@/lib/tap/build-state";
-import { POST as grillPost } from "@/app/api/brews/[id]/grill/route";
+import { POST as boilPost } from "@/app/api/brews/[id]/boil/route";
 import { POST as ingredientsPost } from "@/app/api/brews/[id]/ingredients/route";
 import { POST as mashPost } from "@/app/api/brews/[id]/mash/route";
 import { PUT as sheetPut } from "@/app/api/brews/[id]/sheet/route";
@@ -31,7 +31,7 @@ function ctx(id: string): { params: Promise<{ id: string }> } {
 }
 
 describe("編集系ルートの相互排他", () => {
-  it("実行中はシート編集・グリル・原料追加・マッシュがすべて409を返す", async () => {
+  it("実行中はシート編集・煮沸・原料追加・マッシュがすべて409を返す", async () => {
     const brew = await createBrew("編集ガード");
     buildingBrews.add(brew.id);
 
@@ -47,8 +47,8 @@ describe("編集系ルートの相互排他", () => {
         ),
       ],
       [
-        "grill",
-        grillPost(
+        "boil",
+        boilPost(
           new Request("http://localhost", {
             method: "POST",
             body: JSON.stringify({ action: "finish" }),

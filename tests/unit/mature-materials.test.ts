@@ -4,7 +4,7 @@ import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { createBrew, recipeDir, tapDir, writeBrew } from "@/lib/store";
 import type { Brew } from "@/lib/store/types";
-import { buildCodeDigest, collectMaterials, grillDump } from "@/lib/mature/materials";
+import { buildCodeDigest, collectMaterials, boilDump } from "@/lib/mature/materials";
 
 let tmp: string;
 
@@ -60,9 +60,9 @@ describe("buildCodeDigest", () => {
   });
 });
 
-describe("grillDump", () => {
+describe("boilDump", () => {
   it("回答済みQ&Aを回答者付きで整形する", () => {
-    const dump = grillDump([
+    const dump = boilDump([
       {
         id: "1",
         question: "Q?",
@@ -125,7 +125,7 @@ describe("collectMaterials", () => {
 
     expect(materials.rubric).toContain("観点X");
     expect(materials.codeDigest).toContain("v2");
-    expect(materials.process).toContain("グリルでの質疑応答");
+    expect(materials.process).toContain("煮沸での質疑応答");
     expect(materials.previousEvaluation?.summary).toBe("前回総評");
   });
 });

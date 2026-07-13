@@ -2,7 +2,7 @@ import { expect, test } from "vitest";
 import { z } from "zod";
 import { createFakeClient } from "@/lib/llm/fake-client";
 
-const grillNextSchema = z.object({
+const boilNextSchema = z.object({
   done: z.boolean(),
   question: z.string().nullable(),
   options: z
@@ -10,15 +10,15 @@ const grillNextSchema = z.object({
     .nullable(),
 });
 
-test("フェイクは grill-next を2回まで質問し、3回目で done を返す", async () => {
+test("フェイクは boil-next を2回まで質問し、3回目で done を返す", async () => {
   const fake = createFakeClient();
-  const opts = { tag: "grill-next" as const, system: "", prompt: "" };
-  const q1 = await fake.generateObject(grillNextSchema, opts);
+  const opts = { tag: "boil-next" as const, system: "", prompt: "" };
+  const q1 = await fake.generateObject(boilNextSchema, opts);
   expect(q1.done).toBe(false);
   expect(q1.options?.some((o) => o.recommended)).toBe(true);
-  const q2 = await fake.generateObject(grillNextSchema, opts);
+  const q2 = await fake.generateObject(boilNextSchema, opts);
   expect(q2.done).toBe(false);
-  const q3 = await fake.generateObject(grillNextSchema, opts);
+  const q3 = await fake.generateObject(boilNextSchema, opts);
   expect(q3.done).toBe(true);
 });
 
