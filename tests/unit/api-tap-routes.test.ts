@@ -94,6 +94,7 @@ describe("tap build route", () => {
       model: "fake",
       cursorApiKey: "",
       cursorModel: "composer-2.5",
+      cursorEffort: "",
     });
 
     const res = await buildPost(new Request("http://localhost"), ctx(brew.id));

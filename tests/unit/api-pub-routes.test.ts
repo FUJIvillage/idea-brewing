@@ -19,6 +19,7 @@ const FAKE_SETTINGS: Settings = {
   model: "fake",
   cursorApiKey: "",
   cursorModel: "composer-2.5",
+  cursorEffort: "",
 };
 
 beforeEach(async () => {

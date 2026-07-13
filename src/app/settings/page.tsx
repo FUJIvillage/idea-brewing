@@ -220,6 +220,27 @@ export default function SettingsPage() {
               className="ps-input"
             />
           </div>
+          <div className="mt-3">
+            <label htmlFor="cursorEffort" className="ps-label">
+              ▸ Effort
+            </label>
+            <select
+              id="cursorEffort"
+              value={s.cursorEffort}
+              onChange={(e) => setSettings({ ...s, cursorEffort: e.target.value })}
+              className="ps-input"
+            >
+              <option value="">未指定(モデル既定)</option>
+              <option value="low">low</option>
+              <option value="medium">medium</option>
+              <option value="high">high</option>
+              <option value="xhigh">xhigh</option>
+              <option value="max">max</option>
+            </select>
+            <p className="mt-1 text-[12px]" style={{ color: "rgba(255,220,160,.4)" }}>
+              例: gpt-5.6-luna で max を選ぶと params に effort=max を渡します。
+            </p>
+          </div>
         </div>
 
         <div className="border-t-2 border-[#3a2a12] pt-4">

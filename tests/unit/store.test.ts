@@ -27,6 +27,7 @@ test("設定の既定値に Cursor 用フィールドが入る", async () => {
   const s = await readSettings();
   expect(s.cursorApiKey).toBe("");
   expect(s.cursorModel).toBe("composer-2.5");
+  expect(s.cursorEffort).toBe("");
 });
 
 test("設定の保存と読み出し", async () => {
@@ -37,10 +38,12 @@ test("設定の保存と読み出し", async () => {
     model: "llama3",
     cursorApiKey: "",
     cursorModel: "composer-2.5",
+    cursorEffort: "max",
   });
   const s = await readSettings();
   expect(s.provider).toBe("ollama");
   expect(s.model).toBe("llama3");
+  expect(s.cursorEffort).toBe("max");
 });
 
 test("ブリューの作成・読み出し・一覧", async () => {
@@ -97,4 +100,5 @@ test("旧形式 settings.json でも Cursor フィールドが補完される", 
   expect(s.provider).toBe("ollama");
   expect(s.cursorApiKey).toBe("");
   expect(s.cursorModel).toBe("composer-2.5");
+  expect(s.cursorEffort).toBe("");
 });

@@ -9,6 +9,7 @@ const baseSettings: Settings = {
   model: "",
   cursorApiKey: "",
   cursorModel: "composer-2.5",
+  cursorEffort: "",
 };
 
 afterEach(() => {

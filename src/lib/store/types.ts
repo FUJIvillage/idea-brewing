@@ -200,4 +200,6 @@ export interface Settings {
   cursorApiKey: string;
   /** タップ工程で使うモデルID */
   cursorModel: string;
+  /** タップ工程の Cursor モデル effort (例: max)。空なら SDK 既定 */
+  cursorEffort: string;
 }
