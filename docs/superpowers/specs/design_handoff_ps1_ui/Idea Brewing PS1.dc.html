@@ -1,0 +1,953 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="anonymous">
+<link href="https://fonts.googleapis.com/css2?family=DotGothic16&display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#060302;color:#ffe9c0;font-family:'DotGothic16','MS Gothic',monospace;-webkit-font-smoothing:none}
+a{color:#f5b94a;text-decoration:underline}
+a:hover{color:#ffd88a}
+::selection{background:#d98a12;color:#140a02}
+@keyframes psBlink{0%,49%{opacity:1}50%,100%{opacity:0}}
+@keyframes psBubble{0%{transform:translateY(0);opacity:.9}100%{transform:translateY(-110px);opacity:0}}
+@keyframes psFlicker{0%{opacity:.035}7%{opacity:.06}8%{opacity:.03}50%{opacity:.05}51%{opacity:.025}99%{opacity:.045}100%{opacity:.035}}
+@keyframes psSweep{0%{top:-8%}100%{top:108%}}
+@keyframes psBootIn{0%{transform:scale(.6);opacity:0;letter-spacing:24px}60%{opacity:1}100%{transform:scale(1);opacity:1;letter-spacing:6px}}
+@keyframes psFadeIn{0%{opacity:0}100%{opacity:1}}
+input:focus,textarea:focus{border-color:#f5b94a !important}
+</style>
+</helmet>
+
+<div style="min-height:100vh;display:flex;flex-direction:column;background:repeating-conic-gradient(#070402 0% 25%, #0a0603 0% 50%) 0 0 / 4px 4px">
+
+  <!-- ============ HUD ヘッダー ============ -->
+  <header style="display:flex;justify-content:space-between;align-items:center;gap:16px;padding:10px 22px;background:#0b0703;border-bottom:2px solid #8a6428;box-shadow:0 3px 0 #000;position:relative;z-index:10">
+    <div onClick="{{ goHome }}" style="cursor:pointer;display:flex;align-items:baseline;gap:10px">
+      <span style="font-size:22px;letter-spacing:3px;color:#f5a623;text-shadow:2px 0 0 rgba(255,60,90,.45), -2px 0 0 rgba(60,180,255,.45)">IDEA BREWING</span>
+      <span style="font-size:12px;color:rgba(255,220,160,.5)">ver 1.0 — ローカル醸造所</span>
+    </div>
+    <nav style="display:flex;align-items:center;gap:8px">
+      <button onClick="{{ goHome }}" style="cursor:pointer;font-family:inherit;font-size:14px;background:transparent;border:2px solid transparent;color:#e8c07a;padding:6px 10px;letter-spacing:1px" style-hover="border-color:#8a6428;color:#ffd88a">タンク一覧</button>
+      <button onClick="{{ goLeaderboard }}" style="cursor:pointer;font-family:inherit;font-size:14px;background:transparent;border:2px solid transparent;color:#e8c07a;padding:6px 10px;letter-spacing:1px" style-hover="border-color:#8a6428;color:#ffd88a">リーダーボード</button>
+      <button onClick="{{ goSettings }}" style="cursor:pointer;font-family:inherit;font-size:14px;background:transparent;border:2px solid transparent;color:#e8c07a;padding:6px 10px;letter-spacing:1px" style-hover="border-color:#8a6428;color:#ffd88a">設定</button>
+      <button onClick="{{ toggleSound }}" style="cursor:pointer;font-family:inherit;font-size:13px;background:#190f06;border:2px solid #6b4e1e;color:#c9a15c;padding:6px 10px;letter-spacing:1px" style-hover="border-color:#f5b94a">♪ {{ soundLabel }}</button>
+    </nav>
+  </header>
+
+  <!-- ============ ホーム:醸造タンク ============ -->
+  <sc-if value="{{ isHome }}" hint-placeholder-val="{{ true }}">
+    <main data-screen-label="ホーム(醸造タンク一覧)" style="flex:1;width:100%;max-width:1100px;margin:0 auto;box-sizing:border-box;padding:28px 24px 90px;animation:psFadeIn .25s steps(4)">
+      <div style="display:flex;align-items:flex-end;justify-content:space-between;gap:16px;margin-bottom:8px;flex-wrap:wrap">
+        <div>
+          <div style="font-size:13px;letter-spacing:4px;color:rgba(255,220,160,.5)">TANK SELECT</div>
+          <h1 style="margin:2px 0 0;font-size:26px;font-weight:400;letter-spacing:3px;color:#ffe9c0;text-shadow:2px 0 0 rgba(255,60,90,.35), -2px 0 0 rgba(60,180,255,.35)">◆ 醸造タンク</h1>
+        </div>
+        <div style="display:flex;gap:12px">
+          <button onClick="{{ goLeaderboard }}" style="cursor:pointer;font-family:inherit;font-size:15px;letter-spacing:2px;background:#190f06;color:#f5b94a;border:2px solid #8a6428;box-shadow:3px 3px 0 #000;padding:10px 18px" style-hover="border-color:#f5b94a;background:#241505" style-active="transform:translate(2px,2px);box-shadow:1px 1px 0 #000">リーダーボード</button>
+          <button onClick="{{ goNew }}" style="cursor:pointer;font-family:inherit;font-size:15px;letter-spacing:2px;background:#d98a12;color:#140a02;border:2px solid;border-color:#ffd88a #7a4a06 #7a4a06 #ffd88a;box-shadow:3px 3px 0 #000;padding:10px 18px" style-hover="background:#f5a623" style-active="transform:translate(2px,2px);box-shadow:1px 1px 0 #000">＋ 新しい仕込み</button>
+        </div>
+      </div>
+      <p style="margin:0 0 20px;font-size:14px;color:rgba(255,220,160,.55)">タンクをえらんでください ▼</p>
+
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:20px">
+        <sc-for list="{{ brews }}" as="b" hint-placeholder-count="3">
+          <div onClick="{{ b.open }}" style="cursor:pointer;background:#150d05;border:2px solid #8a6428;box-shadow:inset 0 0 0 2px #050302, 6px 6px 0 rgba(0,0,0,.55);padding:14px" style-hover="border-color:#f5b94a">
+            <div style="height:150px;background:#040201;border:2px solid #3a2a12;position:relative;overflow:hidden;display:flex;align-items:flex-end;justify-content:center">
+              <x-import component-from-global-scope="ps1-tank" from="./ps1-tank.js" fill="{{ b.pctNum }}" size="142" hint-size="115px,142px"></x-import>
+              <span style="position:absolute;top:6px;right:8px;font-size:12px;color:rgba(255,220,160,.5)">TANK-{{ b.no }}</span>
+            </div>
+            <h2 style="margin:12px 0 2px;font-size:17px;font-weight:400;letter-spacing:1px;color:#ffe9c0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">▶ {{ b.name }}</h2>
+            <p style="margin:0;font-size:13px;color:#e0a83c">{{ b.stageLabel }}</p>
+            <p style="margin:8px 0 0;font-size:14px;letter-spacing:2px;color:#f5a623">{{ b.blocks }} <span style="color:rgba(255,220,160,.5);font-size:12px">{{ b.pct }}</span></p>
+          </div>
+        </sc-for>
+
+        <div onClick="{{ goNew }}" style="cursor:pointer;border:2px dashed #5a4118;box-shadow:6px 6px 0 rgba(0,0,0,.35);padding:14px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;min-height:240px;color:rgba(255,220,160,.45)" style-hover="border-color:#f5b94a;color:#f5b94a">
+          <span style="font-size:34px">＋</span>
+          <span style="font-size:14px;letter-spacing:2px">― あきタンク ―</span>
+          <span style="font-size:13px">あたらしく仕込む</span>
+        </div>
+      </div>
+    </main>
+  </sc-if>
+
+  <!-- ============ 新しい仕込み ============ -->
+  <sc-if value="{{ isNew }}" hint-placeholder-val="{{ false }}">
+    <main data-screen-label="新しい仕込み" style="flex:1;width:100%;max-width:720px;margin:0 auto;box-sizing:border-box;padding:28px 24px 90px;animation:psFadeIn .25s steps(4)">
+      <button onClick="{{ goHome }}" style="cursor:pointer;font-family:inherit;font-size:13px;background:transparent;border:2px solid #5a4118;color:#c9a15c;padding:5px 12px;letter-spacing:1px;margin-bottom:16px" style-hover="border-color:#f5b94a;color:#ffd88a">◀ タンク一覧</button>
+      <div style="font-size:13px;letter-spacing:4px;color:rgba(255,220,160,.5)">NEW BREW</div>
+      <h1 style="margin:2px 0 20px;font-size:24px;font-weight:400;letter-spacing:3px;color:#ffe9c0;text-shadow:2px 0 0 rgba(255,60,90,.35), -2px 0 0 rgba(60,180,255,.35)">◆ 新しい仕込み</h1>
+
+      <div style="background:#150d05;border:2px solid #8a6428;box-shadow:inset 0 0 0 2px #050302, 6px 6px 0 rgba(0,0,0,.55);padding:22px;display:flex;flex-direction:column;gap:18px">
+        <div>
+          <label style="display:block;margin-bottom:6px;font-size:15px;color:#f5b94a;letter-spacing:1px">▸ ブリュー名</label>
+          <input placeholder="例: 最高のtodoアプリ" style="width:100%;box-sizing:border-box;background:#0a0603;border:2px solid #6b4e1e;color:#ffe9c0;font-family:inherit;font-size:16px;padding:10px;outline:none">
+        </div>
+        <div>
+          <label style="display:block;margin-bottom:6px;font-size:15px;color:#f5b94a;letter-spacing:1px">▸ アイデアメモ</label>
+          <textarea rows="5" placeholder="雑な一言でもOK。思いつくまま書き込んでください。" style="width:100%;box-sizing:border-box;background:#0a0603;border:2px solid #6b4e1e;color:#ffe9c0;font-family:inherit;font-size:16px;padding:10px;outline:none;resize:vertical"></textarea>
+        </div>
+        <div>
+          <label style="display:block;margin-bottom:6px;font-size:15px;color:#f5b94a;letter-spacing:1px">▸ 参考URL(1行に1つ)</label>
+          <textarea rows="3" placeholder="https://example.com/reference-lp" style="width:100%;box-sizing:border-box;background:#0a0603;border:2px solid #6b4e1e;color:#ffe9c0;font-family:inherit;font-size:16px;padding:10px;outline:none;resize:vertical"></textarea>
+        </div>
+        <div>
+          <label style="display:block;margin-bottom:6px;font-size:15px;color:#f5b94a;letter-spacing:1px">▸ 画像・資料ファイル(.png / .jpg / .md / .txt / .pdf)</label>
+          <div style="display:flex;align-items:center;gap:12px">
+            <button onClick="{{ blipOnly }}" style="cursor:pointer;font-family:inherit;font-size:14px;background:#190f06;color:#f5b94a;border:2px solid #8a6428;box-shadow:3px 3px 0 #000;padding:8px 14px;letter-spacing:1px" style-hover="border-color:#f5b94a" style-active="transform:translate(2px,2px);box-shadow:1px 1px 0 #000">ファイルをえらぶ</button>
+            <span style="font-size:13px;color:rgba(255,220,160,.45)">えらばれていません</span>
+          </div>
+        </div>
+        <div style="border-top:2px solid #3a2a12;padding-top:18px">
+          <button onClick="{{ startBrew }}" style="cursor:pointer;font-family:inherit;font-size:17px;letter-spacing:3px;background:#d98a12;color:#140a02;border:2px solid;border-color:#ffd88a #7a4a06 #7a4a06 #ffd88a;box-shadow:4px 4px 0 #000;padding:12px 28px" style-hover="background:#f5a623" style-active="transform:translate(2px,2px);box-shadow:1px 1px 0 #000">▶ 仕込みを始める</button>
+        </div>
+      </div>
+    </main>
+  </sc-if>
+
+  <!-- ============ ワークベンチ ============ -->
+  <sc-if value="{{ isWorkbench }}" hint-placeholder-val="{{ false }}">
+    <main data-screen-label="ワークベンチ" style="flex:1;width:100%;max-width:1000px;margin:0 auto;box-sizing:border-box;padding:24px 24px 90px;animation:psFadeIn .25s steps(4)">
+      <button onClick="{{ goHome }}" style="cursor:pointer;font-family:inherit;font-size:13px;background:transparent;border:2px solid #5a4118;color:#c9a15c;padding:5px 12px;letter-spacing:1px;margin-bottom:14px" style-hover="border-color:#f5b94a;color:#ffd88a">◀ タンク一覧</button>
+      <div style="display:flex;align-items:baseline;gap:14px;flex-wrap:wrap">
+        <h1 style="margin:0;font-size:24px;font-weight:400;letter-spacing:2px;color:#ffe9c0;text-shadow:2px 0 0 rgba(255,60,90,.35), -2px 0 0 rgba(60,180,255,.35)">◆ {{ wbName }}</h1>
+        <span style="font-size:13px;border:1px solid {{ wbStatusBorder }};color:{{ wbStatusColor }};padding:2px 8px;letter-spacing:1px">{{ wbStatus }}</span>
+      </div>
+
+      <!-- タブバー -->
+      <nav style="display:flex;align-items:flex-end;gap:4px;margin-top:18px;border-bottom:2px solid #8a6428;flex-wrap:wrap">
+        <span style="font-size:11px;color:rgba(255,220,160,.4);border:1px solid #3a2a12;padding:2px 6px;margin-right:6px;margin-bottom:6px">◀L1</span>
+        <sc-for list="{{ tabs }}" as="t" hint-placeholder-count="7">
+          <sc-if value="{{ t.active }}" hint-placeholder-val="{{ false }}">
+            <button style="cursor:pointer;font-family:inherit;font-size:15px;letter-spacing:1px;padding:10px 16px 8px;background:#3a2408;color:#ffd88a;border:2px solid #f5b94a;border-bottom:none;margin-bottom:-2px">▶ {{ t.label }}</button>
+          </sc-if>
+          <sc-if value="{{ t.inactive }}" hint-placeholder-val="{{ true }}">
+            <button onClick="{{ t.select }}" style="cursor:pointer;font-family:inherit;font-size:15px;letter-spacing:1px;padding:10px 16px 8px;background:transparent;color:rgba(255,220,160,.55);border:2px solid transparent;border-bottom:none" style-hover="color:#ffd88a;background:#1a1008">{{ t.label }}</button>
+          </sc-if>
+        </sc-for>
+        <span style="font-size:11px;color:rgba(255,220,160,.4);border:1px solid #3a2a12;padding:2px 6px;margin-left:6px;margin-bottom:6px">R1▶</span>
+      </nav>
+
+      <div style="background:#150d05;border:2px solid #8a6428;border-top:none;box-shadow:inset 0 0 0 2px #050302, 6px 6px 0 rgba(0,0,0,.55);padding:22px">
+
+        <!-- ─── 原料 ─── -->
+        <sc-if value="{{ tabIngredients }}" hint-placeholder-val="{{ true }}">
+          <div data-screen-label="ワークベンチ:原料" style="display:flex;flex-direction:column;gap:22px">
+            <section>
+              <h2 style="margin:0 0 10px;font-size:17px;font-weight:400;letter-spacing:2px;color:#f5b94a">◆ 投入済みの原料</h2>
+              <ul style="list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px">
+                <sc-for list="{{ ingredients }}" as="ing" hint-placeholder-count="4">
+                  <li style="display:flex;align-items:center;gap:10px;border:2px solid #3a2a12;background:#0e0804;padding:8px 12px">
+                    <span style="font-size:12px;background:#4a3010;color:#ffd88a;padding:2px 8px;letter-spacing:1px;flex:none">{{ ing.kind }}</span>
+                    <span style="font-size:15px;color:#ffe9c0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ ing.title }}</span>
+                  </li>
+                </sc-for>
+              </ul>
+            </section>
+            <section style="display:flex;flex-direction:column;gap:10px">
+              <h2 style="margin:0;font-size:17px;font-weight:400;letter-spacing:2px;color:#f5b94a">◆ 原料を追加</h2>
+              <textarea rows="3" placeholder="追加のテキストメモ" style="width:100%;box-sizing:border-box;background:#0a0603;border:2px solid #6b4e1e;color:#ffe9c0;font-family:inherit;font-size:15px;padding:10px;outline:none;resize:vertical"></textarea>
+              <textarea rows="2" placeholder="参考URL(1行に1つ)" style="width:100%;box-sizing:border-box;background:#0a0603;border:2px solid #6b4e1e;color:#ffe9c0;font-family:inherit;font-size:15px;padding:10px;outline:none;resize:vertical"></textarea>
+              <div style="display:flex;align-items:center;gap:12px">
+                <button onClick="{{ blipOnly }}" style="cursor:pointer;font-family:inherit;font-size:14px;background:#190f06;color:#f5b94a;border:2px solid #8a6428;box-shadow:3px 3px 0 #000;padding:8px 14px" style-hover="border-color:#f5b94a" style-active="transform:translate(2px,2px);box-shadow:1px 1px 0 #000">ファイルをえらぶ</button>
+                <button onClick="{{ blipOnly }}" style="cursor:pointer;font-family:inherit;font-size:14px;background:#190f06;color:#f5b94a;border:2px solid #8a6428;box-shadow:3px 3px 0 #000;padding:8px 14px" style-hover="border-color:#f5b94a" style-active="transform:translate(2px,2px);box-shadow:1px 1px 0 #000">原料を追加</button>
+              </div>
+            </section>
+            <div style="border-top:2px solid #3a2a12;padding-top:16px">
+              <button onClick="{{ mash }}" style="cursor:pointer;font-family:inherit;font-size:16px;letter-spacing:2px;background:#d98a12;color:#140a02;border:2px solid;border-color:#ffd88a #7a4a06 #7a4a06 #ffd88a;box-shadow:4px 4px 0 #000;padding:12px 24px" style-hover="background:#f5a623" style-active="transform:translate(2px,2px);box-shadow:1px 1px 0 #000">▶ 再仕込み(マッシュ)</button>
+            </div>
+          </div>
+        </sc-if>
+
+        <!-- ─── ブリューシート ─── -->
+        <sc-if value="{{ tabSheet }}" hint-placeholder-val="{{ false }}">
+          <div data-screen-label="ワークベンチ:ブリューシート" style="display:flex;flex-direction:column;gap:14px">
+            <sc-for list="{{ sheetFields }}" as="f" hint-placeholder-count="7">
+              <section style="border:2px solid #3a2a12;background:#0e0804;padding:14px 16px">
+                <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;flex-wrap:wrap">
+                  <h3 style="margin:0;font-size:15px;font-weight:400;letter-spacing:1px;color:#ffd88a">▸ {{ f.label }}</h3>
+                  <span style="font-size:12px;padding:1px 8px;letter-spacing:1px;border:1px solid {{ f.badgeBorder }};color:{{ f.badgeColor }}">{{ f.badge }}</span>
+                  <sc-if value="{{ f.userEdited }}" hint-placeholder-val="{{ false }}">
+                    <span style="font-size:12px;padding:1px 8px;letter-spacing:1px;border:1px solid #4a7ac0;color:#8ab8ff">ユーザー確定</span>
+                  </sc-if>
+                  <button onClick="{{ blipOnly }}" style="margin-left:auto;cursor:pointer;font-family:inherit;font-size:13px;background:transparent;border:none;color:#e0a83c;letter-spacing:1px" style-hover="color:#ffd88a">[編集]</button>
+                </div>
+                <p style="margin:0;font-size:15px;line-height:1.7;color:rgba(255,233,192,.9);white-space:pre-wrap">{{ f.content }}</p>
+              </section>
+            </sc-for>
+          </div>
+        </sc-if>
+
+        <!-- ─── グリル ─── -->
+        <sc-if value="{{ tabGrill }}" hint-placeholder-val="{{ false }}">
+          <div data-screen-label="ワークベンチ:グリル" style="display:flex;flex-direction:column;gap:20px">
+            <sc-if value="{{ grillFinished }}" hint-placeholder-val="{{ false }}">
+              <p style="margin:0;border:2px solid #4a8a4a;background:rgba(30,80,30,.25);color:#8adc8a;padding:14px 16px;font-size:15px;letter-spacing:1px">★ 煮詰め完了。「レシピ」タブから発酵(資料生成)に進めます。</p>
+            </sc-if>
+            <sc-if value="{{ grillActive }}" hint-placeholder-val="{{ true }}">
+              <label style="display:flex;align-items:center;gap:10px;font-size:15px;color:#e8c07a;cursor:pointer">
+                <input type="checkbox" checked="{{ autoGrill }}" onChange="{{ toggleAuto }}" style="width:18px;height:18px;accent-color:#f5a623;cursor:pointer">
+                autoモード(推奨回答を自動選択して連続進行)
+              </label>
+              <section style="border:2px solid #c8922e;background:#0a0603;box-shadow:inset 0 0 0 2px #050302;padding:18px;position:relative">
+                <p style="margin:0 0 14px;font-size:17px;line-height:1.6;color:#ffe9c0">{{ grillQuestion }}</p>
+                <div style="display:flex;flex-direction:column;gap:8px">
+                  <sc-for list="{{ grillOptions }}" as="o" hint-placeholder-count="3">
+                    <button onClick="{{ o.pick }}" style="cursor:pointer;font-family:inherit;font-size:15px;text-align:left;background:#140d06;border:2px solid #5a4118;color:#ffe9c0;padding:10px 14px;letter-spacing:1px" style-hover="border-color:#f5b94a;background:#241505;padding-left:26px">{{ o.label }}<sc-if value="{{ o.recommended }}" hint-placeholder-val="{{ false }}"><span style="margin-left:10px;font-size:12px;background:#d98a12;color:#140a02;padding:1px 8px;letter-spacing:1px">推奨</span></sc-if></button>
+                  </sc-for>
+                  <div style="display:flex;gap:8px;margin-top:4px">
+                    <input value="{{ freeText }}" onChange="{{ setFreeText }}" placeholder="自由記述で回答" style="flex:1;box-sizing:border-box;background:#0a0603;border:2px solid #6b4e1e;color:#ffe9c0;font-family:inherit;font-size:15px;padding:9px;outline:none">
+                    <button onClick="{{ answerFree }}" style="cursor:pointer;font-family:inherit;font-size:15px;letter-spacing:1px;background:#d98a12;color:#140a02;border:2px solid;border-color:#ffd88a #7a4a06 #7a4a06 #ffd88a;box-shadow:3px 3px 0 #000;padding:0 16px" style-hover="background:#f5a623" style-active="transform:translate(2px,2px);box-shadow:1px 1px 0 #000">回答する</button>
+                  </div>
+                </div>
+                <span style="position:absolute;right:12px;bottom:8px;color:#f5a623;animation:psBlink 1s infinite">▼</span>
+              </section>
+              <div style="display:flex;gap:12px">
+                <button onClick="{{ blipOnly }}" style="cursor:pointer;font-family:inherit;font-size:15px;letter-spacing:2px;background:#d98a12;color:#140a02;border:2px solid;border-color:#ffd88a #7a4a06 #7a4a06 #ffd88a;box-shadow:3px 3px 0 #000;padding:11px 22px;opacity:.35">次の質問</button>
+                <button onClick="{{ finishGrill }}" style="cursor:pointer;font-family:inherit;font-size:15px;letter-spacing:2px;background:#190f06;color:#f5b94a;border:2px solid #8a6428;box-shadow:3px 3px 0 #000;padding:11px 22px" style-hover="border-color:#f5b94a" style-active="transform:translate(2px,2px);box-shadow:1px 1px 0 #000">煮詰め完了にする</button>
+              </div>
+            </sc-if>
+            <sc-if value="{{ hasGrillHistory }}" hint-placeholder-val="{{ true }}">
+              <section>
+                <h2 style="margin:0 0 10px;font-size:17px;font-weight:400;letter-spacing:2px;color:#f5b94a">◆ 質疑の履歴</h2>
+                <ul style="list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:8px">
+                  <sc-for list="{{ grillHistory }}" as="h" hint-placeholder-count="2">
+                    <li style="border:2px solid #3a2a12;background:#0e0804;padding:10px 14px">
+                      <p style="margin:0;font-size:15px;color:#ffe9c0">Q{{ h.n }}: {{ h.q }}</p>
+                      <p style="margin:4px 0 0;font-size:15px;color:#e0a83c">A: {{ h.a }}<sc-if value="{{ h.auto }}" hint-placeholder-val="{{ false }}"><span style="margin-left:10px;font-size:12px;background:#3a3a3a;color:#ddd;padding:1px 8px">auto</span></sc-if></p>
+                    </li>
+                  </sc-for>
+                </ul>
+              </section>
+            </sc-if>
+          </div>
+        </sc-if>
+
+        <!-- ─── レシピ ─── -->
+        <sc-if value="{{ tabRecipe }}" hint-placeholder-val="{{ false }}">
+          <div data-screen-label="ワークベンチ:レシピ" style="display:flex;flex-direction:column;gap:18px">
+            <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap">
+              <button onClick="{{ blipOnly }}" style="cursor:pointer;font-family:inherit;font-size:15px;letter-spacing:2px;background:#d98a12;color:#140a02;border:2px solid;border-color:#ffd88a #7a4a06 #7a4a06 #ffd88a;box-shadow:3px 3px 0 #000;padding:11px 22px" style-hover="background:#f5a623" style-active="transform:translate(2px,2px);box-shadow:1px 1px 0 #000">▶ 再発酵(レシピ再生成)</button>
+              <span style="font-size:13px;color:rgba(255,220,160,.5)">前回の発酵: 2026/7/10 20:41</span>
+            </div>
+            <div style="display:grid;grid-template-columns:250px 1fr;gap:16px">
+              <ul style="list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:4px">
+                <sc-for list="{{ recipeFiles }}" as="rf" hint-placeholder-count="7">
+                  <li>
+                    <button onClick="{{ rf.open }}" style="cursor:pointer;width:100%;text-align:left;font-family:inherit;font-size:14px;padding:8px 10px;letter-spacing:1px;background:{{ rf.bg }};border:2px solid {{ rf.border }};color:{{ rf.color }}" style-hover="border-color:#f5b94a">{{ rf.cursor }} {{ rf.name }}</button>
+                  </li>
+                </sc-for>
+              </ul>
+              <article style="border:2px solid #3a2a12;background:#0a0603;padding:20px;min-height:300px">
+                <h3 style="margin:0 0 12px;font-size:16px;font-weight:400;letter-spacing:2px;color:#f5b94a;border-bottom:2px solid #3a2a12;padding-bottom:8px">▸ {{ recipeTitle }}</h3>
+                <p style="margin:0;font-size:15px;line-height:1.9;color:rgba(255,233,192,.9);white-space:pre-wrap">{{ recipeBody }}</p>
+              </article>
+            </div>
+          </div>
+        </sc-if>
+
+        <!-- ─── タップ ─── -->
+        <sc-if value="{{ tabTap }}" hint-placeholder-val="{{ false }}">
+          <div data-screen-label="ワークベンチ:タップ" style="display:flex;flex-direction:column;gap:18px">
+            <p style="margin:0;font-size:16px;color:#ffe9c0">★ バッチ3 完成(87秒)</p>
+            <sc-if value="{{ serverRunning }}" hint-placeholder-val="{{ true }}">
+              <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap;border:2px solid #4a8a4a;background:rgba(30,80,30,.2);padding:12px 16px">
+                <span style="width:10px;height:10px;background:#6ee06e;animation:psBlink 1.2s infinite;flex:none"></span>
+                <a href="#" style="font-size:16px;color:#8adc8a">http://localhost:5173</a>
+                <span style="font-size:13px;color:rgba(255,220,160,.6)">バッチ3 を提供中</span>
+                <button onClick="{{ stopServer }}" style="margin-left:auto;cursor:pointer;font-family:inherit;font-size:14px;letter-spacing:1px;background:#190f06;color:#f5b94a;border:2px solid #8a6428;box-shadow:3px 3px 0 #000;padding:8px 16px" style-hover="border-color:#f5b94a" style-active="transform:translate(2px,2px);box-shadow:1px 1px 0 #000">止める</button>
+              </div>
+            </sc-if>
+            <sc-if value="{{ serverStopped }}" hint-placeholder-val="{{ false }}">
+              <div>
+                <button onClick="{{ startServer }}" style="cursor:pointer;font-family:inherit;font-size:16px;letter-spacing:2px;background:#d98a12;color:#140a02;border:2px solid;border-color:#ffd88a #7a4a06 #7a4a06 #ffd88a;box-shadow:4px 4px 0 #000;padding:12px 24px" style-hover="background:#f5a623" style-active="transform:translate(2px,2px);box-shadow:1px 1px 0 #000">▶ 注ぐ(サーバー起動)</button>
+              </div>
+            </sc-if>
+            <section>
+              <h2 style="margin:0 0 8px;font-size:17px;font-weight:400;letter-spacing:2px;color:#f5b94a">◆ ビルドログ</h2>
+              <pre style="margin:0;max-height:260px;overflow:auto;border:2px solid #1e3a1e;background:#020402;color:#6ee06e;font-family:inherit;font-size:13px;line-height:1.7;padding:14px">{{ buildLog }}</pre>
+            </section>
+          </div>
+        </sc-if>
+
+        <!-- ─── 熟成 ─── -->
+        <sc-if value="{{ tabMature }}" hint-placeholder-val="{{ false }}">
+          <div data-screen-label="ワークベンチ:熟成" style="display:flex;flex-direction:column;gap:20px">
+            <h2 style="margin:0;font-size:17px;font-weight:400;letter-spacing:2px;color:#f5b94a">◆ 熟成(自己評価バッチループ)</h2>
+            <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:12px">
+              <sc-for list="{{ batches }}" as="bt" hint-placeholder-count="3">
+                <button onClick="{{ bt.select }}" style="cursor:pointer;text-align:left;font-family:inherit;padding:12px 14px;background:{{ bt.bg }};border:2px solid {{ bt.border }};box-shadow:3px 3px 0 rgba(0,0,0,.5)" style-hover="border-color:#f5b94a">
+                  <p style="margin:0;font-size:15px;letter-spacing:1px;color:#ffe9c0">バッチ{{ bt.n }}</p>
+                  <p style="margin:2px 0 0;font-size:13px;color:#e0a83c">成功</p>
+                  <p style="margin:6px 0 0;font-size:16px;color:#ffd88a">{{ bt.score }} / 5.0 <span style="font-size:13px;color:#8adc8a">{{ bt.trend }}</span></p>
+                </button>
+              </sc-for>
+            </div>
+            <div>
+              <button onClick="{{ blipOnly }}" style="cursor:pointer;font-family:inherit;font-size:15px;letter-spacing:1px;background:#d98a12;color:#140a02;border:2px solid;border-color:#ffd88a #7a4a06 #7a4a06 #ffd88a;box-shadow:3px 3px 0 #000;padding:11px 20px" style-hover="background:#f5a623" style-active="transform:translate(2px,2px);box-shadow:1px 1px 0 #000">▶ 改善して次のバッチへ(修正・指示3件)</button>
+            </div>
+            <div style="display:flex;align-items:flex-end;gap:14px;flex-wrap:wrap;border:2px solid #3a2a12;background:#0e0804;padding:16px">
+              <label style="font-size:14px;color:#e8c07a">目標スコア
+                <input defaultValue="4.0" style="display:block;margin-top:6px;width:90px;box-sizing:border-box;background:#0a0603;border:2px solid #6b4e1e;color:#ffe9c0;font-family:inherit;font-size:15px;padding:7px;outline:none">
+              </label>
+              <label style="font-size:14px;color:#e8c07a">上限バッチ数
+                <input defaultValue="3" style="display:block;margin-top:6px;width:90px;box-sizing:border-box;background:#0a0603;border:2px solid #6b4e1e;color:#ffe9c0;font-family:inherit;font-size:15px;padding:7px;outline:none">
+              </label>
+              <button onClick="{{ blipOnly }}" style="cursor:pointer;font-family:inherit;font-size:14px;letter-spacing:1px;background:#190f06;color:#f5b94a;border:2px solid #8a6428;box-shadow:3px 3px 0 #000;padding:10px 18px" style-hover="border-color:#f5b94a" style-active="transform:translate(2px,2px);box-shadow:1px 1px 0 #000">自動で熟成</button>
+            </div>
+            <section>
+              <h3 style="margin:0 0 10px;font-size:16px;font-weight:400;letter-spacing:2px;color:#ffd88a">▸ バッチ{{ matureSelected }} 評価レポート</h3>
+              <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:14px">
+                <div style="width:220px;height:130px;border:2px solid #3a2a12;background:repeating-linear-gradient(45deg,#0e0804 0 8px,#120a05 8px 16px);display:flex;align-items:center;justify-content:center;font-size:12px;color:rgba(255,220,160,.45)">desktop.png</div>
+                <div style="width:80px;height:130px;border:2px solid #3a2a12;background:repeating-linear-gradient(45deg,#0e0804 0 8px,#120a05 8px 16px);display:flex;align-items:center;justify-content:center;font-size:12px;color:rgba(255,220,160,.45)">mobile.png</div>
+              </div>
+              <div style="border:2px solid #3a2a12;background:#0a0603;padding:18px;display:flex;flex-direction:column;gap:12px">
+                <div style="display:flex;flex-direction:column;gap:6px">
+                  <sc-for list="{{ matureAxes }}" as="ax" hint-placeholder-count="4">
+                    <div style="display:grid;grid-template-columns:190px 120px 1fr;gap:10px;align-items:baseline;font-size:14px">
+                      <span style="color:#e8c07a">{{ ax.name }}</span>
+                      <span style="color:#f5a623;letter-spacing:2px">{{ ax.blocks }}</span>
+                      <span style="color:rgba(255,233,192,.75)">{{ ax.comment }}</span>
+                    </div>
+                  </sc-for>
+                </div>
+                <p style="margin:0;border-top:2px solid #3a2a12;padding-top:12px;font-size:15px;line-height:1.8;color:rgba(255,233,192,.9)">総評: タスク追加の初速は目標を満たした。残る課題は空状態の説明不足と、繰り返し設定のUI導線。改善指示3件を次バッチへ引き継ぐ。</p>
+              </div>
+            </section>
+          </div>
+        </sc-if>
+
+        <!-- ─── Pub ─── -->
+        <sc-if value="{{ tabPub }}" hint-placeholder-val="{{ false }}">
+          <div data-screen-label="ワークベンチ:Pub" style="display:flex;flex-direction:column;gap:20px">
+            <h2 style="margin:0;font-size:17px;font-weight:400;letter-spacing:2px;color:#f5b94a">◆ Pub(AIユーザーテスト)</h2>
+            <div style="border:2px solid #3a2a12;background:#0e0804;padding:16px">
+              <p style="margin:0 0 12px;font-size:13px;color:#e0a83c">対象: バッチ3(最新の成功バッチ)</p>
+              <div style="display:flex;align-items:flex-end;gap:14px;flex-wrap:wrap">
+                <label style="font-size:14px;color:#e8c07a">自動生成の人数
+                  <input defaultValue="2" style="display:block;margin-top:6px;width:90px;box-sizing:border-box;background:#0a0603;border:2px solid #6b4e1e;color:#ffe9c0;font-family:inherit;font-size:15px;padding:7px;outline:none">
+                </label>
+                <button onClick="{{ blipOnly }}" style="cursor:pointer;font-family:inherit;font-size:15px;letter-spacing:2px;background:#d98a12;color:#140a02;border:2px solid;border-color:#ffd88a #7a4a06 #7a4a06 #ffd88a;box-shadow:3px 3px 0 #000;padding:10px 20px" style-hover="background:#f5a623" style-active="transform:translate(2px,2px);box-shadow:1px 1px 0 #000">▶ 開店する</button>
+                <span style="font-size:13px;color:rgba(255,220,160,.55)">合計 3 人(1〜5)</span>
+              </div>
+              <div style="margin-top:12px">
+                <p style="margin:0 0 6px;font-size:14px;color:#e8c07a">参加する常連客</p>
+                <label style="display:inline-flex;align-items:center;gap:8px;font-size:14px;color:#ffe9c0;cursor:pointer"><input type="checkbox" defaultChecked style="width:16px;height:16px;accent-color:#f5a623;cursor:pointer">カフェ店長ミホ</label>
+              </div>
+            </div>
+
+            <section>
+              <h3 style="margin:0 0 6px;font-size:16px;font-weight:400;letter-spacing:1px;color:#ffd88a">▸ {{ pubReportTitle }}</h3>
+              <p style="margin:0 0 14px;font-size:14px;line-height:1.8;color:rgba(255,233,192,.8)">3人全員がタスク追加を3秒以内に完了。繰り返し設定の導線だけ1人が迷った。第一印象の評価が特に高い。</p>
+              <div style="display:flex;flex-direction:column;gap:12px">
+                <sc-for list="{{ pubResults }}" as="pr" hint-placeholder-count="3">
+                  <div style="border:2px solid #3a2a12;background:#0a0603;padding:16px">
+                    <p style="margin:0;font-size:16px;color:#ffe9c0">{{ pr.name }}<sc-if value="{{ pr.saved }}" hint-placeholder-val="{{ false }}"><span style="margin-left:10px;font-size:12px;background:#4a3010;color:#ffd88a;padding:1px 8px;letter-spacing:1px">常連</span></sc-if></p>
+                    <p style="margin:2px 0 0;font-size:13px;color:rgba(255,220,160,.55)">{{ pr.profile }}</p>
+                    <p style="margin:10px 0 0;font-size:16px;color:#ffd88a">{{ pr.overall }} / 5.0 <span style="margin-left:12px;font-size:13px;color:#e0a83c">{{ pr.axes }}</span></p>
+                    <p style="margin:8px 0 0;font-size:15px;line-height:1.7;color:#ffe9c0">「{{ pr.comment }}」</p>
+                    <ul style="list-style:none;margin:10px 0 0;padding:0;display:flex;flex-direction:column;gap:4px">
+                      <sc-for list="{{ pr.tasks }}" as="tk" hint-placeholder-count="2">
+                        <li style="font-size:14px;color:rgba(255,233,192,.8)"><span style="color:{{ tk.markColor }}">{{ tk.mark }}</span> {{ tk.goal }} — {{ tk.note }}</li>
+                      </sc-for>
+                    </ul>
+                  </div>
+                </sc-for>
+              </div>
+            </section>
+          </div>
+        </sc-if>
+
+      </div>
+    </main>
+  </sc-if>
+
+  <!-- ============ リーダーボード ============ -->
+  <sc-if value="{{ isLeaderboard }}" hint-placeholder-val="{{ false }}">
+    <main data-screen-label="リーダーボード" style="flex:1;width:100%;max-width:900px;margin:0 auto;box-sizing:border-box;padding:28px 24px 90px;animation:psFadeIn .25s steps(4)">
+      <button onClick="{{ goHome }}" style="cursor:pointer;font-family:inherit;font-size:13px;background:transparent;border:2px solid #5a4118;color:#c9a15c;padding:5px 12px;letter-spacing:1px;margin-bottom:16px" style-hover="border-color:#f5b94a;color:#ffd88a">◀ 醸造タンクへ戻る</button>
+      <div style="text-align:center;margin-bottom:24px">
+        <div style="font-size:13px;letter-spacing:6px;color:rgba(255,220,160,.5)">RANKING</div>
+        <h1 style="margin:2px 0 0;font-size:28px;font-weight:400;letter-spacing:4px;color:#ffe9c0;text-shadow:2px 0 0 rgba(255,60,90,.4), -2px 0 0 rgba(60,180,255,.4)">◆ リーダーボード ◆</h1>
+      </div>
+      <div style="background:#150d05;border:2px solid #8a6428;box-shadow:inset 0 0 0 2px #050302, 6px 6px 0 rgba(0,0,0,.55);padding:6px 18px 18px">
+        <div style="display:grid;grid-template-columns:76px 1fr 70px 110px 90px 60px 150px;gap:8px;padding:12px 8px;border-bottom:2px solid #3a2a12;font-size:12px;letter-spacing:1px;color:rgba(255,220,160,.5)">
+          <span>順位</span><span>ブリュー</span><span>バッチ</span><span>Pubスコア</span><span>自己評価</span><span>客数</span><span>実施日時</span>
+        </div>
+        <sc-for list="{{ ranking }}" as="r" hint-placeholder-count="3">
+          <div onClick="{{ r.open }}" style="cursor:pointer;display:grid;grid-template-columns:76px 1fr 70px 110px 90px 60px 150px;gap:8px;align-items:baseline;padding:14px 8px;border-bottom:2px solid #221507" style-hover="background:#241505">
+            <span style="font-size:17px;letter-spacing:1px;color:{{ r.rankColor }}">{{ r.rank }}</span>
+            <span style="font-size:16px;color:#ffe9c0">▶ {{ r.name }}</span>
+            <span style="font-size:14px;color:rgba(255,233,192,.75)">{{ r.batch }}</span>
+            <span style="font-size:18px;color:#f5a623">{{ r.pub }}</span>
+            <span style="font-size:14px;color:rgba(255,233,192,.75)">{{ r.self }}</span>
+            <span style="font-size:14px;color:rgba(255,233,192,.75)">{{ r.count }}</span>
+            <span style="font-size:13px;color:rgba(255,220,160,.5)">{{ r.at }}</span>
+          </div>
+        </sc-for>
+        <p style="margin:14px 0 0;font-size:13px;color:rgba(255,220,160,.45)">未開店のブリュー: 1件</p>
+      </div>
+    </main>
+  </sc-if>
+
+  <!-- ============ 設定 ============ -->
+  <sc-if value="{{ isSettings }}" hint-placeholder-val="{{ false }}">
+    <main data-screen-label="設定" style="flex:1;width:100%;max-width:680px;margin:0 auto;box-sizing:border-box;padding:28px 24px 90px;animation:psFadeIn .25s steps(4)">
+      <button onClick="{{ goHome }}" style="cursor:pointer;font-family:inherit;font-size:13px;background:transparent;border:2px solid #5a4118;color:#c9a15c;padding:5px 12px;letter-spacing:1px;margin-bottom:16px" style-hover="border-color:#f5b94a;color:#ffd88a">◀ タンク一覧</button>
+      <div style="font-size:13px;letter-spacing:4px;color:rgba(255,220,160,.5)">OPTION</div>
+      <h1 style="margin:2px 0 8px;font-size:24px;font-weight:400;letter-spacing:3px;color:#ffe9c0;text-shadow:2px 0 0 rgba(255,60,90,.35), -2px 0 0 rgba(60,180,255,.35)">◆ 設定</h1>
+      <p style="margin:0 0 20px;font-size:13px;line-height:1.7;color:rgba(255,220,160,.55)">APIキーはこのPCの data/settings.json にのみ保存され、プロバイダAPI以外に送信されません。</p>
+
+      <div style="background:#150d05;border:2px solid #8a6428;box-shadow:inset 0 0 0 2px #050302, 6px 6px 0 rgba(0,0,0,.55);padding:22px;display:flex;flex-direction:column;gap:18px">
+        <div>
+          <label style="display:block;margin-bottom:8px;font-size:15px;color:#f5b94a;letter-spacing:1px">▸ プロバイダ</label>
+          <div style="display:flex;flex-direction:column;gap:6px">
+            <sc-for list="{{ providers }}" as="pv" hint-placeholder-count="4">
+              <button onClick="{{ pv.select }}" style="cursor:pointer;text-align:left;font-family:inherit;font-size:15px;letter-spacing:1px;padding:9px 14px;background:{{ pv.bg }};border:2px solid {{ pv.border }};color:{{ pv.color }}" style-hover="border-color:#f5b94a">{{ pv.cursor }} {{ pv.label }}</button>
+            </sc-for>
+          </div>
+        </div>
+        <sc-if value="{{ providerNeedsKey }}" hint-placeholder-val="{{ true }}">
+          <div>
+            <label style="display:block;margin-bottom:6px;font-size:15px;color:#f5b94a;letter-spacing:1px">▸ APIキー</label>
+            <input type="password" defaultValue="sk-••••••••••••" autoComplete="off" style="width:100%;box-sizing:border-box;background:#0a0603;border:2px solid #6b4e1e;color:#ffe9c0;font-family:inherit;font-size:16px;padding:10px;outline:none">
+          </div>
+        </sc-if>
+        <sc-if value="{{ providerIsOllama }}" hint-placeholder-val="{{ false }}">
+          <div>
+            <label style="display:block;margin-bottom:6px;font-size:15px;color:#f5b94a;letter-spacing:1px">▸ ベースURL</label>
+            <input placeholder="http://localhost:11434/v1" style="width:100%;box-sizing:border-box;background:#0a0603;border:2px solid #6b4e1e;color:#ffe9c0;font-family:inherit;font-size:16px;padding:10px;outline:none">
+          </div>
+        </sc-if>
+        <div>
+          <label style="display:block;margin-bottom:6px;font-size:15px;color:#f5b94a;letter-spacing:1px">▸ モデル名</label>
+          <input placeholder="例: gpt-5.3 / gemini-2.5-pro / llama3" style="width:100%;box-sizing:border-box;background:#0a0603;border:2px solid #6b4e1e;color:#ffe9c0;font-family:inherit;font-size:16px;padding:10px;outline:none">
+        </div>
+
+        <div style="border-top:2px solid #3a2a12;padding-top:16px">
+          <h2 style="margin:0 0 4px;font-size:17px;font-weight:400;letter-spacing:2px;color:#f5b94a">◆ ビルドエンジン(Cursor)</h2>
+          <p style="margin:0 0 14px;font-size:13px;line-height:1.7;color:rgba(255,220,160,.55)">タップ工程(コード生成)で使う Cursor SDK の設定です。ビルドを使わない場合は未設定で構いません。</p>
+          <div style="display:flex;flex-direction:column;gap:14px">
+            <div>
+              <label style="display:block;margin-bottom:6px;font-size:15px;color:#f5b94a;letter-spacing:1px">▸ Cursor APIキー</label>
+              <input type="password" placeholder="cursor_..." autoComplete="off" style="width:100%;box-sizing:border-box;background:#0a0603;border:2px solid #6b4e1e;color:#ffe9c0;font-family:inherit;font-size:16px;padding:10px;outline:none">
+              <p style="margin:4px 0 0;font-size:12px;color:rgba(255,220,160,.45)">空の場合は環境変数 CURSOR_API_KEY を使います。</p>
+            </div>
+            <div>
+              <label style="display:block;margin-bottom:6px;font-size:15px;color:#f5b94a;letter-spacing:1px">▸ ビルドモデル名</label>
+              <input placeholder="composer-2.5" style="width:100%;box-sizing:border-box;background:#0a0603;border:2px solid #6b4e1e;color:#ffe9c0;font-family:inherit;font-size:16px;padding:10px;outline:none">
+            </div>
+          </div>
+        </div>
+
+        <div style="display:flex;align-items:center;gap:12px;border-top:2px solid #3a2a12;padding-top:16px">
+          <button onClick="{{ saveSettings }}" style="cursor:pointer;font-family:inherit;font-size:16px;letter-spacing:2px;background:#d98a12;color:#140a02;border:2px solid;border-color:#ffd88a #7a4a06 #7a4a06 #ffd88a;box-shadow:4px 4px 0 #000;padding:11px 24px" style-hover="background:#f5a623" style-active="transform:translate(2px,2px);box-shadow:1px 1px 0 #000">保存</button>
+          <button onClick="{{ testConnection }}" style="cursor:pointer;font-family:inherit;font-size:16px;letter-spacing:2px;background:#190f06;color:#f5b94a;border:2px solid #8a6428;box-shadow:4px 4px 0 #000;padding:11px 24px" style-hover="border-color:#f5b94a" style-active="transform:translate(2px,2px);box-shadow:1px 1px 0 #000">接続テスト</button>
+          <sc-if value="{{ hasSettingsStatus }}" hint-placeholder-val="{{ false }}">
+            <span style="font-size:14px;color:#8adc8a;animation:psFadeIn .3s steps(3)">{{ settingsStatus }}</span>
+          </sc-if>
+        </div>
+      </div>
+    </main>
+  </sc-if>
+
+  <!-- ============ フッター(コントローラーヒント) ============ -->
+  <footer style="position:fixed;left:0;right:0;bottom:0;z-index:40;display:flex;justify-content:center;gap:28px;padding:9px 12px;background:rgba(6,3,2,.92);border-top:2px solid #3a2a12;font-size:13px;color:#c9a15c;letter-spacing:1px;flex-wrap:wrap">
+    <span><span style="color:#ff6a7a">○</span> けってい</span>
+    <span><span style="color:#7ab8ff">✕</span> もどる</span>
+    <span><span style="color:#8adc8a">△</span> くわしく</span>
+    <span style="color:rgba(255,220,160,.45)">L1 / R1(Q / E キー)… タブきりかえ</span>
+  </footer>
+
+  <!-- ============ CRT オーバーレイ ============ -->
+  <sc-if value="{{ crtOn }}" hint-placeholder-val="{{ true }}">
+    <div style="position:fixed;inset:0;pointer-events:none;z-index:95;background:repeating-linear-gradient(0deg, rgba(0,0,0,.24) 0px, rgba(0,0,0,.24) 1px, transparent 1px, transparent 3px)"></div>
+    <div style="position:fixed;inset:0;pointer-events:none;z-index:96;background:radial-gradient(ellipse at center, transparent 52%, rgba(0,0,0,.42) 100%)"></div>
+    <div style="position:fixed;inset:0;pointer-events:none;z-index:97;background:#ffe6b4;animation:psFlicker 3.6s steps(2) infinite"></div>
+    <div style="position:fixed;left:0;right:0;height:70px;pointer-events:none;z-index:98;background:linear-gradient(180deg,transparent, rgba(255,235,190,.05), transparent);animation:psSweep 7s linear infinite"></div>
+  </sc-if>
+
+  <!-- ============ 起動画面 ============ -->
+  <sc-if value="{{ isBoot }}" hint-placeholder-val="{{ true }}">
+    <div data-screen-label="起動画面" onClick="{{ pressStart }}" style="position:fixed;inset:0;z-index:60;cursor:pointer;background:radial-gradient(ellipse at center, #16100a 0%, #060302 70%);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:0;text-align:center">
+      <div style="font-size:14px;letter-spacing:8px;color:rgba(255,220,160,.45);animation:psFadeIn 1.2s steps(6)">FUJIVILLAGE ENTERTAINMENT</div>
+      <div style="margin-top:26px;font-size:56px;letter-spacing:6px;color:#f5a623;text-shadow:3px 0 0 rgba(255,60,90,.5), -3px 0 0 rgba(60,180,255,.5), 6px 6px 0 rgba(0,0,0,.8);animation:psBootIn 1.1s steps(8) both">IDEA BREWING</div>
+      <div style="margin-top:10px;font-size:18px;letter-spacing:10px;color:#ffe9c0;animation:psFadeIn 1.6s steps(6) both">アイデア醸造システム</div>
+      <div style="margin-top:22px;display:flex;justify-content:center;animation:psFadeIn 1.6s steps(6) both">
+        <x-import component-from-global-scope="ps1-tank" from="./ps1-tank.js" fill="80" size="170" speed="1.1" hint-size="138px,170px"></x-import>
+      </div>
+      <div style="margin-top:34px;font-size:20px;letter-spacing:6px;color:#ffe9c0;animation:psBlink 1.1s steps(1) infinite">PRESS START</div>
+      <div style="position:absolute;bottom:26px;font-size:12px;letter-spacing:3px;color:rgba(255,220,160,.35)">© 2026 FUJIVILLAGE — LICENSED BY BREWERY COMPUTER ENTERTAINMENT</div>
+    </div>
+  </sc-if>
+
+</div>
+
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;crt&quot;: {&quot;editor&quot;: &quot;boolean&quot;, &quot;default&quot;: true, &quot;tsType&quot;: &quot;boolean&quot;, &quot;section&quot;: &quot;演出&quot;}, &quot;boot&quot;: {&quot;editor&quot;: &quot;boolean&quot;, &quot;default&quot;: true, &quot;tsType&quot;: &quot;boolean&quot;, &quot;section&quot;: &quot;演出&quot;}, &quot;sound&quot;: {&quot;editor&quot;: &quot;boolean&quot;, &quot;default&quot;: true, &quot;tsType&quot;: &quot;boolean&quot;, &quot;section&quot;: &quot;演出&quot;}}">
+class Component extends DCLogic {
+  state = {
+    screen: "boot",
+    tab: "ingredients",
+    selectedBrew: 0,
+    soundOverride: null,
+    freeText: "",
+    grillHistory: [
+      { q: "メインの利用シーンはどれですか?", a: "通勤中のスマホ操作", by: "user" },
+    ],
+    grillPending: {
+      q: "タスクの繰り返し設定は必要ですか?",
+      options: [
+        { label: "必要(毎日/毎週の繰り返し)", rec: true },
+        { label: "不要(単発タスクのみ)", rec: false },
+        { label: "あとで決める", rec: false },
+      ],
+    },
+    grillQueue: [
+      {
+        q: "オフラインでも使えるべきですか?",
+        options: [
+          { label: "必須(ローカル保存のみ)", rec: true },
+          { label: "オンライン前提でよい", rec: false },
+        ],
+      },
+    ],
+    grillFinished: false,
+    autoGrill: false,
+    recipeFile: "01-overview.md",
+    serverRunning: true,
+    matureSelected: 3,
+    provider: "openai",
+    settingsStatus: null,
+  };
+
+  componentDidMount() {
+    this._onKey = (e) => {
+      if (this.state.screen !== "workbench") return;
+      const tag = (e.target && e.target.tagName) || "";
+      if (tag === "INPUT" || tag === "TEXTAREA") return;
+      const ids = ["ingredients", "sheet", "grill", "recipe", "tap", "mature", "pub"];
+      const i = ids.indexOf(this.state.tab);
+      if (e.key === "q" || e.key === "Q") {
+        this.blip(380);
+        this.setState({ tab: ids[(i + ids.length - 1) % ids.length] });
+      } else if (e.key === "e" || e.key === "E") {
+        this.blip(560);
+        this.setState({ tab: ids[(i + 1) % ids.length] });
+      }
+    };
+    window.addEventListener("keydown", this._onKey);
+  }
+
+  componentWillUnmount() {
+    window.removeEventListener("keydown", this._onKey);
+    if (this._autoTimer) clearInterval(this._autoTimer);
+  }
+
+  soundOn() {
+    return this.state.soundOverride !== null
+      ? this.state.soundOverride
+      : (this.props.sound ?? true);
+  }
+
+  blip(freq, dur, type) {
+    if (!this.soundOn()) return;
+    try {
+      if (!this._ac) this._ac = new (window.AudioContext || window.webkitAudioContext)();
+      const ac = this._ac;
+      if (ac.state === "suspended") ac.resume();
+      const o = ac.createOscillator();
+      const g = ac.createGain();
+      o.type = type || "square";
+      o.frequency.value = freq || 520;
+      g.gain.setValueAtTime(0.045, ac.currentTime);
+      g.gain.exponentialRampToValueAtTime(0.0001, ac.currentTime + (dur || 0.07));
+      o.connect(g);
+      g.connect(ac.destination);
+      o.start();
+      o.stop(ac.currentTime + (dur || 0.07) + 0.02);
+    } catch (e) {
+      /* no audio */
+    }
+  }
+
+  confirmSound() {
+    this.blip(520, 0.06);
+    setTimeout(() => this.blip(780, 0.09), 70);
+  }
+
+  nav(screen) {
+    this.confirmSound();
+    this.setState({ screen });
+  }
+
+  answerGrill(label, by) {
+    const s = this.state;
+    if (!s.grillPending) return;
+    const history = s.grillHistory.concat([{ q: s.grillPending.q, a: label, by }]);
+    const queue = s.grillQueue.slice();
+    const next = queue.shift() || null;
+    this.setState({
+      grillHistory: history,
+      grillPending: next,
+      grillQueue: queue,
+      grillFinished: next === null,
+      freeText: "",
+    });
+    this.confirmSound();
+  }
+
+  startAutoLoop() {
+    if (this._autoTimer) clearInterval(this._autoTimer);
+    this._autoTimer = setInterval(() => {
+      const p = this.state.grillPending;
+      if (!p || !this.state.autoGrill) {
+        clearInterval(this._autoTimer);
+        this._autoTimer = null;
+        return;
+      }
+      const rec = p.options.find((o) => o.rec) || p.options[0];
+      this.answerGrill(rec.label, "auto");
+    }, 900);
+  }
+
+  renderVals() {
+    const s = this.state;
+    const bootEnabled = this.props.boot ?? true;
+    const screen = s.screen === "boot" && !bootEnabled ? "home" : s.screen;
+    const blocks = (pct) => {
+      const n = Math.round(pct / 10);
+      return "■".repeat(n) + "□".repeat(10 - n);
+    };
+
+    const brewsData = [
+      { no: "01", name: "最高のtodoアプリ", pct: 100, stageLabel: "提供中(バッチ3・スコア4.2・Pub 4.5)", tab: "tap" },
+      { no: "02", name: "ポモドーロ農園", pct: 85, stageLabel: "発酵待ち", tab: "recipe" },
+      { no: "03", name: "レシート家計簿", pct: 55, stageLabel: "グリル中", tab: "grill" },
+      { no: "04", name: "旅のしおりメーカー", pct: 20, stageLabel: "原料投入中", tab: "ingredients" },
+    ];
+    const wb = brewsData[s.selectedBrew] || brewsData[0];
+    const wbServing = wb.stageLabel.indexOf("提供中") === 0;
+
+    const tabIds = [
+      { id: "ingredients", label: "原料" },
+      { id: "sheet", label: "ブリューシート" },
+      { id: "grill", label: "グリル" },
+      { id: "recipe", label: "レシピ" },
+      { id: "tap", label: "タップ" },
+      { id: "mature", label: "熟成" },
+      { id: "pub", label: "Pub" },
+    ];
+
+    const badgeStyles = {
+      full: { badge: "充足", badgeColor: "#8adc8a", badgeBorder: "#4a8a4a" },
+      thin: { badge: "薄い", badgeColor: "#f5c96a", badgeBorder: "#8a6428" },
+      empty: { badge: "空", badgeColor: "#9a9a9a", badgeBorder: "#4a4a4a" },
+    };
+    const sheetData = [
+      { label: "コンセプト", suf: "full", userEdited: false, content: "「入力3秒」にこだわった、通勤中でも片手で使えるシンプルToDoアプリ。" },
+      { label: "ターゲットユーザーとコアジョブ", suf: "full", userEdited: false, content: "移動時間が長い営業職・学生。コアジョブは「思いついた瞬間に忘れないこと」。" },
+      { label: "主要機能(Must/Should/Could)", suf: "full", userEdited: true, content: "Must: 追加 / 完了 / 並べ替え。\nShould: 繰り返しタスク・リマインド。\nCould: 週次レビュー画面。" },
+      { label: "見た目とトーン", suf: "thin", userEdited: false, content: "落ち着いたダークトーン。詳細な配色・タイポグラフィは未定。" },
+      { label: "成功基準", suf: "thin", userEdited: false, content: "タスク追加の操作が3秒以内に完了すること。" },
+      { label: "制約", suf: "empty", userEdited: false, content: "(まだ情報がありません)" },
+      { label: "自己評価の観点", suf: "full", userEdited: false, content: "速度 / 迷わなさ / 見た目 / 再訪意向。" },
+    ];
+
+    const recipeContents = {
+      "01-overview.md": {
+        title: "01-overview.md — 概要",
+        body: "# " + wb.name + " 概要\n\n「入力3秒」を合言葉にした片手操作特化のアプリ。\n通勤中の営業職・学生が、思いついた瞬間にアイデアを逃さず記録できることを最優先とする。\n\n- コア価値: 記録スピードと迷わない導線\n- 提供形態: Vite + React + TypeScript + Tailwind のSPA\n- データ: ローカル保存(オフライン必須)",
+      },
+      "02-requirements.md": { title: "02-requirements.md — 要件", body: "## Must\n- タスク追加(1操作で入力欄フォーカス)\n- 完了チェックと取り消し\n- ドラッグによる並べ替え\n\n## Should\n- 繰り返しタスク(毎日/毎週)\n- リマインド通知\n\n## Could\n- 週次レビュー画面" },
+      "03-screens.md": { title: "03-screens.md — 画面", body: "1. ホーム(今日のタスク一覧 + クイック追加バー)\n2. 追加シート(下から出るモーダル、3秒で完了)\n3. 繰り返し設定(頻度ピッカー)\n4. 週次レビュー(Could)" },
+      "04-design.md": { title: "04-design.md — デザイン", body: "- トーン: 落ち着いたダーク基調\n- 片手操作: 主要操作は画面下部44px以上のヒット領域\n- タイポ: 高可読のゴシック体、本文16px以上" },
+      "05-structure.md": { title: "05-structure.md — 構成", body: "src/\n  components/  … TaskList, QuickAdd, RepeatPicker\n  hooks/       … useTasks(ローカル永続化)\n  lib/         … storage, schedule\n  App.tsx" },
+      "06-evaluation-criteria.md": { title: "06-evaluation-criteria.md — 評価基準", body: "採点ルーブリック(各1〜5点):\n1. 追加速度 — 3秒以内に追加が完了するか\n2. 迷わなさ — 初見で主要操作に到達できるか\n3. 見た目 — トーン指定との一致\n4. 再訪意向 — また使いたいと感じるか" },
+      "07-implementation-plan.md": { title: "07-implementation-plan.md — 実装計画", body: "1stバッチ:\n1. 雛形生成(tap-viteテンプレート)\n2. Must機能の実装\n3. npm install --ignore-scripts / tsc --noEmit / vite build で検証\n4. 失敗時は最大2回の修理ラウンド" },
+    };
+    const recipeSel = recipeContents[s.recipeFile];
+
+    const pending = s.grillPending;
+
+    return {
+      // ナビ
+      isBoot: screen === "boot",
+      isHome: screen === "home",
+      isNew: screen === "new",
+      isWorkbench: screen === "workbench",
+      isLeaderboard: screen === "leaderboard",
+      isSettings: screen === "settings",
+      crtOn: this.props.crt ?? true,
+      soundLabel: this.soundOn() ? "ON" : "OFF",
+      pressStart: () => {
+        this.confirmSound();
+        this.setState({ screen: "home" });
+      },
+      goHome: () => this.nav("home"),
+      goNew: () => this.nav("new"),
+      goLeaderboard: () => this.nav("leaderboard"),
+      goSettings: () => this.nav("settings"),
+      toggleSound: () => {
+        const next = !this.soundOn();
+        this.setState({ soundOverride: next });
+        if (next) setTimeout(() => this.blip(660), 0);
+      },
+      blipOnly: () => this.blip(440),
+      startBrew: () => {
+        this.confirmSound();
+        this.setState({ screen: "workbench", tab: "ingredients", selectedBrew: 3 });
+      },
+      mash: () => {
+        this.confirmSound();
+        this.setState({ tab: "sheet" });
+      },
+
+      // ホーム
+      brews: brewsData.map((b, idx) => ({
+        ...b,
+        pct: b.pct + "%",
+        pctNum: b.pct,
+        blocks: blocks(b.pct),
+        open: () => {
+          this.confirmSound();
+          this.setState({ screen: "workbench", tab: b.tab, selectedBrew: idx });
+        },
+      })),
+
+      // ワークベンチ
+      wbName: wb.name,
+      wbStatus: wb.stageLabel,
+      wbStatusColor: wbServing ? "#8adc8a" : "#f5c96a",
+      wbStatusBorder: wbServing ? "#4a8a4a" : "#8a6428",
+      tabs: tabIds.map((t) => ({
+        ...t,
+        active: s.tab === t.id,
+        inactive: s.tab !== t.id,
+        select: () => {
+          this.blip(560);
+          this.setState({ tab: t.id });
+        },
+      })),
+      tabIngredients: s.tab === "ingredients",
+      tabSheet: s.tab === "sheet",
+      tabGrill: s.tab === "grill",
+      tabRecipe: s.tab === "recipe",
+      tabTap: s.tab === "tap",
+      tabMature: s.tab === "mature",
+      tabPub: s.tab === "pub",
+
+      ingredients: [
+        { kind: "テキスト", title: "アイデアメモ(通勤中に思いついたやつ)" },
+        { kind: "URL", title: "https://example.com/todo-inspiration" },
+        { kind: "画像", title: "sketch-home.png" },
+        { kind: "資料", title: "kickoff-notes.md" },
+      ],
+
+      sheetFields: sheetData.map((f) => ({
+        label: f.label,
+        content: f.content,
+        userEdited: f.userEdited,
+        ...badgeStyles[f.suf],
+      })),
+
+      // グリル
+      grillFinished: s.grillFinished,
+      grillActive: !s.grillFinished,
+      grillQuestion: pending ? pending.q : "",
+      grillOptions: pending
+        ? pending.options.map((o) => ({
+            label: o.label,
+            recommended: o.rec,
+            pick: () => this.answerGrill(o.label, "user"),
+          }))
+        : [],
+      freeText: s.freeText,
+      setFreeText: (e) => this.setState({ freeText: e.target.value }),
+      answerFree: () => {
+        if (s.freeText.trim()) this.answerGrill(s.freeText.trim(), "user");
+      },
+      autoGrill: s.autoGrill,
+      toggleAuto: (e) => {
+        const on = e.target.checked;
+        this.setState({ autoGrill: on });
+        this.blip(on ? 700 : 320);
+        if (on) this.startAutoLoop();
+      },
+      finishGrill: () => {
+        this.confirmSound();
+        this.setState({ grillFinished: true, grillPending: null, grillQueue: [] });
+      },
+      hasGrillHistory: s.grillHistory.length > 0,
+      grillHistory: s.grillHistory.map((h, i) => ({
+        n: i + 1,
+        q: h.q,
+        a: h.a,
+        auto: h.by === "auto",
+      })),
+
+      // レシピ
+      recipeFiles: Object.keys(recipeContents).map((name) => {
+        const active = name === s.recipeFile;
+        return {
+          name,
+          cursor: active ? "▶" : "・",
+          bg: active ? "#3a2408" : "transparent",
+          border: active ? "#f5b94a" : "#3a2a12",
+          color: active ? "#ffd88a" : "rgba(255,220,160,.6)",
+          open: () => {
+            this.blip(560);
+            this.setState({ recipeFile: name });
+          },
+        };
+      }),
+      recipeTitle: recipeSel.title,
+      recipeBody: recipeSel.body,
+
+      // タップ
+      serverRunning: s.serverRunning,
+      serverStopped: !s.serverRunning,
+      startServer: () => {
+        this.confirmSound();
+        this.setState({ serverRunning: true });
+      },
+      stopServer: () => {
+        this.blip(300, 0.1);
+        this.setState({ serverRunning: false });
+      },
+      buildLog: [
+        "[batch-3] 準備: tap-vite テンプレートを展開",
+        "[batch-3] 生成: composer-2.5 にレシピ7ファイルを送信",
+        "[batch-3] 生成: src/components/QuickAdd.tsx を作成",
+        "[batch-3] 生成: src/hooks/useTasks.ts を作成",
+        "[batch-3] 検証: npm install --ignore-scripts … OK",
+        "[batch-3] 検証: npx tsc --noEmit … OK",
+        "[batch-3] 検証: npx vite build … OK (3.42s)",
+        "[batch-3] 完了: 87秒(修理ラウンド 0回)",
+      ].join("\n"),
+
+      // 熟成
+      matureSelected: s.matureSelected,
+      batches: [
+        { n: 1, score: "3.4", trend: "" },
+        { n: 2, score: "3.9", trend: "+0.5" },
+        { n: 3, score: "4.2", trend: "+0.3" },
+      ].map((b) => ({
+        ...b,
+        bg: s.matureSelected === b.n ? "#3a2408" : "#0e0804",
+        border: s.matureSelected === b.n ? "#f5b94a" : "#3a2a12",
+        select: () => {
+          this.blip(560);
+          this.setState({ matureSelected: b.n });
+        },
+      })),
+      matureAxes: [
+        { name: "追加速度", score: 5, comment: "2.1秒で追加完了。目標達成。" },
+        { name: "迷わなさ", score: 4, comment: "繰り返し設定の導線がやや深い。" },
+        { name: "見た目", score: 4, comment: "ダークトーンの指定に一致。" },
+        { name: "再訪意向", score: 4, comment: "空状態の説明が不足。" },
+      ].map((a) => ({
+        ...a,
+        blocks: "★".repeat(a.score) + "☆".repeat(5 - a.score),
+      })),
+
+      // Pub
+      pubReportTitle: wb.name + " バッチ3 Pubレポート — 4.5 / 5.0(客3人)",
+      pubResults: [
+        {
+          name: "忙しい営業のさとみ",
+          saved: false,
+          profile: "外回り中心の営業職。移動中にスマホで全てを済ませたい。",
+          overall: "4.5",
+          axes: "目的達成 5 / 使いやすさ 4 / 見た目・第一印象 4 / また来たいか 5",
+          comment: "通勤中に片手でサッと追加できるのが最高。リマインドも賢い。",
+          tasks: [
+            { mark: "○", markColor: "#8adc8a", goal: "タスクを3件追加して優先順位を付ける", note: "12秒で完了" },
+            { mark: "○", markColor: "#8adc8a", goal: "繰り返しタスクを設定する", note: "設定画面まで2タップ" },
+          ],
+        },
+        {
+          name: "大学生のけんた",
+          saved: false,
+          profile: "課題とバイトの予定が混在。無料で軽いアプリを探している。",
+          overall: "4.2",
+          axes: "目的達成 4 / 使いやすさ 4 / 見た目・第一印象 5 / また来たいか 4",
+          comment: "見た目がかっこいい。締切の並べ替えがドラッグでできるのが良い。",
+          tasks: [
+            { mark: "○", markColor: "#8adc8a", goal: "今週の課題を締切順に並べる", note: "ドラッグ操作で達成" },
+            { mark: "✕", markColor: "#ff8a8a", goal: "完了タスクをまとめて消す", note: "一括削除が見つからず断念" },
+          ],
+        },
+        {
+          name: "カフェ店長ミホ",
+          saved: true,
+          profile: "開店準備のルーチンを毎朝こなす。繰り返しタスクが生命線。",
+          overall: "4.7",
+          axes: "目的達成 5 / 使いやすさ 5 / 見た目・第一印象 4 / また来たいか 5",
+          comment: "毎朝のルーチンが1画面に収まる。もう手書きメモには戻れない。",
+          tasks: [
+            { mark: "○", markColor: "#8adc8a", goal: "開店準備のルーチンを毎日繰り返しで登録", note: "テンプレ化まで完了" },
+            { mark: "○", markColor: "#8adc8a", goal: "朝の在庫チェックを完了にする", note: "1タップで達成" },
+          ],
+        },
+      ],
+
+      // リーダーボード
+      ranking: [
+        { rank: "1ST", rankColor: "#ffd700", name: "最高のtodoアプリ", batch: 3, pub: "4.5", self: "4.2", count: 3, at: "2026/7/10 21:04" },
+        { rank: "2ND", rankColor: "#c0c0c0", name: "ポモドーロ農園", batch: 2, pub: "3.8", self: "3.5", count: 4, at: "2026/7/8 19:22" },
+        { rank: "3RD", rankColor: "#cd7f32", name: "レシート家計簿", batch: 1, pub: "3.1", self: "—", count: 2, at: "2026/7/5 14:47" },
+      ].map((r, idx) => ({
+        ...r,
+        open: () => {
+          this.confirmSound();
+          this.setState({ screen: "workbench", tab: "pub", selectedBrew: idx });
+        },
+      })),
+
+      // 設定
+      providers: [
+        { id: "openai", label: "OpenAI" },
+        { id: "google", label: "Google (Gemini)" },
+        { id: "ollama", label: "Ollama(ローカル)" },
+        { id: "openrouter", label: "OpenRouter" },
+      ].map((p) => {
+        const active = s.provider === p.id;
+        return {
+          ...p,
+          cursor: active ? "▶" : "・",
+          bg: active ? "#3a2408" : "transparent",
+          border: active ? "#f5b94a" : "#3a2a12",
+          color: active ? "#ffd88a" : "rgba(255,220,160,.6)",
+          select: () => {
+            this.blip(560);
+            this.setState({ provider: p.id, settingsStatus: null });
+          },
+        };
+      }),
+      providerNeedsKey: s.provider !== "ollama",
+      providerIsOllama: s.provider === "ollama",
+      saveSettings: () => {
+        this.confirmSound();
+        this.setState({ settingsStatus: "保存しました。" });
+      },
+      testConnection: () => {
+        this.confirmSound();
+        this.setState({ settingsStatus: "接続OK: pong!" });
+      },
+      hasSettingsStatus: s.settingsStatus !== null,
+      settingsStatus: s.settingsStatus,
+    };
+  }
+}
+</script>
+</body>
+</html>

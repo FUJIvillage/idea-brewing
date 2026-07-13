@@ -108,7 +108,8 @@ describe("BrewWorkbench", () => {
     );
 
     expect(html).toContain(detail);
-    expect(html).toContain("熟成(自己評価バッチループ)");
+    expect(html).toContain("▶ 熟成");
+    expect(html).toContain("中断");
     expect((html.match(/disabled=\"\"/g) ?? []).length).toBeGreaterThanOrEqual(5);
   });
 });

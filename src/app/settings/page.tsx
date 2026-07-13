@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from "react";
 import type { Settings } from "@/lib/store/types";
+import { usePs1Prefs } from "@/components/ps1/ps1-prefs";
+import { blip, confirmSound, offSound } from "@/components/ps1/sound";
 
 const PROVIDERS = [
   { id: "openai", label: "OpenAI" },
@@ -10,10 +12,8 @@ const PROVIDERS = [
   { id: "openrouter", label: "OpenRouter" },
 ] as const;
 
-const inputCls =
-  "w-full rounded-lg border border-amber-900/60 bg-black/30 p-3 text-amber-50";
-
 export default function SettingsPage() {
+  const { crtOn, setCrtOn, soundOn, toggleSound } = usePs1Prefs();
   const [settings, setSettings] = useState<Settings | null>(null);
   const [loadError, setLoadError] = useState(false);
   const [status, setStatus] = useState<{ text: string; isError: boolean } | null>(null);
@@ -28,19 +28,24 @@ export default function SettingsPage() {
 
   if (loadError) {
     return (
-      <main className="p-6 text-red-400">
+      <main className="ps-fade-in mx-auto max-w-[680px] p-6 pb-[90px] text-[#ff8a8a]">
         設定の読み込みに失敗しました。ページを再読み込みしてください。
       </main>
     );
   }
   if (!settings) {
-    return <main className="p-6 text-amber-300">読み込み中...</main>;
+    return (
+      <main className="ps-fade-in mx-auto max-w-[680px] p-6 pb-[90px] text-[#e0a83c]">
+        読み込み中...
+      </main>
+    );
   }
   const s = settings;
 
   async function save() {
     setBusy(true);
     setStatus(null);
+    confirmSound();
     try {
       const res = await fetch("/api/settings", {
         method: "PUT",
@@ -71,6 +76,7 @@ export default function SettingsPage() {
   async function testConnection() {
     setBusy(true);
     setStatus({ text: "接続テスト中...", isError: false });
+    confirmSound();
     try {
       const res = await fetch("/api/settings/test", {
         method: "POST",
@@ -94,35 +100,44 @@ export default function SettingsPage() {
   }
 
   return (
-    <main className="mx-auto max-w-xl p-6">
-      <h1 className="mb-2 text-2xl font-bold text-amber-100">設定</h1>
-      <p className="mb-6 text-sm text-amber-200/70">
+    <main className="ps-fade-in mx-auto w-full max-w-[680px] box-border px-6 pb-[90px] pt-7">
+      <div className="text-[13px] tracking-[4px]" style={{ color: "rgba(255,220,160,.5)" }}>
+        OPTION
+      </div>
+      <h1 className="ps-chromatic mb-2 mt-0.5 text-[24px] font-normal tracking-[3px] text-[#ffe9c0]">
+        ◆ 設定
+      </h1>
+      <p className="mb-6 text-[13px]" style={{ color: "rgba(255,220,160,.55)" }}>
         APIキーはこのPCの data/settings.json にのみ保存され、プロバイダAPI以外に送信されません。
       </p>
-      <div className="space-y-5">
+
+      <div className="ps-panel flex flex-col gap-5 p-[22px]">
         <div>
-          <label htmlFor="provider" className="mb-1 block font-bold text-amber-200">
-            プロバイダ
-          </label>
-          <select
-            id="provider"
-            value={s.provider}
-            onChange={(e) =>
-              setSettings({ ...s, provider: e.target.value as Settings["provider"] })
-            }
-            className={inputCls}
-          >
+          <div className="ps-label">▸ プロバイダ</div>
+          <div className="flex flex-col gap-1.5">
             {PROVIDERS.map((p) => (
-              <option key={p.id} value={p.id}>
+              <button
+                key={p.id}
+                type="button"
+                className="ps-select-item"
+                data-active={s.provider === p.id ? "true" : "false"}
+                onClick={() => {
+                  blip(560);
+                  setSettings({ ...s, provider: p.id });
+                  setStatus(null);
+                }}
+              >
+                {s.provider === p.id ? "▶ " : "・ "}
                 {p.label}
-              </option>
+              </button>
             ))}
-          </select>
+          </div>
         </div>
-        {s.provider !== "ollama" && (
+
+        {s.provider !== "ollama" ? (
           <div>
-            <label htmlFor="apiKey" className="mb-1 block font-bold text-amber-200">
-              APIキー
+            <label htmlFor="apiKey" className="ps-label">
+              ▸ APIキー
             </label>
             <input
               id="apiKey"
@@ -130,86 +145,123 @@ export default function SettingsPage() {
               autoComplete="off"
               value={s.apiKey}
               onChange={(e) => setSettings({ ...s, apiKey: e.target.value })}
-              className={inputCls}
+              className="ps-input"
             />
           </div>
-        )}
-        {s.provider === "ollama" && (
+        ) : (
           <div>
-            <label htmlFor="baseUrl" className="mb-1 block font-bold text-amber-200">
-              ベースURL
+            <label htmlFor="baseUrl" className="ps-label">
+              ▸ ベースURL
             </label>
             <input
               id="baseUrl"
               value={s.baseUrl}
               onChange={(e) => setSettings({ ...s, baseUrl: e.target.value })}
               placeholder="http://localhost:11434/v1"
-              className={inputCls}
+              className="ps-input"
             />
           </div>
         )}
+
         <div>
-          <label htmlFor="model" className="mb-1 block font-bold text-amber-200">
-            モデル名
+          <label htmlFor="model" className="ps-label">
+            ▸ モデル名
           </label>
           <input
             id="model"
             value={s.model}
             onChange={(e) => setSettings({ ...s, model: e.target.value })}
             placeholder="例: gpt-5.3 / gemini-2.5-pro / llama3"
-            className={inputCls}
+            className="ps-input"
           />
         </div>
-        <h2 className="mt-8 text-lg font-bold text-amber-100">ビルドエンジン(Cursor)</h2>
-        <p className="mt-1 text-sm text-amber-200/70">
-          タップ工程(コード生成)で使う Cursor SDK の設定です。ビルドを使わない場合は未設定で構いません。
-        </p>
-        <div className="mt-3">
-          <label htmlFor="cursorApiKey" className="mb-1 block font-bold text-amber-200">
-            Cursor APIキー
-          </label>
-          <input
-            id="cursorApiKey"
-            type="password"
-            autoComplete="off"
-            value={s.cursorApiKey}
-            onChange={(e) => setSettings({ ...s, cursorApiKey: e.target.value })}
-            placeholder="cursor_..."
-            className={inputCls}
-          />
-          <p className="text-xs text-amber-200/60">空の場合は環境変数 CURSOR_API_KEY を使います。</p>
+
+        <div className="border-t-2 border-[#3a2a12] pt-4">
+          <h2 className="m-0 text-[17px] font-normal tracking-[2px] text-[#f5b94a]">
+            ◆ ビルドエンジン(Cursor)
+          </h2>
+          <p className="mt-1 text-[13px]" style={{ color: "rgba(255,220,160,.55)" }}>
+            タップ工程(コード生成)で使う Cursor SDK の設定です。ビルドを使わない場合は未設定で構いません。
+          </p>
+          <div className="mt-3">
+            <label htmlFor="cursorApiKey" className="ps-label">
+              ▸ Cursor APIキー
+            </label>
+            <input
+              id="cursorApiKey"
+              type="password"
+              autoComplete="off"
+              value={s.cursorApiKey}
+              onChange={(e) => setSettings({ ...s, cursorApiKey: e.target.value })}
+              placeholder="cursor_..."
+              className="ps-input"
+            />
+            <p className="mt-1 text-[12px]" style={{ color: "rgba(255,220,160,.4)" }}>
+              空の場合は環境変数 CURSOR_API_KEY を使います。
+            </p>
+          </div>
+          <div className="mt-3">
+            <label htmlFor="cursorModel" className="ps-label">
+              ▸ ビルドモデル名
+            </label>
+            <input
+              id="cursorModel"
+              type="text"
+              value={s.cursorModel}
+              onChange={(e) => setSettings({ ...s, cursorModel: e.target.value })}
+              placeholder="composer-2.5"
+              className="ps-input"
+            />
+          </div>
         </div>
-        <div className="mt-3">
-          <label htmlFor="cursorModel" className="mb-1 block font-bold text-amber-200">
-            ビルドモデル名
-          </label>
-          <input
-            id="cursorModel"
-            type="text"
-            value={s.cursorModel}
-            onChange={(e) => setSettings({ ...s, cursorModel: e.target.value })}
-            placeholder="composer-2.5"
-            className={inputCls}
-          />
+
+        <div className="border-t-2 border-[#3a2a12] pt-4">
+          <h2 className="m-0 mb-3 text-[17px] font-normal tracking-[2px] text-[#f5b94a]">
+            ◆ 画面演出
+          </h2>
+          <div className="flex flex-col gap-1.5">
+            <button
+              type="button"
+              className="ps-select-item"
+              data-active={crtOn ? "true" : "false"}
+              onClick={() => {
+                blip(crtOn ? 320 : 560);
+                setCrtOn(!crtOn);
+              }}
+            >
+              {crtOn ? "▶ " : "・ "}
+              CRTオーバーレイ {crtOn ? "ON" : "OFF"}
+            </button>
+            <button
+              type="button"
+              className="ps-select-item"
+              data-active={soundOn ? "true" : "false"}
+              onClick={() => {
+                const next = !soundOn;
+                toggleSound();
+                if (next) setTimeout(() => blip(660), 0);
+                else offSound();
+              }}
+            >
+              {soundOn ? "▶ " : "・ "}
+              効果音 {soundOn ? "ON" : "OFF"}
+            </button>
+          </div>
         </div>
-        <div className="flex gap-3">
-          <button
-            onClick={save}
-            disabled={busy}
-            className="rounded-lg bg-amber-600 px-6 py-3 font-bold text-stone-950 hover:bg-amber-500 disabled:opacity-50"
-          >
+
+        <div className="flex gap-3 border-t-2 border-[#3a2a12] pt-4">
+          <button onClick={save} disabled={busy} className="ps-btn">
             保存
           </button>
-          <button
-            onClick={testConnection}
-            disabled={busy}
-            className="rounded-lg border border-amber-600 px-6 py-3 font-bold text-amber-300 hover:bg-amber-900/40 disabled:opacity-50"
-          >
+          <button onClick={testConnection} disabled={busy} className="ps-btn-secondary">
             接続テスト
           </button>
         </div>
         {status && (
-          <p aria-live="polite" className={status.isError ? "text-red-400" : "text-amber-200"}>
+          <p
+            aria-live="polite"
+            className={status.isError ? "text-[#ff8a8a]" : "text-[#8adc8a]"}
+          >
             {status.text}
           </p>
         )}

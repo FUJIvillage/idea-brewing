@@ -8,11 +8,12 @@ import {
   type SheetKey,
   type Sufficiency,
 } from "@/lib/store/types";
+import { confirmSound } from "@/components/ps1/sound";
 
-const BADGE: Record<Sufficiency, { label: string; cls: string }> = {
-  full: { label: "充足", cls: "bg-emerald-700/60 text-emerald-100" },
-  thin: { label: "薄い", cls: "bg-amber-700/60 text-amber-100" },
-  empty: { label: "空", cls: "bg-stone-700/60 text-stone-200" },
+const BADGE: Record<Sufficiency, { label: string; color: string; border: string }> = {
+  full: { label: "充足", color: "#8adc8a", border: "#4a8a4a" },
+  thin: { label: "薄い", color: "#f5c96a", border: "#8a6428" },
+  empty: { label: "空", color: "#9a9a9a", border: "#4a4a4a" },
 };
 
 export function SheetPanel({
@@ -23,10 +24,10 @@ export function SheetPanel({
   onUpdate: (b: Brew) => void;
 }) {
   if (!brew.sheet) {
-    return <p className="text-amber-300">先に仕込みを実行してください。</p>;
+    return <p className="text-[#e0a83c]">先に仕込みを実行してください。</p>;
   }
   return (
-    <div className="space-y-4">
+    <div className="flex flex-col gap-3.5">
       {SHEET_KEYS.map((key) => (
         <FieldCard key={key} brew={brew} fieldKey={key} onUpdate={onUpdate} />
       ))}
@@ -51,6 +52,7 @@ function FieldCard({
 
   async function save() {
     setError(null);
+    confirmSound();
     try {
       const res = await fetch(`/api/brews/${brew.id}/sheet`, {
         method: "PUT",
@@ -67,23 +69,34 @@ function FieldCard({
   }
 
   return (
-    <section className="rounded-lg border border-amber-900/50 bg-black/20 p-4">
-      <div className="mb-2 flex items-center gap-2">
-        <h3 className="font-bold text-amber-200">{SHEET_LABELS[fieldKey]}</h3>
-        <span className={`rounded px-2 py-0.5 text-xs ${badge.cls}`}>{badge.label}</span>
+    <section className="border-2 border-[#3a2a12] bg-[#0e0804] px-4 py-3.5">
+      <div className="mb-2 flex flex-wrap items-center gap-2.5">
+        <h3 className="m-0 text-[15px] font-normal tracking-wide text-[#ffd88a]">
+          ▸ {SHEET_LABELS[fieldKey]}
+        </h3>
+        <span
+          className="px-2 py-px text-[12px] tracking-wide"
+          style={{ border: `1px solid ${badge.border}`, color: badge.color }}
+        >
+          {badge.label}
+        </span>
         {field.userEdited && (
-          <span className="rounded bg-sky-800/60 px-2 py-0.5 text-xs text-sky-100">
+          <span
+            className="px-2 py-px text-[12px] tracking-wide"
+            style={{ border: "1px solid #4a7ac0", color: "#8ab8ff" }}
+          >
             ユーザー確定
           </span>
         )}
         <button
+          type="button"
           onClick={() => {
             setDraft(field.content);
             setEditing(!editing);
           }}
-          className="ml-auto text-sm text-amber-400 hover:text-amber-300"
+          className="ml-auto cursor-pointer border-0 bg-transparent font-[inherit] text-[13px] tracking-wide text-[#e0a83c] hover:text-[#ffd88a]"
         >
-          {editing ? "キャンセル" : "編集"}
+          {editing ? "[キャンセル]" : "[編集]"}
         </button>
       </div>
       {editing ? (
@@ -92,22 +105,22 @@ function FieldCard({
             value={draft}
             onChange={(e) => setDraft(e.target.value)}
             rows={4}
-            className="w-full rounded-lg border border-amber-900/60 bg-black/30 p-3 text-amber-50"
+            className="ps-input"
           />
-          <button
-            onClick={save}
-            className="rounded bg-amber-600 px-4 py-1.5 font-bold text-stone-950 hover:bg-amber-500"
-          >
+          <button onClick={save} className="ps-btn">
             保存
           </button>
           {error && (
-            <p className="text-red-400" aria-live="polite">
+            <p className="text-[#ff8a8a]" aria-live="polite">
               {error}
             </p>
           )}
         </div>
       ) : (
-        <p className="whitespace-pre-wrap text-amber-50/90">
+        <p
+          className="m-0 whitespace-pre-wrap text-[15px] leading-[1.7]"
+          style={{ color: "rgba(255,233,192,.9)" }}
+        >
           {field.content || "(まだ情報がありません)"}
         </p>
       )}

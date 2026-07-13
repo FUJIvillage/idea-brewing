@@ -5,6 +5,7 @@ import { MAX_PUB_GUESTS, pubScreenshotName } from "@/lib/pub/constants";
 import type { Brew, PubPhase, SavedPersona } from "@/lib/store/types";
 import { latestSucceededBatch } from "@/lib/tap/batches";
 import { useBrewAction } from "./use-brew-action";
+import { confirmSound } from "@/components/ps1/sound";
 
 const PHASE_LABELS: Record<PubPhase, string> = {
   opening: "開店準備",
@@ -77,14 +78,11 @@ export function PubPanel({
     };
   }, []);
 
-  // 未選択のときは Pub 済みの最新バッチを表示する(導出値。effect での初期化はしない)
   const latestPubNumber = pubBatches.length > 0 ? pubBatches[pubBatches.length - 1].number : null;
   const shownBatch = selected ?? latestPubNumber;
   const report =
     shownBatch !== null ? (brew.batches.find((b) => b.number === shownBatch)?.pub ?? null) : null;
 
-  // 表示バッチのスクリーンショット一覧を取得する。
-  // 依存はレポートの実施日時(brew.updatedAt だと実行中の1秒ポーリングごとに再取得してしまう)
   const reportRanAt = report?.ranAt ?? null;
   useEffect(() => {
     if (shownBatch === null || reportRanAt === null) return;
@@ -141,10 +139,12 @@ export function PubPanel({
       setNewName("");
       setNewProfile("");
       setNewGoals("");
+      confirmSound();
     }
   }
 
   async function openPub() {
+    confirmSound();
     await postAction("run", { autoCount: auto, savedPersonaIds: checkedIds }, (updated) => {
       if (!updated) return;
       const latestPub = [...updated.batches].reverse().find((b) => b.pub !== null);
@@ -153,49 +153,52 @@ export function PubPanel({
   }
 
   return (
-    <section>
-      <h2 className="text-lg font-bold text-amber-100">Pub(AIユーザーテスト)</h2>
-
+    <div className="flex flex-col gap-4">
       {brew.pubProgress && (
-        <p className="mt-2 text-amber-200" aria-live="polite">
+        <p className="m-0 text-[#e0a83c]" aria-live="polite">
           {PHASE_LABELS[brew.pubProgress.phase]}(バッチ{brew.pubProgress.batch}):{" "}
           {brew.pubProgress.detail}
         </p>
       )}
 
-      {/* 開店フォーム */}
       {!working && latest && (
-        <div className="mt-4 rounded-lg border border-amber-900/60 bg-black/20 p-4">
-          <p className="text-sm text-amber-300">対象: バッチ{latest.number}(最新の成功バッチ)</p>
+        <div className="border-2 border-[#3a2a12] bg-[#0e0804] p-4">
+          <p className="m-0 text-[13px] text-[#e0a83c]">
+            対象: バッチ{latest.number}(最新の成功バッチ)
+          </p>
           <div className="mt-3 flex flex-wrap items-end gap-3">
-            <label className="text-sm text-amber-200">
+            <label className="text-[13px] text-[#e8c07a]">
               自動生成の人数
               <input
                 value={autoCount}
                 onChange={(e) => setAutoCount(e.target.value)}
-                className="mt-1 block w-24 rounded border border-amber-900/60 bg-black/40 px-2 py-1 text-amber-100"
+                className="ps-input mt-1 block w-24"
               />
             </label>
             <button
               onClick={() => void openPub()}
               disabled={!totalValid}
-              className="rounded bg-amber-600 px-4 py-2 font-bold text-black hover:bg-amber-500 disabled:opacity-30"
+              className="ps-btn"
             >
-              開店する
+              ▶ 開店する
             </button>
-            <p className="text-sm text-amber-200/60">
+            <p className="m-0 text-[13px]" style={{ color: "rgba(255,220,160,.45)" }}>
               合計 {Number.isNaN(total) ? "-" : total} 人(1〜{MAX_PUB_GUESTS})
             </p>
           </div>
           {personas.length > 0 && (
             <div className="mt-3">
-              <p className="text-sm text-amber-200">参加する常連客</p>
+              <p className="m-0 text-[13px] text-[#e8c07a]">参加する常連客</p>
               <div className="mt-1 flex flex-wrap gap-3">
                 {personas.map((p) => (
-                  <label key={p.id} className="flex items-center gap-1 text-sm text-amber-100">
+                  <label
+                    key={p.id}
+                    className="flex cursor-pointer items-center gap-1.5 text-[14px] text-[#ffe9c0]"
+                  >
                     <input
                       type="checkbox"
                       checked={checkedIds.includes(p.id)}
+                      style={{ accentColor: "#f5a623" }}
                       onChange={(e) =>
                         setCheckedIds((ids) =>
                           e.target.checked ? [...ids, p.id] : ids.filter((x) => x !== p.id),
@@ -211,21 +214,27 @@ export function PubPanel({
         </div>
       )}
 
-      {/* 常連客の管理 */}
       {!working && (
-        <details className="mt-4 rounded-lg border border-amber-900/60 bg-black/20 p-4">
-          <summary className="cursor-pointer font-bold text-amber-200">常連客の管理</summary>
+        <details className="border-2 border-[#3a2a12] bg-[#0e0804] p-4">
+          <summary className="cursor-pointer text-[15px] tracking-wide text-[#f5b94a]">
+            ◆ 常連客の管理
+          </summary>
           {personas.length > 0 && (
-            <ul className="mt-3 space-y-2">
+            <ul className="mt-3 list-none space-y-2 p-0">
               {personas.map((p) => (
-                <li key={p.id} className="flex items-start justify-between gap-3 text-sm">
-                  <span className="text-amber-100">
-                    <span className="font-bold">{p.name}</span> — {p.profile}
-                    <span className="block text-amber-200/60">目的: {p.goals.join(" / ")}</span>
+                <li key={p.id} className="flex items-start justify-between gap-3 text-[14px]">
+                  <span className="text-[#ffe9c0]">
+                    <span className="text-[#ffd88a]">{p.name}</span> — {p.profile}
+                    <span
+                      className="block"
+                      style={{ color: "rgba(255,220,160,.45)" }}
+                    >
+                      目的: {p.goals.join(" / ")}
+                    </span>
                   </span>
                   <button
                     onClick={() => void savePersonas(personas.filter((x) => x.id !== p.id))}
-                    className="shrink-0 rounded border border-amber-700 px-2 py-1 text-amber-200 hover:border-amber-500"
+                    className="ps-btn-secondary shrink-0 px-2 py-1 text-[13px]"
                   >
                     削除
                   </button>
@@ -234,120 +243,119 @@ export function PubPanel({
             </ul>
           )}
           <div className="mt-3 grid gap-2 sm:grid-cols-2">
-            <label className="text-sm text-amber-200">
+            <label className="text-[13px] text-[#e8c07a]">
               名前
               <input
                 value={newName}
                 onChange={(e) => setNewName(e.target.value)}
-                className="mt-1 block w-full rounded border border-amber-900/60 bg-black/40 px-2 py-1 text-amber-100"
+                className="ps-input mt-1 block w-full"
               />
             </label>
-            <label className="text-sm text-amber-200">
+            <label className="text-[13px] text-[#e8c07a]">
               プロフィール
               <input
                 value={newProfile}
                 onChange={(e) => setNewProfile(e.target.value)}
-                className="mt-1 block w-full rounded border border-amber-900/60 bg-black/40 px-2 py-1 text-amber-100"
+                className="ps-input mt-1 block w-full"
               />
             </label>
-            <label className="text-sm text-amber-200 sm:col-span-2">
+            <label className="text-[13px] text-[#e8c07a] sm:col-span-2">
               目的(1行に1件)
               <textarea
                 value={newGoals}
                 onChange={(e) => setNewGoals(e.target.value)}
                 rows={2}
-                className="mt-1 block w-full rounded border border-amber-900/60 bg-black/40 px-2 py-1 text-amber-100"
+                className="ps-input mt-1 block w-full"
               />
             </label>
           </div>
-          <button
-            onClick={() => void addPersona()}
-            className="mt-2 rounded border border-amber-700 px-4 py-2 font-bold text-amber-200 hover:border-amber-500"
-          >
+          <button onClick={() => void addPersona()} className="ps-btn-secondary mt-2">
             常連客を追加
           </button>
         </details>
       )}
 
       {working && (
-        <button
-          onClick={() => void cancelPub()}
-          className="mt-4 rounded border border-amber-700 px-4 py-2 font-bold text-amber-200 hover:border-amber-500"
-        >
+        <button onClick={() => void cancelPub()} className="ps-btn-secondary w-fit">
           中断
         </button>
       )}
 
       {error && (
-        <p className="mt-3 text-red-400" aria-live="polite">
+        <p className="m-0 text-[#ff8a8a]" aria-live="polite">
           {error}
         </p>
       )}
 
-      {/* バッチ選択(Pub 済みが複数あるとき) */}
       {pubBatches.length > 1 && (
-        <div className="mt-6 flex flex-wrap gap-2">
+        <div className="flex flex-wrap gap-2">
           {pubBatches.map((b) => (
             <button
               key={b.number}
+              type="button"
               onClick={() => setSelected(b.number)}
-              className={`rounded border px-3 py-1 text-sm ${
-                shownBatch === b.number
-                  ? "border-amber-400 bg-amber-900/40 text-amber-100"
-                  : "border-amber-900/60 text-amber-200 hover:border-amber-600"
-              }`}
+              className="ps-select-item w-auto"
+              data-active={shownBatch === b.number ? "true" : "false"}
             >
+              {shownBatch === b.number ? "▶ " : "・ "}
               バッチ{b.number}
             </button>
           ))}
         </div>
       )}
 
-      {/* Pub レポート */}
       {report && shownBatch !== null && (
-        <div className="mt-6">
-          <h3 className="font-bold text-amber-100">
-            バッチ{shownBatch} Pubレポート — {report.overall.toFixed(1)} / 5.0(客
+        <div>
+          <h3 className="m-0 text-[17px] font-normal tracking-wide text-[#ffd88a]">
+            ▸ {brew.name} バッチ{shownBatch} Pubレポート — {report.overall.toFixed(1)} / 5.0(客
             {report.personaResults.length}人)
           </h3>
-          <p className="mt-2 whitespace-pre-wrap text-amber-200">{report.summary}</p>
+          <p className="mt-2 whitespace-pre-wrap text-[#e8c07a]">{report.summary}</p>
 
-          <div className="mt-4 space-y-4">
+          <div className="mt-4 flex flex-col gap-4">
             {report.personaResults.map((r, i) => (
-              <div key={i} className="rounded-lg border border-amber-900/40 bg-black/20 p-4">
-                <p className="font-bold text-amber-100">
+              <div key={i} className="border-2 border-[#3a2a12] bg-[#0e0804] p-4">
+                <p className="m-0 text-[16px] text-[#ffe9c0]">
                   {r.persona.name}
                   {r.persona.origin === "saved" && (
-                    <span className="ml-2 rounded bg-amber-800 px-2 py-0.5 text-xs text-amber-100">
+                    <span className="ml-2 bg-[#d98a12] px-2 py-0.5 text-[12px] text-[#140a02]">
                       常連
                     </span>
                   )}
                   {r.status === "aborted" && (
-                    <span className="ml-2 rounded bg-red-900 px-2 py-0.5 text-xs text-red-200">
+                    <span
+                      className="ml-2 px-2 py-0.5 text-[12px]"
+                      style={{ border: "1px solid #ff8a8a", color: "#ff8a8a" }}
+                    >
                       中断
                     </span>
                   )}
                 </p>
-                <p className="text-sm text-amber-200/70">{r.persona.profile}</p>
+                <p className="mt-1 mb-0 text-[13px]" style={{ color: "rgba(255,220,160,.55)" }}>
+                  {r.persona.profile}
+                </p>
                 {r.status === "completed" ? (
                   <>
-                    <p className="mt-2 text-amber-200">
+                    <p className="mt-2 mb-0 text-[#f5a623]">
                       {r.overall.toFixed(1)} / 5.0
-                      <span className="ml-3 text-sm text-amber-300">
+                      <span className="ml-3 text-[13px] text-[#e0a83c]">
                         {r.scores.map((s) => `${s.name} ${s.score}`).join(" / ")}
                       </span>
                     </p>
-                    <p className="mt-1 text-amber-100">「{r.comment}」</p>
-                    <ul className="mt-2 space-y-1 text-sm text-amber-200">
+                    <p className="mt-1 mb-0 text-[#ffe9c0]">「{r.comment}」</p>
+                    <ul className="mt-2 list-none space-y-1 p-0 text-[14px]">
                       {r.taskResults.map((t, j) => (
                         <li key={j}>
-                          {t.achieved ? "○" : "✕"} {t.goal} — {t.note}
+                          <span style={{ color: t.achieved ? "#8adc8a" : "#ff8a8a" }}>
+                            {t.achieved ? "○" : "✕"}
+                          </span>{" "}
+                          {t.goal} — {t.note}
                         </li>
                       ))}
                     </ul>
                   </>
                 ) : (
-                  <p className="mt-2 text-sm text-red-300">{r.comment}</p>
+                  <p className="mt-2 mb-0 text-[14px] text-[#ff8a8a]">{r.comment}</p>
                 )}
                 {screenshots?.batch === shownBatch &&
                   screenshots.names.includes(pubScreenshotName(i + 1)) && (
@@ -355,15 +363,15 @@ export function PubPanel({
                     <img
                       src={`/api/brews/${brew.id}/pub/screenshot?batch=${shownBatch}&name=${pubScreenshotName(i + 1)}`}
                       alt={`${r.persona.name} の最終画面`}
-                      className="mt-3 max-h-48 rounded border border-amber-900/60"
+                      className="mt-3 max-h-48 border-2 border-[#3a2a12]"
                     />
                   )}
                 {r.steps.length > 0 && (
                   <details className="mt-3">
-                    <summary className="cursor-pointer text-sm text-amber-300">
+                    <summary className="cursor-pointer text-[13px] text-[#e0a83c]">
                       行動ログ({r.steps.length}件)
                     </summary>
-                    <ol className="mt-2 space-y-1 text-sm text-amber-200/80">
+                    <ol className="mt-2 space-y-1 text-[13px]" style={{ color: "rgba(255,220,160,.7)" }}>
                       {r.steps.map((s) => (
                         <li key={s.step}>
                           {s.step}. {s.action} → {s.observation}
@@ -377,6 +385,6 @@ export function PubPanel({
           </div>
         </div>
       )}
-    </section>
+    </div>
   );
 }

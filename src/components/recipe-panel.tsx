@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import type { Brew } from "@/lib/store/types";
 import { useBrewAction } from "./use-brew-action";
+import { blip, confirmSound } from "@/components/ps1/sound";
 
 export function RecipePanel({
   brew,
@@ -20,7 +21,6 @@ export function RecipePanel({
   const [selected, setSelected] = useState<string | null>(null);
   const [content, setContent] = useState("");
 
-  // リロード後などリモートで生成が進行中でもポーリングして追従する(フック内)
   const generating = brew.recipeProgress !== null;
   const { busy, error, setError, post: postAction } = useBrewAction({
     brewId: brew.id,
@@ -31,8 +31,6 @@ export function RecipePanel({
     onBusyChange,
   });
 
-  // 再生成後はファイル名が同一のままなので、古い本文を表示し続けないようクリアする
-  // (レンダー中の前回値比較パターン: ポーリングによる recipeProgress 更新では発火しない)
   const [prevGeneratedAt, setPrevGeneratedAt] = useState(brew.recipeGeneratedAt);
   if (prevGeneratedAt !== brew.recipeGeneratedAt) {
     setPrevGeneratedAt(brew.recipeGeneratedAt);
@@ -57,11 +55,13 @@ export function RecipePanel({
   }, [brew.id, brew.recipeGeneratedAt, setError]);
 
   async function generate() {
-    await postAction(""); // /api/brews/{id}/recipe に直接POSTする
+    confirmSound();
+    await postAction("");
   }
 
   async function open(file: string) {
     setError(null);
+    blip(560);
     try {
       const res = await fetch(`/api/brews/${brew.id}/recipe/${file}`);
       const json = await res.json();
@@ -74,21 +74,26 @@ export function RecipePanel({
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center gap-4">
+    <div className="flex flex-col gap-5">
+      <div className="flex flex-wrap items-center gap-4">
         <button
           onClick={generate}
           disabled={busy || generating}
-          className="rounded-lg bg-amber-600 px-6 py-3 font-bold text-stone-950 hover:bg-amber-500 disabled:opacity-50"
+          className="ps-btn text-[15px] tracking-[2px]"
         >
           {busy || generating
             ? "発酵中..."
             : brew.recipeGeneratedAt
-              ? "再発酵(レシピ再生成)"
-              : "レシピ生成"}
+              ? "▶ 再発酵(レシピ再生成)"
+              : "▶ レシピ生成"}
         </button>
+        {brew.recipeGeneratedAt && !generating && (
+          <span className="text-[13px]" style={{ color: "rgba(255,220,160,.45)" }}>
+            前回: {new Date(brew.recipeGeneratedAt).toLocaleString("ja-JP")}
+          </span>
+        )}
         {brew.recipeProgress && (
-          <p className="text-amber-300" aria-live="polite">
+          <p className="m-0 text-[#e0a83c]" aria-live="polite">
             {brew.recipeProgress.current}/{brew.recipeProgress.total}:{" "}
             {brew.recipeProgress.file} を生成中...
           </p>
@@ -96,34 +101,41 @@ export function RecipePanel({
       </div>
 
       {error && (
-        <p className="text-red-400" aria-live="polite">
+        <p className="m-0 text-[#ff8a8a]" aria-live="polite">
           {error}
         </p>
       )}
 
       {files.length > 0 && (
-        <div className="grid grid-cols-1 gap-6 md:grid-cols-[240px_1fr]">
-          <ul className="space-y-1">
+        <div
+          className="grid gap-4"
+          style={{ gridTemplateColumns: "minmax(200px,250px) 1fr" }}
+        >
+          <ul className="m-0 flex list-none flex-col gap-1 p-0">
             {files.map((f) => (
               <li key={f}>
                 <button
+                  type="button"
                   onClick={() => open(f)}
-                  className={`w-full rounded p-2 text-left text-sm ${
-                    selected === f
-                      ? "bg-amber-900/60 text-amber-100"
-                      : "text-amber-300 hover:bg-amber-900/30"
-                  }`}
+                  className="ps-select-item text-[13px]"
+                  data-active={selected === f ? "true" : "false"}
                 >
+                  {selected === f ? "▶ " : "・ "}
                   {f}
                 </button>
               </li>
             ))}
           </ul>
-          <article className="prose prose-invert max-w-none rounded-lg border border-amber-900/40 bg-black/20 p-6">
+          <article
+            className="prose prose-invert max-w-none border-2 border-[#3a2a12] p-5 text-[15px] leading-[1.9]"
+            style={{ background: "#040201" }}
+          >
             {selected ? (
               <ReactMarkdown>{content}</ReactMarkdown>
             ) : (
-              <p className="text-amber-200/60">左の一覧からファイルを選択してください。</p>
+              <p style={{ color: "rgba(255,220,160,.45)" }}>
+                左の一覧からファイルを選択してください。
+              </p>
             )}
           </article>
         </div>

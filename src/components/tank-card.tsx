@@ -1,4 +1,14 @@
+"use client";
+
 import Link from "next/link";
+import { Ps1Tank } from "@/components/ps1/ps1-tank";
+import {
+  defaultTabForBrew,
+  progressBlocks,
+  progressPercent,
+  tankLabel,
+} from "@/components/ps1/brew-ui";
+import { confirmSound } from "@/components/ps1/sound";
 import type { Brew } from "@/lib/store/types";
 import { latestSucceededBatch } from "@/lib/tap/batches";
 
@@ -14,32 +24,44 @@ function stageLabel(brew: Brew): string {
   if (brew.stage !== "built") return STAGE_INFO[brew.stage].label;
   const latest = latestSucceededBatch(brew);
   if (!latest) return STAGE_INFO.built.label;
-  // 表示中のバッチ自身の Pub スコアだけを出す(古いバッチのスコアを混ぜない)
   const pubSuffix = latest.pub ? `・Pub ${latest.pub.overall.toFixed(1)}` : "";
   return latest.evaluation
     ? `提供中(バッチ${latest.number}・スコア${latest.evaluation.overall.toFixed(1)}${pubSuffix})`
     : `提供中(バッチ${latest.number}${pubSuffix})`;
 }
 
-export function TankCard({ brew }: { brew: Brew }) {
-  const stage = STAGE_INFO[brew.stage];
+export function TankCard({ brew, index }: { brew: Brew; index: number }) {
+  const pct = progressPercent(brew.stage);
+  const tab = defaultTabForBrew(brew);
+
   return (
     <Link
-      href={`/brews/${brew.id}`}
-      className="block rounded-xl border border-amber-900/60 bg-[var(--tank)] p-4 transition hover:border-amber-500"
+      href={`/brews/${brew.id}?tab=${tab}`}
+      onClick={() => confirmSound()}
+      className="ps-panel block p-3.5 no-underline hover:border-[#f5b94a]"
     >
-      <div className="relative h-40 overflow-hidden rounded-lg border border-amber-950 bg-black/40">
-        <div
-          className="absolute bottom-0 w-full bg-gradient-to-t from-amber-700 to-amber-500/80 transition-all"
-          style={{ height: `${stage.percent}%` }}
+      <div
+        className="relative flex h-[150px] items-end justify-center overflow-hidden border-2 border-[#3a2a12]"
+        style={{ background: "#040201" }}
+      >
+        <Ps1Tank fill={pct} size={142} />
+        <span
+          className="absolute top-1.5 right-2 text-[12px]"
+          style={{ color: "rgba(255,220,160,.5)" }}
         >
-          <span className="bubble absolute bottom-2 left-1/4 h-2 w-2 rounded-full bg-amber-200/60" />
-          <span className="bubble absolute bottom-4 left-2/3 h-1.5 w-1.5 rounded-full bg-amber-100/50 [animation-delay:0.8s]" />
-          <span className="bubble absolute bottom-3 left-1/2 h-1 w-1 rounded-full bg-amber-100/40 [animation-delay:1.6s]" />
-        </div>
+          {tankLabel(index)}
+        </span>
       </div>
-      <h2 className="mt-3 truncate font-bold text-amber-100">{brew.name}</h2>
-      <p className="text-sm text-amber-400">{stageLabel(brew)}</p>
+      <h2 className="mt-3 mb-0.5 truncate text-[17px] font-normal tracking-wide text-[#ffe9c0]">
+        ▶ {brew.name}
+      </h2>
+      <p className="m-0 text-[13px] text-[#e0a83c]">{stageLabel(brew)}</p>
+      <p className="mt-2 mb-0 text-[14px] tracking-[2px] text-[#f5a623]">
+        {progressBlocks(pct)}{" "}
+        <span className="text-[12px]" style={{ color: "rgba(255,220,160,.5)" }}>
+          {pct}%
+        </span>
+      </p>
     </Link>
   );
 }

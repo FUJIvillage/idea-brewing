@@ -4,7 +4,12 @@ import { listBrews } from "@/lib/store";
 
 export const dynamic = "force-dynamic";
 
-const MEDALS = ["🥇", "🥈", "🥉"];
+function rankLabel(i: number): { text: string; color: string } {
+  if (i === 0) return { text: "1ST", color: "#ffd700" };
+  if (i === 1) return { text: "2ND", color: "#c0c0c0" };
+  if (i === 2) return { text: "3RD", color: "#cd7f32" };
+  return { text: String(i + 1), color: "rgba(255,220,160,.6)" };
+}
 
 export default async function Leaderboard() {
   const brews = await listBrews();
@@ -12,59 +17,67 @@ export default async function Leaderboard() {
   const unpubbed = brews.length - entries.length;
 
   return (
-    <main className="mx-auto max-w-5xl p-6">
-      <div className="mb-6 flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-amber-100">リーダーボード</h1>
-        <Link href="/" className="text-amber-300 hover:text-amber-200">
-          ← 醸造タンクへ戻る
-        </Link>
+    <main className="ps-fade-in mx-auto w-full max-w-[900px] box-border px-6 pb-[90px] pt-7">
+      <div className="mb-5 text-center">
+        <div className="text-[13px] tracking-[4px]" style={{ color: "rgba(255,220,160,.5)" }}>
+          RANKING
+        </div>
+        <h1 className="ps-chromatic m-0 mt-0.5 text-[26px] font-normal tracking-[3px] text-[#ffe9c0]">
+          ◆ リーダーボード ◆
+        </h1>
       </div>
+
       {entries.length === 0 ? (
-        <p className="text-amber-400">
+        <p className="text-center text-[#e0a83c]">
           まだ開店したブリューがありません。ワークベンチの「Pub」タブから開店してください。
         </p>
       ) : (
-        <div className="overflow-x-auto rounded-lg border border-amber-900/60">
-          <table className="w-full text-left text-amber-100">
-            <thead className="bg-black/40 text-sm text-amber-300">
-              <tr>
-                <th className="px-4 py-2">順位</th>
-                <th className="px-4 py-2">ブリュー</th>
-                <th className="px-4 py-2">バッチ</th>
-                <th className="px-4 py-2">Pubスコア</th>
-                <th className="px-4 py-2">自己評価</th>
-                <th className="px-4 py-2">客数</th>
-                <th className="px-4 py-2">実施日時</th>
-              </tr>
-            </thead>
-            <tbody>
-              {entries.map((e, i) => (
-                <tr key={e.brewId} className="border-t border-amber-900/40 hover:bg-amber-900/20">
-                  <td className="px-4 py-2">
-                    {MEDALS[i] ?? ""} {i + 1}
-                  </td>
-                  <td className="px-4 py-2">
-                    <Link href={`/brews/${e.brewId}`} className="font-bold hover:text-amber-300">
-                      {e.name}
-                    </Link>
-                  </td>
-                  <td className="px-4 py-2">{e.batch}</td>
-                  <td className="px-4 py-2 font-bold text-amber-200">{e.pubOverall.toFixed(1)}</td>
-                  <td className="px-4 py-2">
-                    {e.selfOverall !== null ? e.selfOverall.toFixed(1) : "—"}
-                  </td>
-                  <td className="px-4 py-2">{e.personaCount}</td>
-                  <td className="px-4 py-2 text-sm text-amber-200/70">
-                    {new Date(e.ranAt).toLocaleString("ja-JP")}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+        <div className="ps-panel overflow-x-auto p-0">
+          <div
+            className="grid gap-0 border-b-2 border-[#3a2a12] px-4 py-3 text-[13px]"
+            style={{
+              gridTemplateColumns: "76px 1fr 70px 110px 90px 60px 150px",
+              color: "rgba(255,220,160,.55)",
+            }}
+          >
+            <span>順位</span>
+            <span>ブリュー</span>
+            <span>バッチ</span>
+            <span>Pubスコア</span>
+            <span>自己評価</span>
+            <span>客数</span>
+            <span>実施日時</span>
+          </div>
+          {entries.map((e, i) => {
+            const rank = rankLabel(i);
+            return (
+              <Link
+                key={e.brewId}
+                href={`/brews/${e.brewId}?tab=pub`}
+                className="grid items-center gap-0 border-t border-[#3a2a12] px-4 py-3 no-underline hover:bg-[#241505]"
+                style={{
+                  gridTemplateColumns: "76px 1fr 70px 110px 90px 60px 150px",
+                  color: "#ffe9c0",
+                }}
+              >
+                <span style={{ color: rank.color, letterSpacing: 1 }}>{rank.text}</span>
+                <span className="truncate font-normal">{e.name}</span>
+                <span>{e.batch}</span>
+                <span className="text-[18px] text-[#f5a623]">{e.pubOverall.toFixed(1)}</span>
+                <span>{e.selfOverall !== null ? e.selfOverall.toFixed(1) : "—"}</span>
+                <span>{e.personaCount}</span>
+                <span className="text-[13px]" style={{ color: "rgba(255,220,160,.55)" }}>
+                  {new Date(e.ranAt).toLocaleString("ja-JP")}
+                </span>
+              </Link>
+            );
+          })}
         </div>
       )}
       {unpubbed > 0 && (
-        <p className="mt-4 text-sm text-amber-200/60">未開店のブリュー: {unpubbed}件</p>
+        <p className="mt-4 text-[13px]" style={{ color: "rgba(255,220,160,.45)" }}>
+          未開店のブリュー: {unpubbed}件
+        </p>
       )}
     </main>
   );

@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import type { Brew, BuildPhase } from "@/lib/store/types";
 import { latestSucceededBatch } from "@/lib/tap/batches";
 import { useBrewAction } from "./use-brew-action";
+import { backSound, confirmSound } from "@/components/ps1/sound";
 
 const PHASE_LABELS: Record<BuildPhase, string> = {
   preparing: "準備",
@@ -101,6 +102,7 @@ export function TapPanel({
   }, [brew.id]);
 
   async function build() {
+    confirmSound();
     await postAction("build", undefined, () => void fetchLog());
   }
 
@@ -108,6 +110,8 @@ export function TapPanel({
     setServerBusy(true);
     onBusyChange(true);
     setError(null);
+    if (action === "start") confirmSound();
+    else backSound();
     try {
       const res = await fetch(`/api/brews/${brew.id}/tap/server`, {
         method: "POST",
@@ -130,83 +134,77 @@ export function TapPanel({
   const building = buildBusy || brew.buildProgress !== null;
 
   return (
-    <section>
-      <h2 className="text-lg font-bold text-amber-100">タップ</h2>
-
+    <div className="flex flex-col gap-4">
       {brew.buildProgress && (
-        <p className="mt-2 text-amber-200" aria-live="polite">
+        <p className="m-0 text-[#e0a83c]" aria-live="polite">
           {PHASE_LABELS[brew.buildProgress.phase]}: {brew.buildProgress.detail}
         </p>
       )}
 
       {!building && !newest && (
-        <button
-          onClick={build}
-          className="mt-4 rounded bg-amber-600 px-4 py-2 font-bold text-black hover:bg-amber-500"
-        >
-          ビルド開始(1stバッチ)
+        <button onClick={build} className="ps-btn w-fit">
+          ▶ ビルド開始(1stバッチ)
         </button>
       )}
 
       {building && (
-        <button
-          onClick={cancelBuild}
-          className="mt-4 rounded border border-amber-700 px-4 py-2 font-bold text-amber-200 hover:border-amber-500"
-        >
+        <button onClick={cancelBuild} className="ps-btn-secondary w-fit">
           ビルド中断
         </button>
       )}
 
       {!building && !succeeded && newest?.status === "failed" && (
-        <div className="mt-4">
-          <p className="text-red-400">ビルド失敗: {newest.error}</p>
-          <button
-            onClick={build}
-            className="mt-2 rounded bg-amber-600 px-4 py-2 font-bold text-black hover:bg-amber-500"
-          >
-            再ビルド
+        <div>
+          <p className="m-0 text-[#ff8a8a]">ビルド失敗: {newest.error}</p>
+          <button onClick={build} className="ps-btn mt-2">
+            ▶ 再ビルド
           </button>
         </div>
       )}
 
       {!building && !succeeded && newest?.status === "cancelled" && (
-        <div className="mt-4">
-          <p className="text-amber-200/70">ビルドは中断されました。</p>
-          <button
-            onClick={build}
-            className="mt-2 rounded bg-amber-600 px-4 py-2 font-bold text-black hover:bg-amber-500"
-          >
-            ビルド開始(1stバッチ)
+        <div>
+          <p className="m-0" style={{ color: "rgba(255,220,160,.55)" }}>
+            ビルドは中断されました。
+          </p>
+          <button onClick={build} className="ps-btn mt-2">
+            ▶ ビルド開始(1stバッチ)
           </button>
         </div>
       )}
 
       {!building && succeeded && (
-        <div className="mt-4 space-y-3">
-          <p className="text-amber-200">
-            バッチ{succeeded.number} 完成(
+        <div className="flex flex-col gap-3">
+          <p className="m-0 text-[16px] tracking-wide text-[#ffe9c0]">
+            ★ バッチ{succeeded.number} 完成(
             {succeeded.finishedAt
               ? `${Math.round((Date.parse(succeeded.finishedAt) - Date.parse(succeeded.startedAt)) / 1000)}秒`
               : "-"}
             )
           </p>
           {server.running && server.port !== null ? (
-            <div className="flex items-center gap-3">
+            <div
+              className="flex flex-wrap items-center gap-3 border-2 px-4 py-3"
+              style={{ borderColor: "#4a8a4a", background: "rgba(30,80,30,.2)" }}
+            >
+              <span className="ps-blink inline-block h-2.5 w-2.5 bg-[#8adc8a]" />
               <a
                 href={`http://localhost:${server.port}`}
                 target="_blank"
                 rel="noreferrer"
-                className="font-bold text-amber-300 underline"
+                className="text-[#8adc8a] underline"
               >
                 http://localhost:{server.port}
               </a>
               {server.batch !== null && (
-                <span className="text-sm text-amber-200/70">バッチ{server.batch} を提供中</span>
+                <span className="text-[13px]" style={{ color: "rgba(255,220,160,.55)" }}>
+                  バッチ{server.batch} を提供中
+                </span>
               )}
               <button
                 onClick={() => serverAction("stop")}
                 disabled={busy}
-                className="rounded border border-amber-700 px-4 py-2 font-bold text-amber-200 hover:border-amber-500 disabled:opacity-50"
+                className="ps-btn-secondary"
               >
                 止める
               </button>
@@ -215,25 +213,21 @@ export function TapPanel({
             <button
               onClick={() => serverAction("start")}
               disabled={busy}
-              className="rounded bg-amber-600 px-4 py-2 font-bold text-black hover:bg-amber-500 disabled:opacity-50"
+              className="ps-btn w-fit"
             >
-              注ぐ(サーバー起動)
+              ▶ 注ぐ(サーバー起動)
             </button>
           )}
         </div>
       )}
 
       {error && (
-        <p className="mt-3 text-red-400" aria-live="polite">
+        <p className="m-0 text-[#ff8a8a]" aria-live="polite">
           {error}
         </p>
       )}
 
-      {logLines.length > 0 && (
-        <pre className="mt-4 max-h-64 overflow-auto rounded border border-amber-900/60 bg-black/40 p-3 text-xs text-amber-100/80">
-          {logLines.join("\n")}
-        </pre>
-      )}
-    </section>
+      {logLines.length > 0 && <pre className="ps-terminal m-0">{logLines.join("\n")}</pre>}
+    </div>
   );
 }

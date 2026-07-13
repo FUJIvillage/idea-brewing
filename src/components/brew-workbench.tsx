@@ -1,7 +1,13 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import Link from "next/link";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { Brew } from "@/lib/store/types";
+import {
+  defaultTabForBrew,
+  type WorkbenchTab,
+} from "@/components/ps1/brew-ui";
+import { cursorSound } from "@/components/ps1/sound";
 import { IngredientsPanel } from "./ingredients-panel";
 import { SheetPanel } from "./sheet-panel";
 import { GrillPanel } from "./grill-panel";
@@ -9,6 +15,7 @@ import { RecipePanel } from "./recipe-panel";
 import { TapPanel } from "./tap-panel";
 import { MaturePanel } from "./mature-panel";
 import { PubPanel } from "./pub-panel";
+import { latestSucceededBatch } from "@/lib/tap/batches";
 
 const TABS = [
   { id: "ingredients", label: "原料" },
@@ -18,25 +25,35 @@ const TABS = [
   { id: "tap", label: "タップ" },
   { id: "mature", label: "熟成" },
   { id: "pub", label: "Pub" },
-] as const;
-type TabId = (typeof TABS)[number]["id"];
+] as const satisfies ReadonlyArray<{ id: WorkbenchTab; label: string }>;
 
-export function BrewWorkbench({ initial }: { initial: Brew }) {
+function statusBadge(brew: Brew): { label: string; color: string; border: string } {
+  if (brew.stage === "built") {
+    const latest = latestSucceededBatch(brew);
+    const base = latest ? `提供中(バッチ${latest.number})` : "提供中";
+    return { label: base, color: "#8adc8a", border: "#4a8a4a" };
+  }
+  const labels: Record<Brew["stage"], string> = {
+    ingredients: "原料投入中",
+    grilling: "グリル中",
+    fermenting: "発酵待ち",
+    done: "レシピ完成",
+    built: "提供中",
+  };
+  return { label: labels[brew.stage], color: "#f5c96a", border: "#8a6428" };
+}
+
+export function BrewWorkbench({
+  initial,
+  initialTab,
+}: {
+  initial: Brew;
+  initialTab?: WorkbenchTab | null;
+}) {
   const [brew, setBrew] = useState(initial);
-  const [tab, setTab] = useState<TabId>(
-    initial.pubProgress !== null
-      ? "pub"
-      : initial.maturationProgress !== null
-        ? "mature"
-        : initial.buildProgress !== null
-          ? "tap"
-          : initial.recipeProgress !== null
-            ? "recipe"
-            : initial.sheet
-              ? "sheet"
-              : "ingredients",
+  const [tab, setTab] = useState<WorkbenchTab>(
+    initialTab ?? defaultTabForBrew(initial),
   );
-  // 長時間処理(レシピ生成・グリルauto)中はタブ切替を禁止し、パネルのアンマウントを防ぐ
   const [busy, setBusy] = useState(false);
 
   const refresh = useCallback(async () => {
@@ -44,7 +61,7 @@ export function BrewWorkbench({ initial }: { initial: Brew }) {
     if (res.ok) setBrew(await res.json());
   }, [initial.id]);
 
-  const enabled: Record<TabId, boolean> = {
+  const enabled: Record<WorkbenchTab, boolean> = {
     ingredients: true,
     sheet: brew.sheet !== null,
     grill: brew.sheet !== null,
@@ -59,7 +76,7 @@ export function BrewWorkbench({ initial }: { initial: Brew }) {
     brew.buildProgress !== null ||
     brew.maturationProgress !== null ||
     brew.pubProgress !== null;
-  const visibleTab: TabId =
+  const visibleTab: WorkbenchTab =
     brew.pubProgress !== null
       ? "pub"
       : brew.maturationProgress !== null
@@ -70,26 +87,95 @@ export function BrewWorkbench({ initial }: { initial: Brew }) {
             ? "recipe"
             : tab;
 
+  const enabledRef = useRef(enabled);
+  const tabsBusyRef = useRef(tabsBusy);
+  const visibleTabRef = useRef(visibleTab);
+  enabledRef.current = enabled;
+  tabsBusyRef.current = tabsBusy;
+  visibleTabRef.current = visibleTab;
+
+  const selectTab = useCallback((id: WorkbenchTab) => {
+    if (!enabledRef.current[id] || tabsBusyRef.current) return;
+    cursorSound();
+    setTab(id);
+  }, []);
+
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      const tag = (e.target as HTMLElement | null)?.tagName;
+      if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
+      if (e.key !== "q" && e.key !== "Q" && e.key !== "e" && e.key !== "E") return;
+      e.preventDefault();
+      const ids = TABS.map((t) => t.id);
+      const idx = ids.indexOf(visibleTabRef.current);
+      const dir = e.key === "q" || e.key === "Q" ? -1 : 1;
+      for (let step = 1; step <= ids.length; step++) {
+        const next = ids[(idx + dir * step + ids.length) % ids.length];
+        if (enabledRef.current[next] && !tabsBusyRef.current) {
+          selectTab(next);
+          break;
+        }
+      }
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [selectTab]);
+
+  const badge = statusBadge(brew);
+
   return (
-    <main className="mx-auto max-w-4xl p-6">
-      <h1 className="text-2xl font-bold text-amber-100">{brew.name}</h1>
-      <nav className="mt-4 flex gap-2 border-b border-amber-900/60">
+    <main className="ps-fade-in mx-auto w-full max-w-[1000px] box-border px-6 pb-[90px] pt-6">
+      <Link href="/" className="ps-btn-ghost mb-3.5 inline-block no-underline">
+        ◀ タンク一覧
+      </Link>
+      <div className="flex flex-wrap items-baseline gap-3.5">
+        <h1 className="ps-chromatic m-0 text-[24px] font-normal tracking-[2px] text-[#ffe9c0]">
+          ◆ {brew.name}
+        </h1>
+        <span
+          className="px-2 py-0.5 text-[13px] tracking-wide"
+          style={{ border: `1px solid ${badge.border}`, color: badge.color }}
+        >
+          {badge.label}
+        </span>
+      </div>
+
+      <nav className="mt-[18px] flex flex-wrap items-end gap-1 border-b-2 border-[#8a6428]">
+        <span
+          className="mb-1.5 mr-1.5 border border-[#3a2a12] px-1.5 py-0.5 text-[11px]"
+          style={{ color: "rgba(255,220,160,.4)" }}
+        >
+          ◀L1
+        </span>
         {TABS.map((t) => (
           <button
             key={t.id}
+            type="button"
             disabled={!enabled[t.id] || tabsBusy}
-            onClick={() => setTab(t.id)}
-            className={`px-4 py-2 font-bold ${
-              visibleTab === t.id
-                ? "border-b-2 border-amber-400 text-amber-300"
-                : "text-amber-200/70"
-            } disabled:opacity-30`}
+            onClick={() => selectTab(t.id)}
+            className="ps-tab"
+            data-active={visibleTab === t.id ? "true" : "false"}
           >
-            {t.label}
+            {visibleTab === t.id ? `▶ ${t.label}` : t.label}
           </button>
         ))}
+        <span
+          className="mb-1.5 ml-1.5 border border-[#3a2a12] px-1.5 py-0.5 text-[11px]"
+          style={{ color: "rgba(255,220,160,.4)" }}
+        >
+          R1▶
+        </span>
       </nav>
-      <div className="mt-6">
+
+      <div
+        className="p-[22px]"
+        style={{
+          background: "#150d05",
+          border: "2px solid #8a6428",
+          borderTop: "none",
+          boxShadow: "inset 0 0 0 2px #050302, 6px 6px 0 rgba(0,0,0,.55)",
+        }}
+      >
         {visibleTab === "ingredients" && (
           <IngredientsPanel
             brew={brew}
