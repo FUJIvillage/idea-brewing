@@ -44,16 +44,19 @@ body {
   font-family: var(--font-ps);
   font-weight: 400;
   -webkit-font-smoothing: none;
-  background:
-    repeating-conic-gradient(#070402 0% 25%, #0a0603 0% 50%) 0 0 / 4px 4px;
+  background: var(--ps-bg);
 }
 
 a {
   color: var(--ps-amber-mid);
-  text-decoration: underline;
+  text-decoration: none;
 }
 a:hover {
   color: var(--ps-amber-light);
+}
+.prose a,
+a.ps-content-link {
+  text-decoration: underline;
 }
 
 ::selection {
@@ -137,11 +140,21 @@ a:hover {
     2px 0 0 rgba(255, 60, 90, 0.35),
     -2px 0 0 rgba(60, 180, 255, 0.35);
 }
+.ps-chromatic-logo {
+  text-shadow:
+    2px 0 0 rgba(255, 60, 90, 0.45),
+    -2px 0 0 rgba(60, 180, 255, 0.45);
+}
 .ps-chromatic-strong {
   text-shadow:
     3px 0 0 rgba(255, 60, 90, 0.5),
     -3px 0 0 rgba(60, 180, 255, 0.5),
     6px 6px 0 rgba(0, 0, 0, 0.8);
+}
+.ps-chromatic-rank {
+  text-shadow:
+    2px 0 0 rgba(255, 60, 90, 0.4),
+    -2px 0 0 rgba(60, 180, 255, 0.4);
 }
 
 .ps-panel {
@@ -150,6 +163,12 @@ a:hover {
   box-shadow:
     inset 0 0 0 2px #050302,
     6px 6px 0 rgba(0, 0, 0, 0.55);
+  text-decoration: none;
+  color: inherit;
+}
+a.ps-panel:hover {
+  color: inherit;
+  border-color: #f5b94a;
 }
 
 .ps-btn {
@@ -163,9 +182,12 @@ a:hover {
   border-color: #ffd88a #7a4a06 #7a4a06 #ffd88a;
   box-shadow: 3px 3px 0 #000;
   padding: 10px 18px;
+  text-decoration: none;
+  display: inline-block;
 }
 .ps-btn:hover:not(:disabled) {
   background: var(--ps-amber);
+  color: #140a02;
 }
 .ps-btn:active:not(:disabled) {
   transform: translate(2px, 2px);
@@ -186,10 +208,13 @@ a:hover {
   border: 2px solid var(--ps-border);
   box-shadow: 3px 3px 0 #000;
   padding: 10px 18px;
+  text-decoration: none;
+  display: inline-block;
 }
 .ps-btn-secondary:hover:not(:disabled) {
   border-color: var(--ps-amber-mid);
   background: #241505;
+  color: var(--ps-amber-mid);
 }
 .ps-btn-secondary:active:not(:disabled) {
   transform: translate(2px, 2px);
@@ -210,6 +235,8 @@ a:hover {
   border: 2px solid var(--ps-border-mid);
   color: #c9a15c;
   padding: 5px 12px;
+  text-decoration: none;
+  display: inline-block;
 }
 .ps-btn-ghost:hover {
   border-color: var(--ps-amber-mid);
@@ -350,17 +377,26 @@ a:hover {
   bottom: 0;
   left: 0;
   right: 0;
-  z-index: 20;
-  background: #0b0703;
-  border-top: 2px solid var(--ps-border);
-  padding: 8px 22px;
+  z-index: 40;
+  background: rgba(6, 3, 2, 0.92);
+  border-top: 2px solid #3a2a12;
+  padding: 9px 12px;
   font-size: 13px;
-  color: var(--ps-text-dim);
+  color: #c9a15c;
   letter-spacing: 1px;
   display: flex;
   justify-content: center;
-  gap: 18px;
+  gap: 28px;
   flex-wrap: wrap;
+}
+
+.ps-page {
+  flex: 1;
+  width: 100%;
+  margin: 0 auto;
+  box-sizing: border-box;
+  padding: 28px 24px 90px;
+  animation: psFadeIn 0.25s steps(4);
 }
 
 .ps-crt {
@@ -400,9 +436,9 @@ a:hover {
   right: 0;
   height: 70px;
   background: linear-gradient(
-    to bottom,
+    180deg,
     transparent,
-    rgba(255, 230, 180, 0.06),
+    rgba(255, 235, 190, 0.05),
     transparent
   );
   animation: psSweep 7s linear infinite;

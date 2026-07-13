@@ -38,7 +38,7 @@ export function TankCard({ brew, index }: { brew: Brew; index: number }) {
     <Link
       href={`/brews/${brew.id}?tab=${tab}`}
       onClick={() => confirmSound()}
-      className="ps-panel block p-3.5 no-underline hover:border-[#f5b94a]"
+      className="ps-panel block p-3.5 hover:border-[#f5b94a]"
     >
       <div
         className="relative flex h-[150px] items-end justify-center overflow-hidden border-2 border-[#3a2a12]"

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import type { Settings } from "@/lib/store/types";
 import { usePs1Prefs } from "@/components/ps1/ps1-prefs";
 import { blip, confirmSound, offSound } from "@/components/ps1/sound";
@@ -100,18 +101,24 @@ export default function SettingsPage() {
   }
 
   return (
-    <main className="ps-fade-in mx-auto w-full max-w-[680px] box-border px-6 pb-[90px] pt-7">
+    <main className="ps-page max-w-[680px]">
+      <Link href="/" className="ps-btn-ghost mb-4 inline-block">
+        ◀ タンク一覧
+      </Link>
       <div className="text-[13px] tracking-[4px]" style={{ color: "rgba(255,220,160,.5)" }}>
         OPTION
       </div>
       <h1 className="ps-chromatic mb-2 mt-0.5 text-[24px] font-normal tracking-[3px] text-[#ffe9c0]">
         ◆ 設定
       </h1>
-      <p className="mb-6 text-[13px]" style={{ color: "rgba(255,220,160,.55)" }}>
+      <p
+        className="mb-5 text-[13px] leading-[1.7]"
+        style={{ color: "rgba(255,220,160,.55)" }}
+      >
         APIキーはこのPCの data/settings.json にのみ保存され、プロバイダAPI以外に送信されません。
       </p>
 
-      <div className="ps-panel flex flex-col gap-5 p-[22px]">
+      <div className="ps-panel flex flex-col gap-[18px] p-[22px]">
         <div>
           <div className="ps-label">▸ プロバイダ</div>
           <div className="flex flex-col gap-1.5">
@@ -249,22 +256,23 @@ export default function SettingsPage() {
           </div>
         </div>
 
-        <div className="flex gap-3 border-t-2 border-[#3a2a12] pt-4">
-          <button onClick={save} disabled={busy} className="ps-btn">
+        <div className="flex flex-wrap items-center gap-3 border-t-2 border-[#3a2a12] pt-4">
+          <button onClick={save} disabled={busy} className="ps-btn text-[16px]">
             保存
           </button>
-          <button onClick={testConnection} disabled={busy} className="ps-btn-secondary">
+          <button onClick={testConnection} disabled={busy} className="ps-btn-secondary text-[16px]">
             接続テスト
           </button>
+          {status && (
+            <span
+              aria-live="polite"
+              className={status.isError ? "text-[#ff8a8a]" : "text-[#8adc8a]"}
+              style={{ fontSize: 14, animation: "psFadeIn .3s steps(3)" }}
+            >
+              {status.text}
+            </span>
+          )}
         </div>
-        {status && (
-          <p
-            aria-live="polite"
-            className={status.isError ? "text-[#ff8a8a]" : "text-[#8adc8a]"}
-          >
-            {status.text}
-          </p>
-        )}
       </div>
     </main>
   );

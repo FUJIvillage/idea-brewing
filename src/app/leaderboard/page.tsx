@@ -17,12 +17,17 @@ export default async function Leaderboard() {
   const unpubbed = brews.length - entries.length;
 
   return (
-    <main className="ps-fade-in mx-auto w-full max-w-[900px] box-border px-6 pb-[90px] pt-7">
-      <div className="mb-5 text-center">
-        <div className="text-[13px] tracking-[4px]" style={{ color: "rgba(255,220,160,.5)" }}>
+    <main className="ps-page max-w-[900px]">
+      <Link href="/" className="ps-btn-ghost mb-4 inline-block">
+        ◀ 醸造タンクへ戻る
+      </Link>
+      <div className="mb-6 text-center">
+        <div className="text-[13px] tracking-[6px]" style={{ color: "rgba(255,220,160,.5)" }}>
           RANKING
         </div>
-        <h1 className="ps-chromatic m-0 mt-0.5 text-[26px] font-normal tracking-[3px] text-[#ffe9c0]">
+        <h1
+          className="ps-chromatic-rank m-0 mt-0.5 text-[28px] font-normal tracking-[4px] text-[#ffe9c0]"
+        >
           ◆ リーダーボード ◆
         </h1>
       </div>
@@ -32,12 +37,12 @@ export default async function Leaderboard() {
           まだ開店したブリューがありません。ワークベンチの「Pub」タブから開店してください。
         </p>
       ) : (
-        <div className="ps-panel overflow-x-auto p-0">
+        <div className="ps-panel px-[18px] pt-1.5 pb-[18px]">
           <div
-            className="grid gap-0 border-b-2 border-[#3a2a12] px-4 py-3 text-[13px]"
+            className="grid gap-2 border-b-2 border-[#3a2a12] px-2 py-3 text-[12px] tracking-wide"
             style={{
               gridTemplateColumns: "76px 1fr 70px 110px 90px 60px 150px",
-              color: "rgba(255,220,160,.55)",
+              color: "rgba(255,220,160,.5)",
             }}
           >
             <span>順位</span>
@@ -54,27 +59,40 @@ export default async function Leaderboard() {
               <Link
                 key={e.brewId}
                 href={`/brews/${e.brewId}?tab=pub`}
-                className="grid items-center gap-0 border-t border-[#3a2a12] px-4 py-3 no-underline hover:bg-[#241505]"
+                className="grid items-baseline gap-2 border-b-2 border-[#221507] px-2 py-3.5 hover:bg-[#241505]"
                 style={{
                   gridTemplateColumns: "76px 1fr 70px 110px 90px 60px 150px",
                   color: "#ffe9c0",
                 }}
               >
-                <span style={{ color: rank.color, letterSpacing: 1 }}>{rank.text}</span>
-                <span className="truncate font-normal">{e.name}</span>
-                <span>{e.batch}</span>
+                <span style={{ color: rank.color, fontSize: 17, letterSpacing: 1 }}>
+                  {rank.text}
+                </span>
+                <span className="truncate text-[16px]">▶ {e.name}</span>
+                <span className="text-[14px]" style={{ color: "rgba(255,233,192,.75)" }}>
+                  {e.batch}
+                </span>
                 <span className="text-[18px] text-[#f5a623]">{e.pubOverall.toFixed(1)}</span>
-                <span>{e.selfOverall !== null ? e.selfOverall.toFixed(1) : "—"}</span>
-                <span>{e.personaCount}</span>
-                <span className="text-[13px]" style={{ color: "rgba(255,220,160,.55)" }}>
+                <span className="text-[14px]" style={{ color: "rgba(255,233,192,.75)" }}>
+                  {e.selfOverall !== null ? e.selfOverall.toFixed(1) : "—"}
+                </span>
+                <span className="text-[14px]" style={{ color: "rgba(255,233,192,.75)" }}>
+                  {e.personaCount}
+                </span>
+                <span className="text-[13px]" style={{ color: "rgba(255,220,160,.5)" }}>
                   {new Date(e.ranAt).toLocaleString("ja-JP")}
                 </span>
               </Link>
             );
           })}
+          {unpubbed > 0 && (
+            <p className="mt-3.5 mb-0 text-[13px]" style={{ color: "rgba(255,220,160,.45)" }}>
+              未開店のブリュー: {unpubbed}件
+            </p>
+          )}
         </div>
       )}
-      {unpubbed > 0 && (
+      {entries.length === 0 && unpubbed > 0 && (
         <p className="mt-4 text-[13px]" style={{ color: "rgba(255,220,160,.45)" }}>
           未開店のブリュー: {unpubbed}件
         </p>

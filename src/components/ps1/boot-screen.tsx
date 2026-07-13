@@ -18,6 +18,7 @@ export function BootScreen() {
     <div
       role="dialog"
       aria-label="起動画面"
+      data-screen-label="起動画面"
       onClick={start}
       onKeyDown={(e) => {
         if (e.key === "Enter" || e.key === " ") {
@@ -26,7 +27,7 @@ export function BootScreen() {
         }
       }}
       tabIndex={0}
-      className="fixed inset-0 z-[60] flex cursor-pointer flex-col items-center justify-center"
+      className="fixed inset-0 z-[60] flex cursor-pointer flex-col items-center justify-center text-center"
       style={{
         background: "radial-gradient(ellipse at center, #16100a 0%, #060302 70%)",
       }}
@@ -36,34 +37,42 @@ export function BootScreen() {
           fontSize: 14,
           letterSpacing: 8,
           color: "rgba(255,220,160,.45)",
-          marginBottom: 18,
+          animation: "psFadeIn 1.2s steps(6)",
         }}
       >
         FUJIVILLAGE ENTERTAINMENT
       </div>
-      <h1
+      <div
         className="ps-chromatic-strong"
         style={{
-          margin: 0,
+          marginTop: 26,
           fontSize: 56,
-          fontWeight: 400,
+          letterSpacing: 6,
           color: "#f5a623",
           animation: "psBootIn 1.1s steps(8) both",
         }}
       >
         IDEA BREWING
-      </h1>
+      </div>
       <div
         style={{
           marginTop: 10,
           fontSize: 18,
           letterSpacing: 10,
-          color: "rgba(255,220,160,.55)",
+          color: "#ffe9c0",
+          animation: "psFadeIn 1.6s steps(6) both",
         }}
       >
         アイデア醸造システム
       </div>
-      <div style={{ marginTop: 28, marginBottom: 8 }}>
+      <div
+        style={{
+          marginTop: 22,
+          display: "flex",
+          justifyContent: "center",
+          animation: "psFadeIn 1.6s steps(6) both",
+        }}
+      >
         <Ps1Tank fill={80} size={170} speed={1.1} />
       </div>
       <div
@@ -75,13 +84,13 @@ export function BootScreen() {
       <div
         style={{
           position: "absolute",
-          bottom: 28,
+          bottom: 26,
           fontSize: 12,
-          letterSpacing: 2,
+          letterSpacing: 3,
           color: "rgba(255,220,160,.35)",
         }}
       >
-        © FUJIVILLAGE / LOCAL BREWERY SYSTEM
+        © 2026 FUJIVILLAGE — LICENSED BY BREWERY COMPUTER ENTERTAINMENT
       </div>
     </div>
   );

@@ -124,8 +124,8 @@ export function BrewWorkbench({
   const badge = statusBadge(brew);
 
   return (
-    <main className="ps-fade-in mx-auto w-full max-w-[1000px] box-border px-6 pb-[90px] pt-6">
-      <Link href="/" className="ps-btn-ghost mb-3.5 inline-block no-underline">
+    <main className="ps-page max-w-[1000px]" style={{ paddingTop: 24 }}>
+      <Link href="/" className="ps-btn-ghost mb-3.5 inline-block">
         ◀ タンク一覧
       </Link>
       <div className="flex flex-wrap items-baseline gap-3.5">

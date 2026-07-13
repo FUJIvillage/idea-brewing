@@ -47,8 +47,8 @@ export default function NewBrewPage() {
   }
 
   return (
-    <main className="ps-fade-in mx-auto w-full max-w-[720px] box-border px-6 pb-[90px] pt-7">
-      <Link href="/" className="ps-btn-ghost mb-4 inline-block no-underline">
+    <main className="ps-page max-w-[720px]">
+      <Link href="/" className="ps-btn-ghost mb-4 inline-block">
         ◀ タンク一覧
       </Link>
       <div className="text-[13px] tracking-[4px]" style={{ color: "rgba(255,220,160,.5)" }}>
