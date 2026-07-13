@@ -1,7 +1,7 @@
 import { promises as fs } from "node:fs";
 import path from "node:path";
 import type { LlmClient } from "@/lib/llm/client";
-import { tapDir } from "@/lib/store";
+import { renameWithRetry, tapDir } from "@/lib/store";
 import type {
   Brew,
   PubPersona,
@@ -197,8 +197,8 @@ export async function runPub(brew: Brew, deps: PubDeps, opts: PubOptions): Promi
         ranAt: new Date().toISOString(),
       };
       await writePubReport(stagingDir, target.number, report);
-      await fs.rm(finalDir, { recursive: true, force: true });
-      await fs.rename(stagingDir, finalDir);
+      await fs.rm(finalDir, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
+      await renameWithRetry(stagingDir, finalDir);
       return {
         ...current,
         batches: upsertBatch(current.batches, { ...target, pub: report }),
