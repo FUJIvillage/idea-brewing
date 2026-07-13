@@ -51,3 +51,6 @@ test-results/
 # tap templates (作業時の生成物)
 templates/**/node_modules/
 templates/**/dist/
+
+# claude code のローカル個人設定(共有しない)
+.claude/settings.local.json
