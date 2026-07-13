@@ -183,6 +183,30 @@ export default function SettingsPage() {
           />
         </div>
 
+        <div>
+          <label htmlFor="effort" className="ps-label">
+            ▸ Effort
+          </label>
+          <select
+            id="effort"
+            value={s.effort}
+            onChange={(e) => setSettings({ ...s, effort: e.target.value })}
+            className="ps-input"
+          >
+            <option value="">未指定(モデル既定)</option>
+            <option value="none">none</option>
+            <option value="minimal">minimal</option>
+            <option value="low">low</option>
+            <option value="medium">medium</option>
+            <option value="high">high</option>
+            <option value="xhigh">xhigh</option>
+            <option value="max">max</option>
+          </select>
+          <p className="mt-1 text-[12px]" style={{ color: "rgba(255,220,160,.4)" }}>
+            OpenAI / OpenRouter は reasoningEffort、Google は thinkingLevel に渡します(max/xhigh は high)。
+          </p>
+        </div>
+
         <div className="border-t-2 border-[#3a2a12] pt-4">
           <h2 className="m-0 text-[17px] font-normal tracking-[2px] text-[#f5b94a]">
             ◆ ビルドエンジン(Cursor)
