@@ -265,6 +265,24 @@ export default function SettingsPage() {
               例: gpt-5.6-luna で max を選ぶと params に effort=max を渡します。
             </p>
           </div>
+          <div className="mt-3">
+            <label htmlFor="cursorFast" className="ps-label">
+              ▸ Fast
+            </label>
+            <select
+              id="cursorFast"
+              value={s.cursorFast}
+              onChange={(e) => setSettings({ ...s, cursorFast: e.target.value })}
+              className="ps-input"
+            >
+              <option value="">未指定(モデル既定)</option>
+              <option value="true">on (true)</option>
+              <option value="false">off (false)</option>
+            </select>
+            <p className="mt-1 text-[12px]" style={{ color: "rgba(255,220,160,.4)" }}>
+              Cursor SDK の params に fast=true/false を渡します。
+            </p>
+          </div>
         </div>
 
         <div className="border-t-2 border-[#3a2a12] pt-4">

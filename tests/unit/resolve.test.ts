@@ -11,6 +11,7 @@ const baseSettings: Settings = {
   cursorApiKey: "",
   cursorModel: "composer-2.5",
   cursorEffort: "",
+  cursorFast: "",
 };
 
 afterEach(() => {

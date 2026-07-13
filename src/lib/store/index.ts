@@ -35,6 +35,7 @@ const DEFAULT_SETTINGS: Settings = {
   cursorApiKey: "",
   cursorModel: "composer-2.5",
   cursorEffort: "",
+  cursorFast: "",
 };
 
 export async function readSettings(): Promise<Settings> {

@@ -204,4 +204,6 @@ export interface Settings {
   cursorModel: string;
   /** タップ工程の Cursor モデル effort (例: max)。空なら SDK 既定 */
   cursorEffort: string;
+  /** タップ工程の Cursor モデル fast ("true" | "false")。空なら未指定 */
+  cursorFast: string;
 }

@@ -34,6 +34,7 @@ export async function resolveEngine(settings: Settings): Promise<ResolvedEngine>
       apiKey,
       model: settings.cursorModel.trim() || "composer-2.5",
       effort: settings.cursorEffort.trim(),
+      fast: settings.cursorFast.trim(),
     }),
     template: "tap-vite",
   };

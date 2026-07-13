@@ -11,6 +11,7 @@ const base: Settings = {
   cursorApiKey: "",
   cursorModel: "composer-2.5",
   cursorEffort: "",
+  cursorFast: "",
 };
 
 describe("buildLlmProviderOptions", () => {
