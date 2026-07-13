@@ -74,9 +74,23 @@ export function createFakeClient(): FakeLlm {
     if (tag === "pub-action") {
       pubActionCount += 1;
       if (pubActionCount % 2 === 1) {
-        return { kind: "click", target: 1, reason: `フェイク操作${pubActionCount}` };
+        return {
+          kind: "click",
+          target: 1,
+          value: null,
+          key: null,
+          path: null,
+          reason: `フェイク操作${pubActionCount}`,
+        };
       }
-      return { kind: "finish", reason: "目的を確認できたので終了" };
+      return {
+        kind: "finish",
+        target: null,
+        value: null,
+        key: null,
+        path: null,
+        reason: "目的を確認できたので終了",
+      };
     }
     if (tag === "pub-feedback") {
       pubFeedbackCount += 1;

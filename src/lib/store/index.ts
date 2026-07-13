@@ -93,6 +93,24 @@ export async function readBrew(id: string): Promise<Brew> {
   };
 }
 
+/**
+ * rename を EPERM/EACCES で少しリトライする。
+ * Windows ではウイルススキャン等が宛先を一瞬開いていると rename が失敗するため
+ * (進捗保存のような高頻度書き込みで実際に発生する)
+ */
+export async function renameWithRetry(from: string, to: string): Promise<void> {
+  for (let attempt = 0; ; attempt++) {
+    try {
+      await fs.rename(from, to);
+      return;
+    } catch (err) {
+      const code = (err as NodeJS.ErrnoException).code;
+      if ((code !== "EPERM" && code !== "EACCES") || attempt >= 4) throw err;
+      await new Promise((resolve) => setTimeout(resolve, 50 * (attempt + 1)));
+    }
+  }
+}
+
 export async function writeBrew(brew: Brew): Promise<Brew> {
   const next = { ...brew, updatedAt: new Date().toISOString() };
   await fs.mkdir(brewDir(brew.id), { recursive: true });
@@ -100,7 +118,12 @@ export async function writeBrew(brew: Brew): Promise<Brew> {
   // brew.json が壊れないよう一時ファイル経由で原子的に置き換える
   const tmpPath = path.join(brewDir(brew.id), `brew.json.${randomUUID()}.tmp`);
   await fs.writeFile(tmpPath, JSON.stringify(next, null, 2), "utf8");
-  await fs.rename(tmpPath, path.join(brewDir(brew.id), "brew.json"));
+  try {
+    await renameWithRetry(tmpPath, path.join(brewDir(brew.id), "brew.json"));
+  } catch (err) {
+    await fs.rm(tmpPath, { force: true }).catch(() => undefined);
+    throw err;
+  }
   return next;
 }
 
