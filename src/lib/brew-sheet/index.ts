@@ -74,12 +74,12 @@ export async function runMash(
       sheet[key] = { ...out[key], userEdited: false };
     }
   }
-  // 再マッシュ時に前回のグリル完了状態が残ると質問が再開できないため、finished を戻す
+  // 再マッシュ時に前回の煮沸完了状態が残ると質問が再開できないため、finished を戻す
   return {
     ...brew,
     sheet,
-    stage: "grilling",
-    grill: { ...brew.grill, finished: false },
+    stage: "boiling",
+    boil: { ...brew.boil, finished: false },
   };
 }
 

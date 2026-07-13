@@ -2,7 +2,7 @@ import { promises as fs } from "node:fs";
 import path from "node:path";
 import { readRecipeFile } from "@/lib/recipe";
 import { tapDir } from "@/lib/store";
-import type { BatchEvaluation, Brew, GrillEntry } from "@/lib/store/types";
+import type { BatchEvaluation, Brew, BoilEntry } from "@/lib/store/types";
 
 const DIGEST_LIMIT = 60 * 1024; // コードダイジェストの合計上限(文字数で近似)
 const LOG_TAIL_CHARS = 4 * 1024;
@@ -66,7 +66,7 @@ export async function buildCodeDigest(batchDir: string): Promise<string> {
   ].join("\n");
 }
 
-export function grillDump(entries: GrillEntry[]): string {
+export function boilDump(entries: BoilEntry[]): string {
   const answered = entries.filter((e) => e.answer);
   if (answered.length === 0) return "(質疑なし)";
   return answered
@@ -114,8 +114,8 @@ export async function collectMaterials(brew: Brew, batch: number): Promise<Evalu
     .sort((a, b) => b.number - a.number)[0];
 
   const process = [
-    "### グリルでの質疑応答",
-    grillDump(brew.grill.entries),
+    "### 煮沸での質疑応答",
+    boilDump(brew.boil.entries),
     "",
     "### ビルドログ(末尾)",
     await readBuildLogTail(brew.id, batch),

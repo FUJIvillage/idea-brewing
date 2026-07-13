@@ -10,7 +10,7 @@ import {
 import { cursorSound } from "@/components/ps1/sound";
 import { IngredientsPanel } from "./ingredients-panel";
 import { SheetPanel } from "./sheet-panel";
-import { GrillPanel } from "./grill-panel";
+import { BoilPanel } from "./boil-panel";
 import { RecipePanel } from "./recipe-panel";
 import { TapPanel } from "./tap-panel";
 import { MaturePanel } from "./mature-panel";
@@ -20,7 +20,7 @@ import { latestSucceededBatch } from "@/lib/tap/batches";
 const TABS = [
   { id: "ingredients", label: "原料" },
   { id: "sheet", label: "ブリューシート" },
-  { id: "grill", label: "グリル" },
+  { id: "boil", label: "煮沸" },
   { id: "recipe", label: "レシピ" },
   { id: "tap", label: "タップ" },
   { id: "mature", label: "熟成" },
@@ -35,7 +35,7 @@ function statusBadge(brew: Brew): { label: string; color: string; border: string
   }
   const labels: Record<Brew["stage"], string> = {
     ingredients: "原料投入中",
-    grilling: "グリル中",
+    boiling: "煮沸中",
     fermenting: "発酵待ち",
     done: "レシピ完成",
     built: "提供中",
@@ -64,8 +64,8 @@ export function BrewWorkbench({
   const enabled: Record<WorkbenchTab, boolean> = {
     ingredients: true,
     sheet: brew.sheet !== null,
-    grill: brew.sheet !== null,
-    recipe: brew.grill.finished,
+    boil: brew.sheet !== null,
+    recipe: brew.boil.finished,
     tap: brew.recipeGeneratedAt !== null,
     mature: brew.batches.some((b) => b.status === "succeeded"),
     pub: brew.batches.some((b) => b.status === "succeeded"),
@@ -189,8 +189,8 @@ export function BrewWorkbench({
           />
         )}
         {visibleTab === "sheet" && <SheetPanel brew={brew} onUpdate={setBrew} />}
-        {visibleTab === "grill" && (
-          <GrillPanel brew={brew} onUpdate={setBrew} onBusyChange={setBusy} />
+        {visibleTab === "boil" && (
+          <BoilPanel brew={brew} onUpdate={setBrew} onBusyChange={setBusy} />
         )}
         {visibleTab === "recipe" && (
           <RecipePanel

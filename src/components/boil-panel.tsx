@@ -1,24 +1,24 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import type { Brew, GrillEntry } from "@/lib/store/types";
+import type { Brew, BoilEntry } from "@/lib/store/types";
 import { blip, confirmSound } from "@/components/ps1/sound";
 
-async function postGrill(
+async function postBoil(
   brewId: string,
   body: unknown,
-): Promise<{ brew: Brew; entry: GrillEntry | null }> {
-  const res = await fetch(`/api/brews/${brewId}/grill`, {
+): Promise<{ brew: Brew; entry: BoilEntry | null }> {
+  const res = await fetch(`/api/brews/${brewId}/boil`, {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify(body),
   });
   const json = await res.json();
-  if (!res.ok) throw new Error(json.error ?? "グリル操作に失敗しました");
+  if (!res.ok) throw new Error(json.error ?? "煮沸操作に失敗しました");
   return json;
 }
 
-export function GrillPanel({
+export function BoilPanel({
   brew,
   onUpdate,
   onBusyChange,
@@ -28,11 +28,11 @@ export function GrillPanel({
   onBusyChange: (busy: boolean) => void;
 }) {
   const [busy, setBusy] = useState(false);
-  const [auto, setAuto] = useState(brew.grill.auto);
+  const [auto, setAuto] = useState(brew.boil.auto);
   const [freeText, setFreeText] = useState("");
   const [error, setError] = useState<string | null>(null);
   const cancelRef = useRef<false | "auto-off" | "unmount">(false);
-  const pending = brew.grill.entries.find((e) => !e.answer) ?? null;
+  const pending = brew.boil.entries.find((e) => !e.answer) ?? null;
 
   useEffect(() => {
     return () => {
@@ -56,7 +56,7 @@ export function GrillPanel({
 
   const next = () =>
     run(async () => {
-      const { brew: b } = await postGrill(brew.id, { action: "next" });
+      const { brew: b } = await postBoil(brew.id, { action: "next" });
       onUpdate(b);
       confirmSound();
     });
@@ -64,7 +64,7 @@ export function GrillPanel({
   const answer = (text: string, by: "user" | "auto") =>
     run(async () => {
       if (!pending) return;
-      const { brew: b } = await postGrill(brew.id, {
+      const { brew: b } = await postBoil(brew.id, {
         action: "answer",
         entryId: pending.id,
         answer: text,
@@ -80,19 +80,19 @@ export function GrillPanel({
   const runAuto = () => {
     cancelRef.current = false;
     return run(async () => {
-      let current = (await postGrill(brew.id, { action: "auto", auto: true })).brew;
+      let current = (await postBoil(brew.id, { action: "auto", auto: true })).brew;
       onUpdate(current);
       let guard = 0;
-      while (!cancelRef.current && !current.grill.finished && guard < 50) {
+      while (!cancelRef.current && !current.boil.finished && guard < 50) {
         guard += 1;
-        const pendingEntry = current.grill.entries.find((e) => !e.answer);
+        const pendingEntry = current.boil.entries.find((e) => !e.answer);
         if (pendingEntry) {
           await sleep(900);
           if (cancelRef.current) break;
           const rec =
             pendingEntry.options.find((o) => o.recommended) ?? pendingEntry.options[0];
           current = (
-            await postGrill(brew.id, {
+            await postBoil(brew.id, {
               action: "answer",
               entryId: pendingEntry.id,
               answer: rec?.label ?? "おまかせ",
@@ -100,12 +100,12 @@ export function GrillPanel({
             })
           ).brew;
         } else {
-          current = (await postGrill(brew.id, { action: "next" })).brew;
+          current = (await postBoil(brew.id, { action: "next" })).brew;
         }
         onUpdate(current);
       }
       if (cancelRef.current === "auto-off") {
-        const { brew: b } = await postGrill(brew.id, { action: "auto", auto: false });
+        const { brew: b } = await postBoil(brew.id, { action: "auto", auto: false });
         onUpdate(b);
       }
     });
@@ -113,16 +113,16 @@ export function GrillPanel({
 
   const finish = () =>
     run(async () => {
-      const { brew: b } = await postGrill(brew.id, { action: "finish" });
+      const { brew: b } = await postBoil(brew.id, { action: "finish" });
       onUpdate(b);
       confirmSound();
     });
 
-  const answered = brew.grill.entries.filter((e) => e.answer);
+  const answered = brew.boil.entries.filter((e) => e.answer);
 
   return (
     <div className="flex flex-col gap-5">
-      {brew.grill.finished ? (
+      {brew.boil.finished ? (
         <p
           className="m-0 border-2 px-4 py-3.5 text-[15px] tracking-wide"
           style={{
@@ -131,7 +131,7 @@ export function GrillPanel({
             color: "#8adc8a",
           }}
         >
-          ★ 煮詰め完了。「レシピ」タブから発酵(資料生成)に進めます。
+          ★ 煮沸完了。「レシピ」タブから発酵(資料生成)に進めます。
         </p>
       ) : (
         <div className="flex flex-col gap-4">
@@ -149,7 +149,7 @@ export function GrillPanel({
                     cancelRef.current = "auto-off";
                   } else {
                     void run(async () => {
-                      const { brew: b } = await postGrill(brew.id, {
+                      const { brew: b } = await postBoil(brew.id, {
                         action: "auto",
                         auto: false,
                       });
@@ -217,9 +217,9 @@ export function GrillPanel({
               className="ps-btn text-[15px] tracking-[2px]"
             >
               {busy
-                ? "グリル中..."
-                : brew.grill.entries.length === 0
-                  ? "▶ グリル開始"
+                ? "煮沸中..."
+                : brew.boil.entries.length === 0
+                  ? "▶ 煮沸開始"
                   : "▶ 次の質問"}
             </button>
             <button
@@ -227,7 +227,7 @@ export function GrillPanel({
               onClick={finish}
               className="ps-btn-secondary text-[15px] tracking-[2px]"
             >
-              煮詰め完了にする
+              煮沸完了にする
             </button>
           </div>
         </div>

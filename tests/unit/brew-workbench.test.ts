@@ -23,7 +23,7 @@ function recipeReadyBrew(): Brew {
     stage: "done",
     ingredients: [],
     sheet: sheet(),
-    grill: { entries: [], auto: false, finished: true },
+    boil: { entries: [], auto: false, finished: true },
     recipeProgress: null,
     recipeGeneratedAt: "2026-01-01T00:00:00.000Z",
     batches: [],
@@ -41,7 +41,7 @@ describe("BrewWorkbench", () => {
 
     expect(html).toContain("原料");
     expect(html).toContain("ブリューシート");
-    expect(html).toContain("グリル");
+    expect(html).toContain("煮沸");
     expect(html).toContain("レシピ");
     expect(html).toContain("タップ");
   });

@@ -2,8 +2,8 @@ import type { z } from "zod";
 
 export type LlmTag =
   | "mash"
-  | "grill-next"
-  | "grill-apply"
+  | "boil-next"
+  | "boil-apply"
   | "recipe"
   | "evaluate"
   | "pub-persona"

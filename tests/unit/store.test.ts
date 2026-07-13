@@ -48,7 +48,7 @@ test("ブリューの作成・読み出し・一覧", async () => {
   const loaded = await readBrew(brew.id);
   expect(loaded.name).toBe("最高のtodoアプリ");
   expect(loaded.stage).toBe("ingredients");
-  expect(loaded.grill).toEqual({ entries: [], auto: false, finished: false });
+  expect(loaded.boil).toEqual({ entries: [], auto: false, finished: false });
   const all = await listBrews();
   expect(all).toHaveLength(1);
 });
@@ -57,9 +57,9 @@ test("ブリューの更新で updatedAt が進む", async () => {
   const brew = await createBrew("a");
   const before = brew.updatedAt;
   await new Promise((r) => setTimeout(r, 10));
-  await writeBrew({ ...brew, stage: "grilling" });
+  await writeBrew({ ...brew, stage: "boiling" });
   const loaded = await readBrew(brew.id);
-  expect(loaded.stage).toBe("grilling");
+  expect(loaded.stage).toBe("boiling");
   expect(loaded.updatedAt > before).toBe(true);
 });
 

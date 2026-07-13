@@ -36,12 +36,12 @@ test("原料投入からタップ提供までのハッピーパス", async ({ pa
       timeout: 30_000,
     });
 
-    // 3. グリル(auto)
-    await page.getByRole("button", { name: "グリル", exact: true }).click();
+    // 3. 煮沸(auto)
+    await page.getByRole("button", { name: "煮沸", exact: true }).click();
     await page.getByLabel("autoモード").check();
-    await page.getByRole("button", { name: "グリル開始" }).click();
-    // 「煮詰め完了にする」ボタンと区別するため句点付きの完了メッセージで待つ
-    await expect(page.getByText("煮詰め完了。")).toBeVisible({ timeout: 30_000 });
+    await page.getByRole("button", { name: "煮沸開始" }).click();
+    // 「煮沸完了にする」ボタンと区別するため句点付きの完了メッセージで待つ
+    await expect(page.getByText("煮沸完了。")).toBeVisible({ timeout: 30_000 });
 
     // 4. レシピ生成(発酵)
     await page.getByRole("button", { name: "レシピ", exact: true }).click();

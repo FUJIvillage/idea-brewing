@@ -7,7 +7,7 @@ export interface FakeLlm extends LlmClient {
 }
 
 export function createFakeClient(): FakeLlm {
-  let grillCount = 0;
+  let boilCount = 0;
   let evaluateCount = 0;
   let pubActionCount = 0;
   let pubFeedbackCount = 0;
@@ -27,19 +27,19 @@ export function createFakeClient(): FakeLlm {
         evaluationAxes: field("empty", ""),
       };
     }
-    if (tag === "grill-next") {
-      grillCount += 1;
-      if (grillCount > 2) return { done: true, question: null, options: null };
+    if (tag === "boil-next") {
+      boilCount += 1;
+      if (boilCount > 2) return { done: true, question: null, options: null };
       return {
         done: false,
-        question: `フェイク質問${grillCount}: 方向性はどちらが近いですか?`,
+        question: `フェイク質問${boilCount}: 方向性はどちらが近いですか?`,
         options: [
           { label: "シンプル重視", recommended: true },
           { label: "多機能重視", recommended: false },
         ],
       };
     }
-    if (tag === "grill-apply") {
+    if (tag === "boil-apply") {
       return {
         updates: SHEET_KEYS.map((key) => ({
           key,

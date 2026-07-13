@@ -64,7 +64,7 @@ export async function createBrew(name: string): Promise<Brew> {
     stage: "ingredients",
     ingredients: [],
     sheet: null,
-    grill: { entries: [], auto: false, finished: false },
+    boil: { entries: [], auto: false, finished: false },
     recipeProgress: null,
     recipeGeneratedAt: null,
     batches: [],
@@ -78,10 +78,17 @@ export async function createBrew(name: string): Promise<Brew> {
 
 export async function readBrew(id: string): Promise<Brew> {
   const raw = await fs.readFile(path.join(brewDir(id), "brew.json"), "utf8");
-  const parsed = JSON.parse(raw) as Brew;
+  // 旧名(grill/grilling)で保存された brew.json も読めるよう、boil/boiling へ寄せる
+  const legacy = JSON.parse(raw) as Brew & {
+    grill?: Brew["boil"];
+    stage: Brew["stage"] | "grilling";
+  };
+  const { grill, ...parsed } = legacy;
   // 旧バージョンの brew.json に無いフィールドを補完する
   return {
     ...parsed,
+    stage: parsed.stage === "grilling" ? "boiling" : parsed.stage,
+    boil: parsed.boil ?? grill ?? { entries: [], auto: false, finished: false },
     batches: (parsed.batches ?? []).map((b) => ({
       ...b,
       evaluation: b.evaluation ?? null,
