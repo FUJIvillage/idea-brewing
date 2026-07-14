@@ -1,9 +1,16 @@
-import { appendFileSync } from "node:fs";
+import { appendFileSync, existsSync } from "node:fs";
 import path from "node:path";
 import { readRecipeFile } from "@/lib/recipe";
+import { tapDir } from "@/lib/store";
 import type { BatchStatus, Brew, BuildPhase, NextBatchStrategy } from "@/lib/store/types";
 import { upsertBatch } from "./batches";
 import type { CancelToken } from "./build-state";
+import {
+  clearBuildCheckpoint,
+  readBuildCheckpoint,
+  writeBuildCheckpoint,
+  type BuildCheckpoint,
+} from "./checkpoint";
 import type { BuildEngine, BuildSendResult, BuildSession } from "./engine";
 import type { CommandRunner } from "./runner";
 import { extractTasks } from "./tasks";
@@ -20,6 +27,7 @@ const MAX_REPAIR_ROUNDS = 2;
 
 export type BuildMode =
   | { kind: "initial" }
+  | { kind: "resume" }
   | { kind: "improve"; strategy: NextBatchStrategy; fromBatch: number; instructions: string[] };
 
 export interface BuildDeps {
@@ -41,6 +49,22 @@ const INTRO_PROMPT = [
   "dev サーバーの起動やビルドコマンドの実行もしないでください。",
   "まだコードは書かず、レシピを読んで実装方針を5行以内で要約してください。",
 ].join("\n");
+
+function resumeIntroPrompt(completedTasks: number, totalTasks: number | null): string {
+  const doneLabel =
+    totalTasks === null
+      ? "これまでの実装作業"
+      : `タスク 1〜${completedTasks}/${totalTasks}`;
+  return [
+    "あなたはこの作業ディレクトリの Web サービス実装を再開するエンジニアです。",
+    "docs/recipe/ のレシピ(00〜06)を必要に応じて読み、既存コードを確認してください。",
+    `${doneLabel}は完了済みです。完了済みの成果を削除・破壊せず、続きだけを実装してください。`,
+    "このディレクトリは Vite + React + TypeScript + Tailwind CSS です。構成は変更しないでください。",
+    "依存パッケージの追加は package.json の編集のみで行い、npm install は実行しないでください。",
+    "dev サーバーの起動やビルドコマンドの実行もしないでください。",
+    "まだ追加実装はせず、再開方針を5行以内で要約してください。",
+  ].join("\n");
+}
 
 function taskPrompt(index: number, total: number, title: string, body: string): string {
   return [
@@ -197,10 +221,33 @@ export async function runBuild(brew: Brew, deps: BuildDeps): Promise<Brew> {
   let log: ((line: string) => void) | null = null;
   try {
     const manifest = await readManifest(templateDir(deps.template));
-    const batchDir =
-      deps.mode.kind === "improve" && deps.mode.strategy === "repair"
-        ? await prepareRepairDir(brew.id, deps.mode.fromBatch, deps.batch)
-        : await prepareBatchDir(brew.id, deps.batch, deps.template);
+    let checkpoint: BuildCheckpoint | null = null;
+    let batchDir: string;
+
+    if (deps.mode.kind === "resume") {
+      checkpoint = await readBuildCheckpoint(brew.id, deps.batch);
+      if (!checkpoint) {
+        throw new Error("再開用の checkpoint がありません。最初からビルドしてください。");
+      }
+      batchDir = tapDir(brew.id, deps.batch);
+      if (!existsSync(batchDir)) {
+        throw new Error("再開用のバッチフォルダがありません。最初からビルドしてください。");
+      }
+      current = withProgress(
+        current,
+        "preparing",
+        checkpoint.phase === "generating"
+          ? `再開: タスク ${checkpoint.completedTasks + 1}/${checkpoint.totalTasks ?? "?"}`
+          : `再開: ${checkpoint.phase}`,
+      );
+      await deps.onProgress?.(current);
+    } else if (deps.mode.kind === "improve" && deps.mode.strategy === "repair") {
+      batchDir = await prepareRepairDir(brew.id, deps.mode.fromBatch, deps.batch);
+    } else {
+      batchDir = await prepareBatchDir(brew.id, deps.batch, deps.template);
+      await clearBuildCheckpoint(brew.id, deps.batch);
+    }
+
     if (deps.mode.kind === "improve") {
       await writeImprovementNotes(batchDir, deps.mode.instructions);
     }
@@ -211,6 +258,12 @@ export async function runBuild(brew: Brew, deps: BuildDeps): Promise<Brew> {
 
     log(`[build] バッチ${deps.batch} のビルドを開始(${deps.mode.kind})`);
     session = await deps.engine.createSession({ cwd: batchDir, onLog: log });
+
+    const saveCheckpoint = async (
+      patch: Omit<BuildCheckpoint, "version" | "updatedAt">,
+    ) => {
+      checkpoint = await writeBuildCheckpoint(brew.id, deps.batch, patch);
+    };
 
     if (deps.mode.kind === "improve" && deps.mode.strategy === "repair") {
       current = withProgress(current, "generating", "改善指示を読み込んでいます");
@@ -233,36 +286,66 @@ export async function runBuild(brew: Brew, deps: BuildDeps): Promise<Brew> {
         if (deps.cancel?.cancelled) return finishBatch(current, deps.batch, "cancelled", null);
         if (!res.ok) return finishBatch(current, deps.batch, "failed", res.summary);
       }
-    } else {
+    } else if (!(deps.mode.kind === "resume" && checkpoint && checkpoint.phase !== "generating")) {
+      // initial / resume(generating) / improve(rebuild)
       const planMd = await readRecipeFile(brew.id, "05-implementation-plan.md").catch(() => "");
       const tasks = extractTasks(planMd);
-      const intro =
-        deps.mode.kind === "improve" ? `${INTRO_PROMPT}\n${IMPROVE_NOTES_SENTENCE}` : INTRO_PROMPT;
+      const startTask =
+        deps.mode.kind === "resume" && checkpoint ? checkpoint.completedTasks : 0;
+      const isResume = deps.mode.kind === "resume";
 
-      current = withProgress(current, "generating", "レシピを読み込んでいます");
+      const intro = isResume
+        ? resumeIntroPrompt(startTask, tasks.length > 0 ? tasks.length : null)
+        : deps.mode.kind === "improve"
+          ? `${INTRO_PROMPT}\n${IMPROVE_NOTES_SENTENCE}`
+          : INTRO_PROMPT;
+
+      current = withProgress(
+        current,
+        "generating",
+        isResume
+          ? `再開: レシピ確認 (次はタスク ${startTask + 1})`
+          : "レシピを読み込んでいます",
+      );
       await deps.onProgress?.(current);
-      log("[build] レシピ読み込みを指示");
+      log(isResume ? "[build] 再開イントロを指示" : "[build] レシピ読み込みを指示");
       let res = await sendWithCancel(session, intro, deps.cancel);
       if (deps.cancel?.cancelled) return finishBatch(current, deps.batch, "cancelled", null);
       if (!res.ok) return finishBatch(current, deps.batch, "failed", res.summary);
 
       if (tasks.length === 0) {
-        current = withProgress(current, "generating", "レシピ全体を一括実装中");
-        await deps.onProgress?.(current);
-        log("[build] 一括実装を指示");
-        res = await sendWithCancel(
-          session,
-          "docs/recipe/ のレシピ全体を、このひな形の上に一括で実装してください。完了したら変更内容を3行以内で要約してください。",
-          deps.cancel,
-        );
-        if (deps.cancel?.cancelled) return finishBatch(current, deps.batch, "cancelled", null);
-        if (!res.ok) return finishBatch(current, deps.batch, "failed", res.summary);
+        if (!isResume || startTask === 0) {
+          current = withProgress(current, "generating", "レシピ全体を一括実装中");
+          await deps.onProgress?.(current);
+          log("[build] 一括実装を指示");
+          res = await sendWithCancel(
+            session,
+            isResume
+              ? "既存実装を壊さず、docs/recipe/ の未反映部分をこのひな形の上に実装してください。完了したら変更内容を3行以内で要約してください。"
+              : "docs/recipe/ のレシピ全体を、このひな形の上に一括で実装してください。完了したら変更内容を3行以内で要約してください。",
+            deps.cancel,
+          );
+          if (deps.cancel?.cancelled) return finishBatch(current, deps.batch, "cancelled", null);
+          if (!res.ok) return finishBatch(current, deps.batch, "failed", res.summary);
+          await saveCheckpoint({
+            phase: "verifying",
+            completedTasks: 1,
+            totalTasks: null,
+            repairRound: 0,
+          });
+        }
       } else {
-        for (let i = 0; i < tasks.length; i++) {
+        await saveCheckpoint({
+          phase: "generating",
+          completedTasks: startTask,
+          totalTasks: tasks.length,
+          repairRound: 0,
+        });
+        for (let i = startTask; i < tasks.length; i++) {
           current = withProgress(
             current,
             "generating",
-            `タスク ${i + 1}/${tasks.length}: ${tasks[i].title}`,
+            `${isResume ? "再開: " : ""}タスク ${i + 1}/${tasks.length}: ${tasks[i].title}`,
           );
           await deps.onProgress?.(current);
           log(`[build] タスク ${i + 1}/${tasks.length}: ${tasks[i].title}`);
@@ -273,20 +356,40 @@ export async function runBuild(brew: Brew, deps: BuildDeps): Promise<Brew> {
           );
           if (deps.cancel?.cancelled) return finishBatch(current, deps.batch, "cancelled", null);
           if (!res.ok) return finishBatch(current, deps.batch, "failed", res.summary);
+          await saveCheckpoint({
+            phase: i + 1 >= tasks.length ? "verifying" : "generating",
+            completedTasks: i + 1,
+            totalTasks: tasks.length,
+            repairRound: 0,
+          });
         }
       }
     }
 
-    for (let round = 0; round <= MAX_REPAIR_ROUNDS; round++) {
+    const startRound =
+      deps.mode.kind === "resume" && checkpoint?.phase === "repairing"
+        ? checkpoint.repairRound
+        : 0;
+
+    for (let round = startRound; round <= MAX_REPAIR_ROUNDS; round++) {
       current = withProgress(
         current,
         "verifying",
         round === 0 ? "検証コマンドを実行中" : `再検証中(修理ラウンド ${round}/${MAX_REPAIR_ROUNDS})`,
       );
       await deps.onProgress?.(current);
+      await saveCheckpoint({
+        phase: "verifying",
+        completedTasks: checkpoint?.completedTasks ?? 0,
+        totalTasks: checkpoint?.totalTasks ?? null,
+        repairRound: round,
+      });
       const failure = await runVerify(deps.runner, manifest.verify, batchDir, log, deps.cancel);
       if (deps.cancel?.cancelled) return finishBatch(current, deps.batch, "cancelled", null);
-      if (!failure) return finishBatch(current, deps.batch, "succeeded", null);
+      if (!failure) {
+        await clearBuildCheckpoint(brew.id, deps.batch);
+        return finishBatch(current, deps.batch, "succeeded", null);
+      }
       if (round === MAX_REPAIR_ROUNDS) {
         return finishBatch(
           current,
@@ -298,6 +401,12 @@ export async function runBuild(brew: Brew, deps: BuildDeps): Promise<Brew> {
 
       current = withProgress(current, "repairing", `修理ラウンド ${round + 1}/${MAX_REPAIR_ROUNDS}`);
       await deps.onProgress?.(current);
+      await saveCheckpoint({
+        phase: "repairing",
+        completedTasks: checkpoint?.completedTasks ?? 0,
+        totalTasks: checkpoint?.totalTasks ?? null,
+        repairRound: round + 1,
+      });
       log(`[build] 修理ラウンド ${round + 1}: ${failure.command} が失敗`);
       const repairRes = await sendWithCancel(
         session,

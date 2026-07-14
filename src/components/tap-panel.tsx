@@ -36,6 +36,7 @@ export function TapPanel({
 }) {
   const [serverBusy, setServerBusy] = useState(false);
   const [logLines, setLogLines] = useState<string[]>([]);
+  const [resumable, setResumable] = useState(false);
   const [server, setServer] = useState<ServerState>({
     running: false,
     port: null,
@@ -59,6 +60,21 @@ export function TapPanel({
       // 表示用の取得失敗は無視する
     }
   }, [brew.id]);
+
+  const fetchResumeState = useCallback(async () => {
+    try {
+      const batch = newest?.number ?? 1;
+      const res = await fetch(`/api/brews/${brew.id}/tap/checkpoint?batch=${batch}`);
+      if (res.ok) {
+        const json = (await res.json()) as { resumable?: boolean };
+        setResumable(Boolean(json.resumable));
+      } else {
+        setResumable(false);
+      }
+    } catch {
+      setResumable(false);
+    }
+  }, [brew.id, newest?.number]);
 
   const onTick = useCallback(() => void fetchLog(), [fetchLog]);
   const {
@@ -101,9 +117,24 @@ export function TapPanel({
     };
   }, [brew.id]);
 
-  async function build() {
+  useEffect(() => {
+    if (newest && (newest.status === "failed" || newest.status === "cancelled")) {
+      void fetchResumeState();
+    } else {
+      setResumable(false);
+    }
+  }, [newest, fetchResumeState, brew.buildProgress]);
+
+  async function build(mode?: "resume" | "fresh") {
     confirmSound();
-    await postAction("build", undefined, () => void fetchLog());
+    await postAction(
+      "build",
+      mode ? { mode } : undefined,
+      () => {
+        void fetchLog();
+        void fetchResumeState();
+      },
+    );
   }
 
   async function serverAction(action: "start" | "stop") {
@@ -142,7 +173,7 @@ export function TapPanel({
       )}
 
       {!building && !newest && (
-        <button onClick={build} className="ps-btn w-fit">
+        <button onClick={() => build()} className="ps-btn w-fit">
           ▶ ビルド開始(1stバッチ)
         </button>
       )}
@@ -154,22 +185,44 @@ export function TapPanel({
       )}
 
       {!building && !succeeded && newest?.status === "failed" && (
-        <div>
+        <div className="flex flex-col gap-2">
           <p className="m-0 text-[#ff8a8a]">ビルド失敗: {newest.error}</p>
-          <button onClick={build} className="ps-btn mt-2">
-            ▶ 再ビルド
-          </button>
+          {resumable ? (
+            <div className="flex flex-wrap gap-2">
+              <button onClick={() => build("resume")} className="ps-btn">
+                ▶ 再開
+              </button>
+              <button onClick={() => build("fresh")} className="ps-btn-secondary">
+                最初から
+              </button>
+            </div>
+          ) : (
+            <button onClick={() => build("fresh")} className="ps-btn w-fit">
+              ▶ 再ビルド
+            </button>
+          )}
         </div>
       )}
 
       {!building && !succeeded && newest?.status === "cancelled" && (
-        <div>
+        <div className="flex flex-col gap-2">
           <p className="m-0" style={{ color: "rgba(255,220,160,.55)" }}>
             ビルドは中断されました。
           </p>
-          <button onClick={build} className="ps-btn mt-2">
-            ▶ ビルド開始(1stバッチ)
-          </button>
+          {resumable ? (
+            <div className="flex flex-wrap gap-2">
+              <button onClick={() => build("resume")} className="ps-btn">
+                ▶ 再開
+              </button>
+              <button onClick={() => build("fresh")} className="ps-btn-secondary">
+                最初から
+              </button>
+            </div>
+          ) : (
+            <button onClick={() => build("fresh")} className="ps-btn w-fit">
+              ▶ ビルド開始(1stバッチ)
+            </button>
+          )}
         </div>
       )}
 
