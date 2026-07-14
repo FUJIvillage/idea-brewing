@@ -36,7 +36,10 @@ export function TapPanel({
 }) {
   const [serverBusy, setServerBusy] = useState(false);
   const [logLines, setLogLines] = useState<string[]>([]);
-  const [resumable, setResumable] = useState(false);
+  const [resumeState, setResumeState] = useState<{ batch: number; resumable: boolean } | null>(
+    null,
+  );
+  const [resumeRefreshToken, setResumeRefreshToken] = useState(0);
   const [server, setServer] = useState<ServerState>({
     running: false,
     port: null,
@@ -61,20 +64,9 @@ export function TapPanel({
     }
   }, [brew.id]);
 
-  const fetchResumeState = useCallback(async () => {
-    try {
-      const batch = newest?.number ?? 1;
-      const res = await fetch(`/api/brews/${brew.id}/tap/checkpoint?batch=${batch}`);
-      if (res.ok) {
-        const json = (await res.json()) as { resumable?: boolean };
-        setResumable(Boolean(json.resumable));
-      } else {
-        setResumable(false);
-      }
-    } catch {
-      setResumable(false);
-    }
-  }, [brew.id, newest?.number]);
+  // resumable は取得できた batch と現在の newest が一致するときだけ有効(下の派生値で判定)。
+  const resumable =
+    newest !== null && resumeState?.batch === newest.number ? resumeState.resumable : false;
 
   const onTick = useCallback(() => void fetchLog(), [fetchLog]);
   const {
@@ -118,12 +110,27 @@ export function TapPanel({
   }, [brew.id]);
 
   useEffect(() => {
-    if (newest && (newest.status === "failed" || newest.status === "cancelled")) {
-      void fetchResumeState();
-    } else {
-      setResumable(false);
-    }
-  }, [newest, fetchResumeState, brew.buildProgress]);
+    if (!newest || (newest.status !== "failed" && newest.status !== "cancelled")) return;
+    let ignore = false;
+    const batch = newest.number;
+    (async () => {
+      try {
+        const res = await fetch(`/api/brews/${brew.id}/tap/checkpoint?batch=${batch}`);
+        if (ignore) return;
+        if (res.ok) {
+          const json = (await res.json()) as { resumable?: boolean };
+          setResumeState({ batch, resumable: Boolean(json.resumable) });
+        } else {
+          setResumeState({ batch, resumable: false });
+        }
+      } catch {
+        if (!ignore) setResumeState({ batch, resumable: false });
+      }
+    })();
+    return () => {
+      ignore = true;
+    };
+  }, [newest, brew.id, brew.buildProgress, resumeRefreshToken]);
 
   async function build(mode?: "resume" | "fresh") {
     confirmSound();
@@ -132,7 +139,7 @@ export function TapPanel({
       mode ? { mode } : undefined,
       () => {
         void fetchLog();
-        void fetchResumeState();
+        setResumeRefreshToken((t) => t + 1);
       },
     );
   }
