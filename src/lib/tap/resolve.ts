@@ -30,7 +30,12 @@ export async function resolveEngine(settings: Settings): Promise<ResolvedEngine>
 
   const { createCursorEngine } = await import("./cursor-engine");
   return {
-    engine: createCursorEngine({ apiKey, model: settings.cursorModel.trim() || "composer-2.5" }),
+    engine: createCursorEngine({
+      apiKey,
+      model: settings.cursorModel.trim() || "composer-2.5",
+      effort: settings.cursorEffort.trim(),
+      fast: settings.cursorFast.trim(),
+    }),
     template: "tap-vite",
   };
 }

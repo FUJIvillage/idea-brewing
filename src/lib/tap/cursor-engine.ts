@@ -3,6 +3,37 @@ import type { BuildEngine, BuildSession } from "./engine";
 export interface CursorEngineOptions {
   apiKey: string;
   model: string;
+  /** Cursor モデルの effort パラメータ。空なら未指定 */
+  effort?: string;
+  /** Cursor モデルの fast パラメータ ("true" | "false")。空なら未指定 */
+  fast?: string;
+}
+
+export interface CursorModelSelection {
+  id: string;
+  params?: Array<{ id: string; value: string }>;
+}
+
+export interface CursorModelParams {
+  effort?: string;
+  fast?: string;
+}
+
+/** 設定のモデル名と params から Cursor SDK の model 指定を組み立てる */
+export function buildCursorModelSelection(
+  model: string,
+  params: CursorModelParams = {},
+): CursorModelSelection {
+  const id = model.trim() || "composer-2.5";
+  const selectionParams: Array<{ id: string; value: string }> = [];
+  const effortValue = params.effort?.trim() ?? "";
+  const fastValue = params.fast?.trim() ?? "";
+  if (effortValue) selectionParams.push({ id: "effort", value: effortValue });
+  if (fastValue === "true" || fastValue === "false") {
+    selectionParams.push({ id: "fast", value: fastValue });
+  }
+  if (selectionParams.length === 0) return { id };
+  return { id, params: selectionParams };
 }
 
 interface CursorAgentErrorLike extends Error {
@@ -35,7 +66,7 @@ interface CursorSdkModule {
   Agent: {
     create(opts: {
       apiKey: string;
-      model: { id: string };
+      model: CursorModelSelection;
       local: { cwd: string };
     }): Promise<CursorAgent>;
   };
@@ -68,7 +99,10 @@ export function createCursorEngine(opts: CursorEngineOptions): BuildEngine {
       try {
         agent = await Agent.create({
           apiKey: opts.apiKey,
-          model: { id: opts.model },
+          model: buildCursorModelSelection(opts.model, {
+            effort: opts.effort ?? "",
+            fast: opts.fast ?? "",
+          }),
           local: { cwd },
         });
       } catch (err) {

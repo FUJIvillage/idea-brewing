@@ -17,8 +17,12 @@ const FAKE_SETTINGS: Settings = {
   apiKey: "",
   baseUrl: "",
   model: "fake",
+  effort: "",
   cursorApiKey: "",
   cursorModel: "composer-2.5",
+  cursorEffort: "",
+  cursorFast: "",
+  boilMaxQuestions: 20,
 };
 
 beforeEach(async () => {

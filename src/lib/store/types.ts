@@ -196,8 +196,16 @@ export interface Settings {
   apiKey: string;
   baseUrl: string;
   model: string;
+  /** LLM プロバイダの reasoning effort (例: max)。空なら未指定 */
+  effort: string;
   /** Cursor SDK(タップ工程)のAPIキー。空なら環境変数 CURSOR_API_KEY にフォールバック */
   cursorApiKey: string;
   /** タップ工程で使うモデルID */
   cursorModel: string;
+  /** タップ工程の Cursor モデル effort (例: max)。空なら SDK 既定 */
+  cursorEffort: string;
+  /** タップ工程の Cursor モデル fast ("true" | "false")。空なら未指定 */
+  cursorFast: string;
+  /** 煮沸の質問上限(1〜100)。既定 20 */
+  boilMaxQuestions: number;
 }

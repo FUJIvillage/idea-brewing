@@ -7,8 +7,12 @@ const baseSettings: Settings = {
   apiKey: "",
   baseUrl: "",
   model: "",
+  effort: "",
   cursorApiKey: "",
   cursorModel: "composer-2.5",
+  cursorEffort: "",
+  cursorFast: "",
+  boilMaxQuestions: 20,
 };
 
 afterEach(() => {
