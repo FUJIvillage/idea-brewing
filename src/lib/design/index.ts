@@ -4,7 +4,12 @@ import { designDir, recipeDir } from "@/lib/store";
 import type { Brew, DesignMockRecord, Settings } from "@/lib/store/types";
 import type { CancelToken } from "@/lib/tap/build-state";
 import { isFakeMode } from "@/lib/tap/resolve";
-import { runPencil } from "./pencil-cli";
+import { exportPencilPreview, runPencil, startPreviewLoop } from "./pencil-cli";
+import {
+  PREVIEW_INTERVAL_MS,
+  PREVIEW_PNG,
+  isValidPreviewPngSize,
+} from "./preview";
 import { buildMockPrompt } from "./prompt";
 import {
   resolvePencilAgentApiKey,
@@ -17,6 +22,7 @@ export const MOCK_PEN = "mock.pen";
 export const MOCK_PNG = "mock.png";
 export const USAGE_JSON = "usage.json";
 export const DESIGN_LOG = "design.log";
+export { PREVIEW_PNG, isValidPreviewPngSize };
 
 /** モック生成に必要なレシピファイル(--prompt-file で添付する) */
 export const REQUIRED_RECIPE_FILES = ["02-screens.md", "03-design-system.md"] as const;
@@ -107,6 +113,9 @@ async function readLogTail(logPath: string): Promise<string> {
 
 async function generateFakeMock(dir: string, startedAt: number): Promise<DesignMockRecord> {
   const fixture = path.join(process.cwd(), "templates", "design-fake", MOCK_PNG);
+  // 生成中プレビュー経路を触れるよう、最終画像の前に preview.png を置く
+  await fs.copyFile(fixture, path.join(dir, PREVIEW_PNG));
+  await new Promise((r) => setTimeout(r, 1500));
   await fs.copyFile(fixture, path.join(dir, MOCK_PNG));
   await fs.writeFile(
     path.join(dir, USAGE_JSON),
@@ -162,6 +171,9 @@ export async function generateDesignMock(
 
   if (isFakeMode(settings)) return generateFakeMock(dir, startedAt);
 
+  // 再生成時は古い途中プレビューを消してプレースホルダから再開
+  await fs.unlink(path.join(dir, PREVIEW_PNG)).catch(() => undefined);
+
   const key = resolvePencilKey(settings);
   const model = resolvePencilModel(settings);
   const agentApiKey = resolvePencilAgentApiKey(settings, model);
@@ -191,6 +203,13 @@ export async function generateDesignMock(
     };
   };
 
+  const stopPreview = startPreviewLoop({
+    designDir: dir,
+    key,
+    intervalMs: PREVIEW_INTERVAL_MS,
+    token: opts.token,
+  });
+
   let result;
   try {
     result = await runPencil({
@@ -201,8 +220,12 @@ export async function generateDesignMock(
       timeoutMs: DESIGN_TIMEOUT_MS,
       token: opts.token,
     });
+    // 完了直前にもう一度プレビューを試みる（最終に近い状態）
+    await exportPencilPreview({ designDir: dir, key }).catch(() => false);
   } catch (err) {
     return fail(`Pencil CLI の起動に失敗しました: ${err instanceof Error ? err.message : String(err)}`);
+  } finally {
+    stopPreview();
   }
 
   if (result.cancelled) {

@@ -175,6 +175,24 @@ describe("GET /design/mock", () => {
   });
 });
 
+describe("GET /design/preview", () => {
+  it("プレビューがなければ404、有効サイズならPNGを返す", async () => {
+    const brew = await recipeReadyBrew();
+    const { GET } = await import("@/app/api/brews/[id]/design/preview/route");
+    expect((await GET(new Request("http://test/"), ctx(brew.id))).status).toBe(404);
+
+    await fs.mkdir(designDir(brew.id), { recursive: true });
+    await fs.writeFile(path.join(designDir(brew.id), "preview.png"), "tiny", "utf8");
+    expect((await GET(new Request("http://test/"), ctx(brew.id))).status).toBe(404);
+
+    const fixture = await fs.readFile(path.join(process.cwd(), "templates", "design-fake", "mock.png"));
+    await fs.writeFile(path.join(designDir(brew.id), "preview.png"), fixture);
+    const ok = await GET(new Request("http://test/"), ctx(brew.id));
+    expect(ok.status).toBe(200);
+    expect(ok.headers.get("content-type")).toBe("image/png");
+  });
+});
+
 describe("相互ロック(デザイン)", () => {
   it("デザイン生成中は mature/evaluate と tap/build が409", async () => {
     const brew = await recipeReadyBrew();

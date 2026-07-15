@@ -28,6 +28,8 @@ export function DesignPanel({
 }) {
   const [instruction, setInstruction] = useState("");
   const [elapsedSec, setElapsedSec] = useState(0);
+  const [previewReady, setPreviewReady] = useState(false);
+  const [previewTick, setPreviewTick] = useState(0);
 
   const mock = brew.designMock;
   const running = mock?.status === "generating";
@@ -40,6 +42,32 @@ export function DesignPanel({
     onBusyChange,
   });
   const working = busy || running;
+
+  useEffect(() => {
+    if (!working) {
+      setPreviewReady(false);
+      return;
+    }
+    let cancelled = false;
+    const poll = async () => {
+      try {
+        const res = await fetch(`/api/brews/${brew.id}/design/preview`, { cache: "no-store" });
+        if (cancelled) return;
+        if (res.ok) {
+          setPreviewReady(true);
+          setPreviewTick(Date.now());
+        }
+      } catch {
+        // プレビュー取得失敗はプレースホルダ継続
+      }
+    };
+    void poll();
+    const timer = setInterval(() => void poll(), 2500);
+    return () => {
+      cancelled = true;
+      clearInterval(timer);
+    };
+  }, [working, brew.id]);
 
   useEffect(() => {
     if (!working) return;
@@ -55,6 +83,7 @@ export function DesignPanel({
   function generate() {
     confirmSound();
     setElapsedSec(0);
+    setPreviewReady(false);
     void post("generate", instruction.trim() ? { instruction: instruction.trim() } : {});
   }
 
@@ -71,6 +100,23 @@ export function DesignPanel({
           <p className="m-0 text-[#e0a83c]" aria-live="polite">
             モックアップを生成中…(経過 {Math.floor(elapsedSec / 60)}分{elapsedSec % 60}秒)
           </p>
+          {previewReady ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={`/api/brews/${brew.id}/design/preview?t=${previewTick}`}
+              alt="デザインモックアップ（生成中プレビュー）"
+              className="max-w-full border-2 border-[#3a2a12]"
+              style={{ background: "#040201" }}
+            />
+          ) : (
+            <div
+              className="flex min-h-[180px] items-center justify-center border-2 border-dashed border-[#3a2a12] bg-[#0e0804] p-6 text-[14px]"
+              style={{ color: "rgba(255,220,160,.55)" }}
+              aria-live="polite"
+            >
+              キャンバス準備中…
+            </div>
+          )}
           <button onClick={() => void cancel()} className="ps-btn-secondary w-fit">
             中断
           </button>
