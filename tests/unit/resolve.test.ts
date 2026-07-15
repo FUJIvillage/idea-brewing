@@ -12,6 +12,8 @@ const baseSettings: Settings = {
   cursorModel: "composer-2.5",
   cursorEffort: "",
   cursorFast: "",
+  pencilCliKey: "",
+  pencilModel: "",
   boilMaxQuestions: 20,
 };
 

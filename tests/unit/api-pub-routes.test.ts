@@ -22,6 +22,8 @@ const FAKE_SETTINGS: Settings = {
   cursorModel: "composer-2.5",
   cursorEffort: "",
   cursorFast: "",
+  pencilCliKey: "",
+  pencilModel: "",
   boilMaxQuestions: 20,
 };
 

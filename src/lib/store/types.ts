@@ -206,6 +206,10 @@ export interface Settings {
   cursorEffort: string;
   /** タップ工程の Cursor モデル fast ("true" | "false")。空なら未指定 */
   cursorFast: string;
+  /** Pencil CLI(デザイン工程)のAPIキー。空なら環境変数 PENCIL_CLI_KEY にフォールバック */
+  pencilCliKey: string;
+  /** デザイン工程で使うモデルID(pencil --model)。空なら CLI 既定 */
+  pencilModel: string;
   /** 煮沸の質問上限(1〜100)。既定 20 */
   boilMaxQuestions: number;
 }
