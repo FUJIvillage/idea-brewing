@@ -105,6 +105,8 @@ describe("BrewWorkbench", () => {
     expect(html).toContain("タップ");
     expect((html.match(/disabled=\"\"/g) ?? []).length).toBeGreaterThanOrEqual(5);
     expect(html).toContain("ビルド中断");
+    // ビルド待ちの間はドット絵ループアニメ(真夜中の醸造所)を表示する
+    expect(html).toContain("/anim/brewing-chill.gif");
   });
 
   it("成功バッチがあるとき熟成タブが有効になる", () => {

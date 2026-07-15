@@ -173,6 +173,15 @@ export function TapPanel({
 
   return (
     <div className="flex flex-col gap-4">
+      {building && (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src="/anim/brewing-chill.gif"
+          alt="醸造中のアニメーション(真夜中の醸造所)"
+          className="w-full max-w-[480px] border-2 border-[#3a2a12]"
+          style={{ imageRendering: "pixelated", background: "#040201" }}
+        />
+      )}
       {brew.buildProgress && (
         <p className="m-0 text-[#e0a83c]" aria-live="polite">
           {PHASE_LABELS[brew.buildProgress.phase]}: {brew.buildProgress.detail}
