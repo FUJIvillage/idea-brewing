@@ -444,6 +444,16 @@ a.ps-panel:hover {
   animation: psSweep 7s linear infinite;
 }
 
+/* デザインモックは忠実度確認用なので CRT 走査線の上に出す */
+.ps-design-mock-frame {
+  position: relative;
+  z-index: 100;
+  display: block;
+  max-width: 100%;
+  border: 2px solid #3a2a12;
+  background: #040201;
+}
+
 .prose {
   --tw-prose-body: var(--ps-text);
   --tw-prose-headings: var(--ps-amber-light);

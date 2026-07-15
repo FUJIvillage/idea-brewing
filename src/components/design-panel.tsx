@@ -61,8 +61,7 @@ function GeneratingView({ brewId, onCancel }: { brewId: string; onCancel: () => 
         <img
           src={`/api/brews/${brewId}/design/preview?t=${previewTick}`}
           alt="デザインモックアップ（生成中プレビュー）"
-          className="max-w-full border-2 border-[#3a2a12]"
-          style={{ background: "#040201" }}
+          className="ps-design-mock-frame"
         />
       ) : (
         <div
@@ -126,8 +125,7 @@ export function DesignPanel({
           <img
             src={`/api/brews/${brew.id}/design/mock?t=${encodeURIComponent(mock.generatedAt ?? "")}`}
             alt="デザインモックアップ"
-            className="max-w-full border-2 border-[#3a2a12]"
-            style={{ background: "#040201" }}
+            className="ps-design-mock-frame"
           />
           <p className="m-0 text-[13px]" style={{ color: "rgba(255,220,160,.55)" }}>
             生成日時: {mock.generatedAt ? new Date(mock.generatedAt).toLocaleString() : "不明"} /
