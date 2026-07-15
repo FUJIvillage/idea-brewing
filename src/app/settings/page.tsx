@@ -342,9 +342,14 @@ export default function SettingsPage() {
               type="text"
               value={s.pencilModel}
               onChange={(e) => setSettings({ ...s, pencilModel: e.target.value })}
-              placeholder="未指定(CLI既定)"
+              placeholder="未指定(プロバイダに合わせて自動)"
               className="ps-input"
             />
+            <p className="mt-1 text-[12px]" style={{ color: "rgba(255,220,160,.4)" }}>
+              例: gpt-5.4 / gemini-3.5-flash / claude-haiku-4-5。空なら煮沸プロバイダに合わせて自動選択します。Claude
+              系は ANTHROPIC_API_KEY か Claude Code ログインが別途必要です。OpenAI/Google
+              系は上の APIキーをエージェント認証に使います。
+            </p>
           </div>
         </div>
 

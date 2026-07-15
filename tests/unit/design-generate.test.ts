@@ -8,7 +8,12 @@ import {
   hasDesignRecipe,
   parsePencilUsage,
 } from "@/lib/design";
-import { DesignNotConfiguredError, resolvePencilKey } from "@/lib/design/resolve";
+import {
+  DesignNotConfiguredError,
+  resolvePencilAgentApiKey,
+  resolvePencilKey,
+  resolvePencilModel,
+} from "@/lib/design/resolve";
 import { createBrew, designDir, recipeDir } from "@/lib/store";
 import type { Settings } from "@/lib/store/types";
 
@@ -95,6 +100,92 @@ describe("resolvePencilKey", () => {
 
   it("どちらも無ければ DesignNotConfiguredError", () => {
     expect(() => resolvePencilKey(fakeSettings)).toThrow(DesignNotConfiguredError);
+  });
+});
+
+describe("resolvePencilModel", () => {
+  it("明示指定があれば trim して返す", () => {
+    expect(
+      resolvePencilModel({ ...fakeSettings, provider: "openai", pencilModel: " claude-haiku-4-5 " }),
+    ).toBe("claude-haiku-4-5");
+  });
+
+  it("未指定かつ OpenAI 系なら Codex 既定モデルにフォールバック", () => {
+    expect(resolvePencilModel({ ...fakeSettings, provider: "openai", pencilModel: "" })).toBe(
+      "gpt-5.4",
+    );
+    expect(resolvePencilModel({ ...fakeSettings, provider: "openrouter", pencilModel: "" })).toBe(
+      "gpt-5.4",
+    );
+  });
+
+  it("未指定かつ Google なら Gemini 既定モデルにフォールバック", () => {
+    expect(resolvePencilModel({ ...fakeSettings, provider: "google", pencilModel: "" })).toBe(
+      "gemini-3.5-flash",
+    );
+  });
+
+  it("未指定で Claude 系に寄せられないプロバイダは空(CLI既定)", () => {
+    expect(resolvePencilModel({ ...fakeSettings, provider: "ollama", pencilModel: "" })).toBe("");
+    expect(resolvePencilModel({ ...fakeSettings, provider: "fake", pencilModel: "" })).toBe("");
+  });
+});
+
+describe("resolvePencilAgentApiKey", () => {
+  it("gpt モデルなら OpenAI/OpenRouter の apiKey を返す", () => {
+    expect(
+      resolvePencilAgentApiKey(
+        { ...fakeSettings, provider: "openai", apiKey: "sk-test" },
+        "gpt-5.4",
+      ),
+    ).toBe("sk-test");
+    expect(
+      resolvePencilAgentApiKey(
+        { ...fakeSettings, provider: "openrouter", apiKey: "or-test" },
+        "gpt-5.5",
+      ),
+    ).toBe("or-test");
+  });
+
+  it("gemini モデルなら Google の apiKey を返す", () => {
+    expect(
+      resolvePencilAgentApiKey(
+        { ...fakeSettings, provider: "google", apiKey: "g-test" },
+        "gemini-3.5-flash",
+      ),
+    ).toBe("g-test");
+  });
+
+  it("claude モデルやプロバイダ不一致なら空", () => {
+    expect(
+      resolvePencilAgentApiKey(
+        { ...fakeSettings, provider: "openai", apiKey: "sk-test" },
+        "claude-opus-4-6",
+      ),
+    ).toBe("");
+    expect(
+      resolvePencilAgentApiKey(
+        { ...fakeSettings, provider: "openai", apiKey: "sk-test" },
+        "gemini-3.5-flash",
+      ),
+    ).toBe("");
+    expect(
+      resolvePencilAgentApiKey(
+        { ...fakeSettings, provider: "google", apiKey: "g-test" },
+        "gpt-5.4",
+      ),
+    ).toBe("");
+  });
+
+  it("環境変数 PENCIL_AGENT_API_KEY があればそれを優先", () => {
+    process.env.PENCIL_AGENT_API_KEY = "agent-env";
+    expect(
+      resolvePencilAgentApiKey(
+        { ...fakeSettings, provider: "openai", apiKey: "sk-test" },
+        "gpt-5.4",
+      ),
+    ).toBe("agent-env");
+    delete process.env.PENCIL_AGENT_API_KEY;
   });
 });
 
