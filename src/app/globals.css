@@ -444,10 +444,13 @@ a.ps-panel:hover {
   animation: psSweep 7s linear infinite;
 }
 
-/* デザインモックは忠実度確認用なので CRT 走査線の上に出す */
-.ps-design-mock-frame {
+/*
+ * デザインモックは忠実度確認用なので CRT(z-index 95–98)より手前に出す。
+ * class セレクタだと Tailwind v4 のビルドでルールが落ちる事例があったため属性で持つ。
+ */
+[data-ps-design-mock] {
   position: relative;
-  z-index: 100;
+  z-index: 200;
   display: block;
   max-width: 100%;
   border: 2px solid #3a2a12;
