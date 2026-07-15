@@ -2,6 +2,11 @@ import { promises as fs } from "node:fs";
 import path from "node:path";
 import { designDir, recipeDir, tapDir } from "@/lib/store";
 import { RECIPE_FILES } from "@/lib/recipe";
+import {
+  DESIGN_HANDOFF_MD,
+  DESIGN_SPEC_JSON,
+  writeDesignHandoff,
+} from "@/lib/design/handoff";
 
 export type TemplateId = "tap-vite" | "tap-fake";
 
@@ -54,6 +59,25 @@ export async function prepareBatchDir(
   } catch (err) {
     if ((err as NodeJS.ErrnoException).code !== "ENOENT") throw err;
     // モック未生成なら同梱しない(デザイン工程は任意)
+  }
+  // .pen は構造化された完全なデザイン仕様。既存モックもここで自動バックフィルする。
+  try {
+    const sourceDesignDir = designDir(brewId);
+    await fs.access(path.join(sourceDesignDir, "mock.pen"));
+    await writeDesignHandoff(sourceDesignDir);
+    await Promise.all([
+      fs.copyFile(
+        path.join(sourceDesignDir, DESIGN_SPEC_JSON),
+        path.join(docsDir, DESIGN_SPEC_JSON),
+      ),
+      fs.copyFile(
+        path.join(sourceDesignDir, DESIGN_HANDOFF_MD),
+        path.join(docsDir, DESIGN_HANDOFF_MD),
+      ),
+    ]);
+  } catch (err) {
+    if ((err as NodeJS.ErrnoException).code !== "ENOENT") throw err;
+    // PNGだけの旧データ、またはデザイン未生成なら構造仕様なしで従来どおり続行
   }
   return dest;
 }

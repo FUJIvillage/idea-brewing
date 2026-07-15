@@ -41,9 +41,11 @@ export interface BuildDeps {
   onProgress?: (brew: Brew) => Promise<void> | void;
 }
 
-// デザイン仕様の装飾要素が「任意」を口実に省略され、最小実装で止まるのを防ぐ(全ビルド系プロンプトに同梱)
-export const DESIGN_FIDELITY_SENTENCE =
-  "docs/recipe/03-design-system.md はデザイン仕様です。「任意」「表示する場合」と書かれた装飾要素(円形進捗・バッジ・アイコン・アクセントバー等)も原則実装し、最小実装で済ませないでください。";
+// デザイン仕様を画像だけで推測させず、構造・数値・視覚の各正本を全ビルド系プロンプトで明示する。
+export const DESIGN_FIDELITY_SENTENCE = [
+  "docs/recipe/03-design-system.md はデザイン仕様です。「任意」「表示する場合」と書かれた装飾要素(円形進捗・バッジ・アイコン・アクセントバー等)も原則実装し、最小実装で済ませないでください。",
+  "docs/recipe/design-handoff.md が存在する場合は最初に必ず読み、正確な寸法・余白・階層・トークンは design-spec.json、見た目・全体構成は design-mock.png を正として実装してください。",
+].join("\n");
 
 export const INTRO_PROMPT = [
   "あなたはこの作業ディレクトリに Web サービスを実装するエンジニアです。",

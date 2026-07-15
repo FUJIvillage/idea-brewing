@@ -24,4 +24,12 @@ describe("ビルド系プロンプトのデザイン必須実装指示", () => {
     expect(DESIGN_FIDELITY_SENTENCE).toContain("03-design-system.md");
     expect(DESIGN_FIDELITY_SENTENCE).toContain("最小実装");
   });
+
+  it("構造仕様・ハンドオフ・画像を必読にし、仕様値と見た目の正を区別する", () => {
+    expect(DESIGN_FIDELITY_SENTENCE).toContain("design-handoff.md");
+    expect(DESIGN_FIDELITY_SENTENCE).toContain("design-spec.json");
+    expect(DESIGN_FIDELITY_SENTENCE).toContain("design-mock.png");
+    expect(DESIGN_FIDELITY_SENTENCE).toContain("正確な");
+    expect(DESIGN_FIDELITY_SENTENCE).toContain("見た目");
+  });
 });

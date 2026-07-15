@@ -44,13 +44,41 @@ describe("prepareBatchDir", () => {
     expect(manifest.verify.length).toBeGreaterThan(0);
   });
 
-  it("デザインモックがあれば docs/recipe/design-mock.png として同梱する", async () => {
+  it("Pencilモックがあれば画像・完全仕様・ハンドオフを同梱する", async () => {
     const brew = await createBrew("モック同梱");
     await fs.mkdir(designDir(brew.id), { recursive: true });
     await fs.writeFile(path.join(designDir(brew.id), "mock.png"), Buffer.from("png-bytes"));
+    const pen = {
+      version: "2.14",
+      children: [
+        {
+          type: "frame",
+          id: "home",
+          name: "Home Screen",
+          width: 1280,
+          height: 720,
+          children: [],
+        },
+      ],
+      variables: { primary: { type: "color", value: "#B93832" } },
+    };
+    await fs.writeFile(path.join(designDir(brew.id), "mock.pen"), JSON.stringify(pen), "utf8");
     const dir = await prepareBatchDir(brew.id, 1, "tap-fake");
     const copied = await fs.readFile(path.join(dir, "docs", "recipe", "design-mock.png"));
     expect(copied.toString()).toBe("png-bytes");
+    const spec = JSON.parse(
+      await fs.readFile(path.join(dir, "docs", "recipe", "design-spec.json"), "utf8"),
+    );
+    expect(spec).toEqual(pen);
+    const handoff = await fs.readFile(
+      path.join(dir, "docs", "recipe", "design-handoff.md"),
+      "utf8",
+    );
+    expect(handoff).toContain("Home Screen");
+    expect(handoff).toContain("#B93832");
+    // 既存モックでも永続成果物をバックフィルする
+    await fs.access(path.join(designDir(brew.id), "design-spec.json"));
+    await fs.access(path.join(designDir(brew.id), "design-handoff.md"));
   });
 
   it("デザインモックがなくても失敗しない", async () => {
