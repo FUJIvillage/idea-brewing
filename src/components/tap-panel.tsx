@@ -31,7 +31,7 @@ export function TapPanel({
 }: {
   brew: Brew;
   onUpdate: (b: Brew) => void;
-  refresh: () => Promise<void>;
+  refresh: () => Promise<Brew | void>;
   onBusyChange: (busy: boolean) => void;
 }) {
   const [serverBusy, setServerBusy] = useState(false);

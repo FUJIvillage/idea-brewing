@@ -14,7 +14,7 @@ export function RecipePanel({
 }: {
   brew: Brew;
   onUpdate: (b: Brew) => void;
-  refresh: () => Promise<void>;
+  refresh: () => Promise<Brew | void>;
   onBusyChange: (busy: boolean) => void;
 }) {
   const [files, setFiles] = useState<string[]>([]);

@@ -40,7 +40,7 @@ export function MaturePanel({
 }: {
   brew: Brew;
   onUpdate: (b: Brew) => void;
-  refresh: () => Promise<void>;
+  refresh: () => Promise<Brew | void>;
   onBusyChange: (busy: boolean) => void;
 }) {
   const [selected, setSelected] = useState<number | null>(null);
