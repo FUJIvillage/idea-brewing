@@ -3,7 +3,7 @@ import os from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { prepareBatchDir, readManifest, shouldCopyTemplatePath } from "@/lib/tap/template";
-import { createBrew, recipeDir } from "@/lib/store";
+import { createBrew, designDir, recipeDir } from "@/lib/store";
 import { RECIPE_FILES } from "@/lib/recipe";
 
 let tmp: string;
@@ -42,6 +42,23 @@ describe("prepareBatchDir", () => {
     const manifest = await readManifest(dir);
     expect(Array.isArray(manifest.verify)).toBe(true);
     expect(manifest.verify.length).toBeGreaterThan(0);
+  });
+
+  it("デザインモックがあれば docs/recipe/design-mock.png として同梱する", async () => {
+    const brew = await createBrew("モック同梱");
+    await fs.mkdir(designDir(brew.id), { recursive: true });
+    await fs.writeFile(path.join(designDir(brew.id), "mock.png"), Buffer.from("png-bytes"));
+    const dir = await prepareBatchDir(brew.id, 1, "tap-fake");
+    const copied = await fs.readFile(path.join(dir, "docs", "recipe", "design-mock.png"));
+    expect(copied.toString()).toBe("png-bytes");
+  });
+
+  it("デザインモックがなくても失敗しない", async () => {
+    const brew = await createBrew("モックなし");
+    const dir = await prepareBatchDir(brew.id, 1, "tap-fake");
+    await expect(
+      fs.access(path.join(dir, "docs", "recipe", "design-mock.png")),
+    ).rejects.toThrow();
   });
 
   it("再実行で前回の生成物が消える", async () => {

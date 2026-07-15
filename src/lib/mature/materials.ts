@@ -1,7 +1,9 @@
 import { promises as fs } from "node:fs";
 import path from "node:path";
+import { MOCK_PNG } from "@/lib/design";
+import type { LlmImage } from "@/lib/llm/client";
 import { readRecipeFile } from "@/lib/recipe";
-import { tapDir } from "@/lib/store";
+import { designDir, tapDir } from "@/lib/store";
 import type { BatchEvaluation, Brew, BoilEntry } from "@/lib/store/types";
 
 const DIGEST_LIMIT = 60 * 1024; // コードダイジェストの合計上限(文字数で近似)
@@ -25,6 +27,8 @@ export interface EvaluationMaterials {
   codeDigest: string;
   process: string;
   previousEvaluation: BatchEvaluation | null;
+  /** デザイン工程のモック(あれば「デザイン忠実度」の採点基準になる) */
+  mockImage: LlmImage | null;
 }
 
 async function listDigestFiles(batchDir: string): Promise<string[]> {
@@ -99,6 +103,14 @@ export async function hasRubric(brewId: string): Promise<boolean> {
   }
 }
 
+async function readMockImage(brewId: string): Promise<LlmImage | null> {
+  try {
+    return { data: await fs.readFile(path.join(designDir(brewId), MOCK_PNG)), mimeType: "image/png" };
+  } catch {
+    return null; // モック未生成なら従来どおりの評価
+  }
+}
+
 export async function collectMaterials(brew: Brew, batch: number): Promise<EvaluationMaterials> {
   let rubric: string;
   try {
@@ -126,5 +138,6 @@ export async function collectMaterials(brew: Brew, batch: number): Promise<Evalu
     codeDigest,
     process,
     previousEvaluation: previous?.evaluation ?? null,
+    mockImage: brew.designMock?.status === "succeeded" ? await readMockImage(brew.id) : null,
   };
 }
