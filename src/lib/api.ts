@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { DesignNotConfiguredError } from "@/lib/design/resolve";
 import { LlmNotConfiguredError } from "@/lib/llm";
 import { isBrewBusy } from "@/lib/mature/mature-state";
 import { readBrew } from "@/lib/store";
@@ -10,7 +11,7 @@ export function errorResponse(err: unknown): NextResponse {
   if (err instanceof LlmNotConfiguredError) {
     return NextResponse.json({ error: err.message, code: "not_configured" }, { status: 400 });
   }
-  if (err instanceof TapNotConfiguredError) {
+  if (err instanceof TapNotConfiguredError || err instanceof DesignNotConfiguredError) {
     return NextResponse.json({ error: err.message }, { status: 400 });
   }
   const message = err instanceof Error ? err.message : String(err);

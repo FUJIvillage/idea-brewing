@@ -124,6 +124,19 @@ async function generateFakeMock(dir: string, startedAt: number): Promise<DesignM
   };
 }
 
+/** クラッシュで generating のまま残った designMock を failed に補正する。補正不要なら同一参照を返す */
+export function normalizeStaleDesignMock(brew: Brew): Brew {
+  if (brew.designMock?.status !== "generating") return brew;
+  return {
+    ...brew,
+    designMock: {
+      ...brew.designMock,
+      status: "failed",
+      error: "中断されました(プロセス終了)",
+    },
+  };
+}
+
 export interface GenerateDesignMockOptions {
   /** 再生成時のユーザー追加指示 */
   instruction?: string;
