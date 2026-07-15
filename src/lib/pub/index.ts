@@ -1,6 +1,7 @@
 import { promises as fs } from "node:fs";
 import path from "node:path";
 import type { LlmClient } from "@/lib/llm/client";
+import { trackingClient } from "@/lib/llm/usage";
 import { renameWithRetry, tapDir } from "@/lib/store";
 import type {
   Brew,
@@ -133,6 +134,13 @@ export async function runPub(brew: Brew, deps: PubDeps, opts: PubOptions): Promi
   const stagingDir = `${finalDir}-staging`;
 
   let current = withPub(brew, "opening", "生成アプリを起動しています", target.number);
+  const client = trackingClient(
+    deps.client,
+    () => current,
+    (b) => {
+      current = b;
+    },
+  );
   try {
     await deps.onProgress?.(current);
     if (deps.cancel?.cancelled) return { ...current, pubProgress: null };
@@ -145,7 +153,7 @@ export async function runPub(brew: Brew, deps: PubDeps, opts: PubOptions): Promi
       await deps.onProgress?.(current);
       const personas: PubPersona[] = opts.savedPersonas.map(savedToPersona);
       if (opts.autoCount > 0) {
-        personas.push(...(await generatePersonas(deps.client, current, opts.autoCount)));
+        personas.push(...(await generatePersonas(client, current, opts.autoCount)));
       }
       if (deps.cancel?.cancelled) return { ...current, pubProgress: null };
 
@@ -161,7 +169,7 @@ export async function runPub(brew: Brew, deps: PubDeps, opts: PubOptions): Promi
 
         const driver = await deps.createDriver(`http://localhost:${port}`);
         try {
-          const result = await runPersonaSession(deps.client, driver, persona, {
+          const result = await runPersonaSession(client, driver, persona, {
             cancel: deps.cancel,
             onStep: async (step) => {
               current = withPub(current, "serving", `${label}: ステップ ${step}`, target.number);
@@ -185,7 +193,7 @@ export async function runPub(brew: Brew, deps: PubDeps, opts: PubOptions): Promi
 
       current = withPub(current, "closing", "客の評判をまとめています", target.number);
       await deps.onProgress?.(current);
-      const summary = await deps.client.generateText({
+      const { value: summary } = await client.generateText({
         tag: "pub-summary",
         system: SUMMARY_SYSTEM,
         prompt: buildSummaryPrompt(results),

@@ -183,6 +183,29 @@ export interface DesignMockRecord {
   durationMs: number | null;
 }
 
+/** 1回分または累積のトークン数 */
+export interface TokenCounts {
+  input: number;
+  output: number;
+  total: number;
+}
+
+export const USAGE_STAGE_KEYS = [
+  "mash",
+  "boil",
+  "recipe",
+  "evaluate",
+  "pub",
+  "tap",
+  "design",
+] as const;
+export type UsageStageKey = (typeof USAGE_STAGE_KEYS)[number];
+
+/** ブリュー全体の工程別トークン累積 */
+export interface BrewTokenUsage {
+  byStage: Partial<Record<UsageStageKey, TokenCounts>>;
+}
+
 export type BrewStage = "ingredients" | "boiling" | "fermenting" | "done" | "built";
 
 export interface Brew {
@@ -202,6 +225,8 @@ export interface Brew {
   maturationProgress: MaturationProgress | null;
   pubProgress: PubProgress | null;
   designMock: DesignMockRecord | null;
+  /** 工程別トークン累積。未計測なら null */
+  tokenUsage: BrewTokenUsage | null;
 }
 
 export type ProviderId = "openai" | "google" | "ollama" | "openrouter" | "fake";

@@ -31,6 +31,7 @@ function recipeReadyBrew(): Brew {
     maturationProgress: null,
     pubProgress: null,
     designMock: null,
+    tokenUsage: null,
   };
 }
 
@@ -46,6 +47,27 @@ describe("BrewWorkbench", () => {
     expect(html).toContain("レシピ");
     expect(html).toContain("デザイン");
     expect(html).toContain("タップ");
+    expect(html).toContain("トークン消費");
+    expect(html).toContain("まだトークン消費なし");
+  });
+
+  it("tokenUsage があるときは工程別と合計を出す", () => {
+    const html = renderToStaticMarkup(
+      React.createElement(BrewWorkbench, {
+        initial: {
+          ...recipeReadyBrew(),
+          tokenUsage: {
+            byStage: {
+              mash: { input: 10, output: 20, total: 30 },
+              boil: { input: 1, output: 2, total: 3 },
+            },
+          },
+        },
+      }),
+    );
+    expect(html).toContain("仕込み");
+    expect(html).toContain("煮沸");
+    expect(html).toContain("合計 入 11 / 出 22 / 計 33");
   });
 
   it("デザインモック生成中はデザインパネルを表示しタブを無効化する", () => {

@@ -8,7 +8,7 @@ export async function POST(req: Request) {
     const settings = (await req.json()) as Settings;
     try {
       const client = clientForSettings(settings);
-      const reply = await client.generateText({
+      const { value: reply } = await client.generateText({
         tag: "connection-test",
         system: "あなたは接続テストに応答するアシスタントです。",
         prompt: "「pong」とだけ返答してください。",

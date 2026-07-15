@@ -111,15 +111,22 @@ export function createFakeClient(): FakeLlm {
 
   return {
     calls,
-    async generateObject<T>(schema: z.ZodType<T>, opts: GenerateOptions): Promise<T> {
+    async generateObject<T>(schema: z.ZodType<T>, opts: GenerateOptions) {
       calls.push(opts);
-      return schema.parse(fakeObjectFor(opts));
+      return {
+        value: schema.parse(fakeObjectFor(opts)),
+        usage: { input: 11, output: 22, total: 33 },
+      };
     },
-    async generateText(opts: GenerateOptions): Promise<string> {
+    async generateText(opts: GenerateOptions) {
       calls.push(opts);
-      if (opts.tag === "connection-test") return "pong";
-      if (opts.tag === "pub-summary") return "フェイク総括: 客の評判は上々です。";
-      return `# フェイク生成ドキュメント\n\n(tag=${opts.tag})\n\n入力の先頭: ${opts.prompt.slice(0, 200)}`;
+      const text =
+        opts.tag === "connection-test"
+          ? "pong"
+          : opts.tag === "pub-summary"
+            ? "フェイク総括: 客の評判は上々です。"
+            : `# フェイク生成ドキュメント\n\n(tag=${opts.tag})\n\n入力の先頭: ${opts.prompt.slice(0, 200)}`;
+      return { value: text, usage: { input: 11, output: 22, total: 33 } };
     },
   };
 }

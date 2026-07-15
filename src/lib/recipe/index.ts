@@ -1,6 +1,7 @@
 import { promises as fs } from "node:fs";
 import path from "node:path";
 import type { LlmClient } from "@/lib/llm/client";
+import { addUsageForTag } from "@/lib/llm/usage";
 import { recipeDir } from "@/lib/store";
 import {
   SHEET_KEYS,
@@ -114,7 +115,12 @@ export async function generateRecipe(
         generated.length > 0 ? generated.join(", ") : "(なし)",
       ].join("\n\n");
 
-      const text = await client.generateText({ tag: "recipe", system: RECIPE_SYSTEM, prompt });
+      const { value: text, usage } = await client.generateText({
+        tag: "recipe",
+        system: RECIPE_SYSTEM,
+        prompt,
+      });
+      current = addUsageForTag(current, "recipe", usage);
       await fs.writeFile(path.join(recipeDir(brew.id), def.file), text, "utf8");
       generated.push(def.file);
     }

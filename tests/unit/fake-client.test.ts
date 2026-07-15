@@ -13,12 +13,12 @@ const boilNextSchema = z.object({
 test("フェイクは boil-next を2回まで質問し、3回目で done を返す", async () => {
   const fake = createFakeClient();
   const opts = { tag: "boil-next" as const, system: "", prompt: "" };
-  const q1 = await fake.generateObject(boilNextSchema, opts);
+  const q1 = (await fake.generateObject(boilNextSchema, opts)).value;
   expect(q1.done).toBe(false);
   expect(q1.options?.some((o) => o.recommended)).toBe(true);
-  const q2 = await fake.generateObject(boilNextSchema, opts);
+  const q2 = (await fake.generateObject(boilNextSchema, opts)).value;
   expect(q2.done).toBe(false);
-  const q3 = await fake.generateObject(boilNextSchema, opts);
+  const q3 = (await fake.generateObject(boilNextSchema, opts)).value;
   expect(q3.done).toBe(true);
 });
 
@@ -32,5 +32,11 @@ test("フェイクは呼び出し履歴を記録する", async () => {
 test("connection-test は pong を返す", async () => {
   const fake = createFakeClient();
   const reply = await fake.generateText({ tag: "connection-test", system: "", prompt: "ping" });
-  expect(reply).toBe("pong");
+  expect(reply.value).toBe("pong");
+});
+
+test("フェイクは固定 usage を返す", async () => {
+  const fake = createFakeClient();
+  const res = await fake.generateText({ tag: "connection-test", system: "", prompt: "ping" });
+  expect(res.usage).toEqual({ input: 11, output: 22, total: 33 });
 });

@@ -2,7 +2,6 @@ import { promises as fs } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import type { z } from "zod";
 import { createFakeClient } from "@/lib/llm/fake-client";
 import type { GenerateOptions, LlmClient } from "@/lib/llm/client";
 import { createBrew, tapDir } from "@/lib/store";
@@ -48,7 +47,7 @@ describe("evaluateBatch", () => {
     const inner = createFakeClient();
     let callCount = 0;
     const flaky: LlmClient = {
-      async generateObject<T>(schema: z.ZodType<T>, opts: GenerateOptions): Promise<T> {
+      async generateObject(schema, opts) {
         callCount += 1;
         if (opts.images && opts.images.length > 0) throw new Error("vision非対応");
         return inner.generateObject(schema, opts);
@@ -83,7 +82,7 @@ describe("evaluateBatch", () => {
     const inner = createFakeClient();
     const seen: GenerateOptions[] = [];
     const spy: LlmClient = {
-      async generateObject<T>(schema: z.ZodType<T>, opts: GenerateOptions): Promise<T> {
+      async generateObject(schema, opts) {
         seen.push(opts);
         return inner.generateObject(schema, opts);
       },
@@ -106,7 +105,7 @@ describe("evaluateBatch", () => {
     const inner = createFakeClient();
     const seen: GenerateOptions[] = [];
     const spy: LlmClient = {
-      async generateObject<T>(schema: z.ZodType<T>, opts: GenerateOptions): Promise<T> {
+      async generateObject(schema, opts) {
         seen.push(opts);
         return inner.generateObject(schema, opts);
       },

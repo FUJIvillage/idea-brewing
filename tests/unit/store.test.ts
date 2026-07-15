@@ -110,6 +110,17 @@ test("旧スキーマの brew.json に designMock が null 補完される", asy
   expect(loaded.designMock).toBeNull();
 });
 
+test("createBrew は tokenUsage: null、旧データも null 補完", async () => {
+  const brew = await createBrew("usage");
+  expect(brew.tokenUsage).toBeNull();
+  const file = path.join(brewDir(brew.id), "brew.json");
+  const raw = JSON.parse(await fs.readFile(file, "utf8")) as Record<string, unknown>;
+  delete raw.tokenUsage;
+  await fs.writeFile(file, JSON.stringify(raw), "utf8");
+  const loaded = await readBrew(brew.id);
+  expect(loaded.tokenUsage).toBeNull();
+});
+
 test("旧形式 settings.json でも Cursor フィールドが補完される", async () => {
   const old = {
     provider: "ollama",

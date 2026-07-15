@@ -1,5 +1,6 @@
 import { promises as fs } from "node:fs";
 import type { LlmClient, LlmImage } from "@/lib/llm/client";
+import { trackingClient } from "@/lib/llm/usage";
 import type { Brew, BuildPhase, MaturationPhase } from "@/lib/store/types";
 import { runBuild } from "@/lib/tap";
 import { latestSucceededBatch, maxBatchNumber, upsertBatch } from "@/lib/tap/batches";
@@ -82,7 +83,14 @@ export async function runEvaluate(brew: Brew, deps: EvaluateDeps): Promise<Brew>
     await deps.onProgress?.(current);
     const materials = await collectMaterials(current, target.number);
     const images = await loadImages(shots);
-    const evaluation = await evaluateBatch(deps.client, materials, images);
+    const tracked = trackingClient(
+      deps.client,
+      () => current,
+      (b) => {
+        current = b;
+      },
+    );
+    const evaluation = await evaluateBatch(tracked, materials, images);
     if (deps.cancel?.cancelled) return { ...current, maturationProgress: null };
 
     await writeEvaluationReport(brew.id, target.number, evaluation);

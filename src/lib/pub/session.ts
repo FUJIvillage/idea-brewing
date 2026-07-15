@@ -164,11 +164,11 @@ export async function runPersonaSession(
     let action: PubAction;
     try {
       const state = await driver.readState();
-      const raw = await client.generateObject(actionSchema, {
+      const raw = (await client.generateObject(actionSchema, {
         tag: "pub-action",
         system: ACTION_SYSTEM,
         prompt: buildActionPrompt(persona, steps, state),
-      });
+      })).value;
       action = toAction(raw);
     } catch {
       return aborted("セッション中断(次の操作を決められませんでした)");
@@ -196,11 +196,11 @@ export async function runPersonaSession(
   if (hooks.cancel?.cancelled) return aborted("セッション中断(ユーザー中断)");
 
   try {
-    const raw = await client.generateObject(feedbackSchema, {
+    const raw = (await client.generateObject(feedbackSchema, {
       tag: "pub-feedback",
       system: FEEDBACK_SYSTEM,
       prompt: buildFeedbackPrompt(persona, steps),
-    });
+    })).value;
     const scores = [
       { name: PUB_AXES[0], score: raw.scores.purpose, comment: "" },
       { name: PUB_AXES[1], score: raw.scores.usability, comment: "" },

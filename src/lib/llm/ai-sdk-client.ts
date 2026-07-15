@@ -6,6 +6,7 @@ import type { SharedV3ProviderOptions } from "@ai-sdk/provider";
 import type { z } from "zod";
 import type { Settings } from "@/lib/store/types";
 import type { GenerateOptions, LlmClient } from "./client";
+import { normalizeUsage } from "./usage";
 
 const GOOGLE_THINKING_LEVELS = new Set(["minimal", "low", "medium", "high"]);
 
@@ -82,16 +83,16 @@ export function createAiSdkClient(settings: Settings): LlmClient {
   const model = resolveModel(settings);
   const providerOptions = buildLlmProviderOptions(settings);
   return {
-    async generateObject<T>(schema: z.ZodType<T>, opts: GenerateOptions): Promise<T> {
+    async generateObject<T>(schema: z.ZodType<T>, opts: GenerateOptions) {
       const run = async () => {
-        const { object } = await generateObject({
+        const { object, usage } = await generateObject({
           model,
           system: opts.system,
           messages: toMessages(opts),
           schema,
           ...(providerOptions ? { providerOptions } : {}),
         });
-        return object;
+        return { value: object, usage: normalizeUsage(usage) };
       };
       try {
         return await run();
@@ -105,14 +106,14 @@ export function createAiSdkClient(settings: Settings): LlmClient {
         }
       }
     },
-    async generateText(opts: GenerateOptions): Promise<string> {
-      const { text } = await generateText({
+    async generateText(opts: GenerateOptions) {
+      const { text, usage } = await generateText({
         model,
         system: opts.system,
         messages: toMessages(opts),
         ...(providerOptions ? { providerOptions } : {}),
       });
-      return text;
+      return { value: text, usage: normalizeUsage(usage) };
     },
   };
 }

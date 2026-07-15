@@ -81,12 +81,12 @@ export async function evaluateBatch(
   let screenshotsUsed = images.length > 0;
   if (screenshotsUsed) {
     try {
-      raw = await client.generateObject(evaluationSchema, { ...opts, images });
+      raw = (await client.generateObject(evaluationSchema, { ...opts, images })).value;
     } catch {
       screenshotsUsed = false; // vision 非対応モデルの可能性。画像なしで1回だけ再試行する
     }
   }
-  if (!raw) raw = await client.generateObject(evaluationSchema, opts);
+  if (!raw) raw = (await client.generateObject(evaluationSchema, opts)).value;
 
   const overall =
     Math.round((raw.axes.reduce((sum, a) => sum + a.score, 0) / raw.axes.length) * 10) / 10;

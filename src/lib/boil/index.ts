@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { z } from "zod";
 import type { LlmClient } from "@/lib/llm/client";
+import { addUsageForTag } from "@/lib/llm/usage";
 import {
   SHEET_KEYS,
   SHEET_LABELS,
@@ -90,13 +91,14 @@ export async function nextQuestion(
   if (brew.boil.entries.length >= maxQuestions) return finish(brew);
   if (SHEET_KEYS.every((k) => brew.sheet![k].sufficiency === "full")) return finish(brew);
 
-  const out = await client.generateObject(nextSchema, {
+  const { value: out, usage } = await client.generateObject(nextSchema, {
     tag: "boil-next",
     system: BOIL_SYSTEM,
     prompt: `## 現在のブリューシート\n${sheetDump(brew.sheet)}\n\n## これまでの質疑\n${historyDump(brew.boil.entries)}\n\n次の質問を1問作ってください。`,
   });
+  const withUsage = addUsageForTag(brew, "boil-next", usage);
 
-  if (out.done || !out.question || !out.options) return finish(brew);
+  if (out.done || !out.question || !out.options) return finish(withUsage);
 
   const entry: BoilEntry = {
     id: randomUUID(),
@@ -105,7 +107,10 @@ export async function nextQuestion(
     askedAt: new Date().toISOString(),
   };
   return {
-    brew: { ...brew, boil: { ...brew.boil, entries: [...brew.boil.entries, entry] } },
+    brew: {
+      ...withUsage,
+      boil: { ...withUsage.boil, entries: [...withUsage.boil.entries, entry] },
+    },
     entry,
   };
 }
@@ -121,7 +126,7 @@ export async function applyAnswer(
   const entry = brew.boil.entries.find((e) => e.id === entryId);
   if (!entry) throw new Error("質問が見つかりません。");
 
-  const out = await client.generateObject(applySchema, {
+  const { value: out, usage } = await client.generateObject(applySchema, {
     tag: "boil-apply",
     system: APPLY_SYSTEM,
     prompt: `## 現在のブリューシート\n${sheetDump(brew.sheet)}\n\n## 質問\n${entry.question}\n\n## ユーザーの回答\n${answer}\n\n回答をシートに反映してください。`,
@@ -138,7 +143,11 @@ export async function applyAnswer(
   const entries = brew.boil.entries.map((e) =>
     e.id === entryId ? { ...e, answer, answeredBy: by } : e,
   );
-  return { ...brew, sheet, boil: { ...brew.boil, entries } };
+  return addUsageForTag(
+    { ...brew, sheet, boil: { ...brew.boil, entries } },
+    "boil-apply",
+    usage,
+  );
 }
 
 export function finishBoil(brew: Brew): Brew {

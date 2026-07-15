@@ -2,8 +2,7 @@ import { existsSync, promises as fs } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import type { z } from "zod";
-import type { GenerateOptions, LlmClient } from "@/lib/llm/client";
+import type { LlmClient } from "@/lib/llm/client";
 import { createFakeClient } from "@/lib/llm/fake-client";
 import { isBrewBusy } from "@/lib/mature/mature-state";
 import { normalizeStalePub, pubDir, runPub, type PubDeps } from "@/lib/pub";
@@ -72,7 +71,7 @@ function failingClient(tag: string, times = Infinity): LlmClient {
   const base = createFakeClient();
   let failed = 0;
   return {
-    async generateObject<T>(schema: z.ZodType<T>, opts: GenerateOptions): Promise<T> {
+    async generateObject(schema, opts) {
       if (opts.tag === tag && failed < times) {
         failed += 1;
         throw new Error("LLM死亡");

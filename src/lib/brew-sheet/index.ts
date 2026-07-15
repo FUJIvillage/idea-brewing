@@ -1,5 +1,6 @@
 import { z } from "zod";
 import type { LlmClient, LlmImage } from "@/lib/llm/client";
+import { addUsageForTag } from "@/lib/llm/usage";
 import {
   SHEET_KEYS,
   SHEET_LABELS,
@@ -60,7 +61,7 @@ export async function runMash(
   client: LlmClient,
   images: LlmImage[] = [],
 ): Promise<Brew> {
-  const out = await client.generateObject(mashOutputSchema, {
+  const { value: out, usage } = await client.generateObject(mashOutputSchema, {
     tag: "mash",
     system: MASH_SYSTEM,
     prompt: buildMashPrompt(brew),
@@ -75,12 +76,16 @@ export async function runMash(
     }
   }
   // 再マッシュ時に前回の煮沸完了状態が残ると質問が再開できないため、finished を戻す
-  return {
-    ...brew,
-    sheet,
-    stage: "boiling",
-    boil: { ...brew.boil, finished: false },
-  };
+  return addUsageForTag(
+    {
+      ...brew,
+      sheet,
+      stage: "boiling",
+      boil: { ...brew.boil, finished: false },
+    },
+    "mash",
+    usage,
+  );
 }
 
 export function editSheetField(brew: Brew, key: SheetKey, content: string): Brew {

@@ -3,7 +3,6 @@ import { existsSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import type { z } from "zod";
 import type { GenerateOptions, LlmClient } from "@/lib/llm/client";
 import { createFakeClient } from "@/lib/llm/fake-client";
 import {
@@ -84,7 +83,7 @@ function deps(overrides?: Partial<MatureDeps>): MatureDeps {
 /** generateObject の呼び出しに割り込んでから base に委譲するスパイクライアント */
 function spyClient(base: LlmClient, onGenerateObject: (opts: GenerateOptions) => void): LlmClient {
   return {
-    async generateObject<T>(schema: z.ZodType<T>, opts: GenerateOptions): Promise<T> {
+    async generateObject(schema, opts) {
       onGenerateObject(opts);
       return base.generateObject(schema, opts);
     },
