@@ -89,6 +89,22 @@ describe("prepareBatchDir", () => {
     ).rejects.toThrow();
   });
 
+  it("PNGだけの旧データは画像のみ同梱して互換性を維持する", async () => {
+    const brew = await createBrew("旧モック");
+    await fs.mkdir(designDir(brew.id), { recursive: true });
+    await fs.writeFile(path.join(designDir(brew.id), "mock.png"), Buffer.from("legacy-png"));
+    const dir = await prepareBatchDir(brew.id, 1, "tap-fake");
+    expect(
+      (await fs.readFile(path.join(dir, "docs", "recipe", "design-mock.png"))).toString(),
+    ).toBe("legacy-png");
+    await expect(
+      fs.access(path.join(dir, "docs", "recipe", "design-spec.json")),
+    ).rejects.toThrow();
+    await expect(
+      fs.access(path.join(dir, "docs", "recipe", "design-handoff.md")),
+    ).rejects.toThrow();
+  });
+
   it("再実行で前回の生成物が消える", async () => {
     const brew = await createBrew("テンプレ2");
     const dir = await prepareBatchDir(brew.id, 1, "tap-fake");

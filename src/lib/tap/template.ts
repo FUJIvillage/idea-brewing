@@ -24,6 +24,56 @@ export function shouldCopyTemplatePath(root: string, src: string): boolean {
   return !segments.includes("node_modules") && !segments.includes("dist");
 }
 
+async function copyOptionalFile(source: string, destination: string): Promise<void> {
+  try {
+    await fs.copyFile(source, destination);
+  } catch (err) {
+    if ((err as NodeJS.ErrnoException).code !== "ENOENT") throw err;
+  }
+}
+
+/**
+ * 最新のPencil成果物をバッチへ同期する。
+ * resume / repair / 新規ビルドのどの入口でも同じ処理を使う。
+ */
+export async function syncDesignHandoffToBatch(
+  brewId: string,
+  batchDir: string,
+): Promise<void> {
+  const sourceDesignDir = designDir(brewId);
+  const docsDir = path.join(batchDir, "docs", "recipe");
+  await fs.mkdir(docsDir, { recursive: true });
+
+  // repair/resume先に残る旧成果物を先に消し、sourceとの不整合を防ぐ。
+  await Promise.all(
+    ["design-mock.png", DESIGN_SPEC_JSON, DESIGN_HANDOFF_MD].map((file) =>
+      fs.rm(path.join(docsDir, file), { force: true }),
+    ),
+  );
+  await copyOptionalFile(
+    path.join(sourceDesignDir, "mock.png"),
+    path.join(docsDir, "design-mock.png"),
+  );
+
+  try {
+    await fs.access(path.join(sourceDesignDir, "mock.pen"));
+    await writeDesignHandoff(sourceDesignDir);
+    await Promise.all([
+      fs.copyFile(
+        path.join(sourceDesignDir, DESIGN_SPEC_JSON),
+        path.join(docsDir, DESIGN_SPEC_JSON),
+      ),
+      fs.copyFile(
+        path.join(sourceDesignDir, DESIGN_HANDOFF_MD),
+        path.join(docsDir, DESIGN_HANDOFF_MD),
+      ),
+    ]);
+  } catch (err) {
+    if ((err as NodeJS.ErrnoException).code !== "ENOENT") throw err;
+    // PNGだけの旧データ、またはデザイン未生成なら構造仕様なしで従来どおり続行
+  }
+}
+
 /**
  * バッチフォルダを作り直してテンプレートをコピーし、レシピ一式を docs/recipe/ に同梱する。
  * 既存のバッチフォルダは丸ごと削除する(第2版では batch-1 の再ビルド = 上書き)。
@@ -50,35 +100,7 @@ export async function prepareBatchDir(
       // 存在しないレシピファイルはスキップ(呼び出し側でレシピ生成済みを検証している)
     }
   }
-  // デザイン工程のモックがあれば同梱する(改善指示から参照できるようにする)
-  try {
-    await fs.copyFile(
-      path.join(designDir(brewId), "mock.png"),
-      path.join(docsDir, "design-mock.png"),
-    );
-  } catch (err) {
-    if ((err as NodeJS.ErrnoException).code !== "ENOENT") throw err;
-    // モック未生成なら同梱しない(デザイン工程は任意)
-  }
-  // .pen は構造化された完全なデザイン仕様。既存モックもここで自動バックフィルする。
-  try {
-    const sourceDesignDir = designDir(brewId);
-    await fs.access(path.join(sourceDesignDir, "mock.pen"));
-    await writeDesignHandoff(sourceDesignDir);
-    await Promise.all([
-      fs.copyFile(
-        path.join(sourceDesignDir, DESIGN_SPEC_JSON),
-        path.join(docsDir, DESIGN_SPEC_JSON),
-      ),
-      fs.copyFile(
-        path.join(sourceDesignDir, DESIGN_HANDOFF_MD),
-        path.join(docsDir, DESIGN_HANDOFF_MD),
-      ),
-    ]);
-  } catch (err) {
-    if ((err as NodeJS.ErrnoException).code !== "ENOENT") throw err;
-    // PNGだけの旧データ、またはデザイン未生成なら構造仕様なしで従来どおり続行
-  }
+  await syncDesignHandoffToBatch(brewId, dest);
   return dest;
 }
 
@@ -121,6 +143,7 @@ export async function prepareRepairDir(
     recursive: true,
     filter: (p) => shouldCopyRepairPath(src, p),
   });
+  await syncDesignHandoffToBatch(brewId, dest);
   return dest;
 }
 

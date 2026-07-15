@@ -27,6 +27,23 @@ export interface DesignHandoff {
   handoffMarkdown: string;
 }
 
+function assertPenNodes(nodes: unknown[], parentPath: string): asserts nodes is PenNode[] {
+  for (let index = 0; index < nodes.length; index++) {
+    const node = nodes[index];
+    const nodePath = `${parentPath}[${index}]`;
+    if (!node || typeof node !== "object" || Array.isArray(node)) {
+      throw new Error(`mock.pen の ${nodePath} がノードオブジェクトではありません。`);
+    }
+    const children = (node as { children?: unknown }).children;
+    if (children !== undefined) {
+      if (!Array.isArray(children)) {
+        throw new Error(`mock.pen の ${nodePath}.children が配列ではありません。`);
+      }
+      assertPenNodes(children, `${nodePath}.children`);
+    }
+  }
+}
+
 function parsePenDocument(raw: string): PenDocument {
   let parsed: unknown;
   try {
@@ -36,9 +53,14 @@ function parsePenDocument(raw: string): PenDocument {
       `mock.pen をJSONとして解析できません: ${error instanceof Error ? error.message : String(error)}`,
     );
   }
-  if (!parsed || typeof parsed !== "object" || !Array.isArray((parsed as { children?: unknown }).children)) {
+  if (
+    !parsed ||
+    typeof parsed !== "object" ||
+    !Array.isArray((parsed as { children?: unknown }).children)
+  ) {
     throw new Error("mock.pen の children が配列ではありません。");
   }
+  assertPenNodes((parsed as { children: unknown[] }).children, "children");
   return parsed as PenDocument;
 }
 
@@ -83,11 +105,13 @@ export function buildDesignHandoff(rawPen: string): DesignHandoff {
     document.variables && typeof document.variables === "object" ? document.variables : {};
   const reusable = collectReusable(document.children);
 
-  const screens = document.children.map((node) => {
-    const name = text(node.name, text(node.id, "名称未設定"));
-    const type = text(node.type, "node");
-    return `- **${name}** (${type}, ${dimension(node.width)} × ${dimension(node.height)})`;
-  });
+  const screens = document.children
+    .filter((node) => node.type === "frame" && node.reusable !== true)
+    .map((node) => {
+      const name = text(node.name, text(node.id, "名称未設定"));
+      const type = text(node.type, "node");
+      return `- **${name}** (${type}, ${dimension(node.width)} × ${dimension(node.height)})`;
+    });
   const components = reusable.map((node) => {
     const name = text(node.name, text(node.id, "名称未設定"));
     return `- **${name}** (${text(node.type, "node")}, id: \`${text(node.id, "なし")}\`)`;

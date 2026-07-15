@@ -18,6 +18,7 @@ import {
   prepareBatchDir,
   prepareRepairDir,
   readManifest,
+  syncDesignHandoffToBatch,
   templateDir,
   writeImprovementNotes,
   type TemplateId,
@@ -83,9 +84,10 @@ function taskPrompt(index: number, total: number, title: string, body: string): 
   ].join("\n\n");
 }
 
-function repairPrompt(round: number, output: string): string {
+export function repairPrompt(round: number, output: string): string {
   return [
     `検証コマンドが失敗しました(修理ラウンド ${round}/${MAX_REPAIR_ROUNDS})。`,
+    DESIGN_FIDELITY_SENTENCE,
     "以下のエラー出力を読み、原因を修正してください。npm install やビルドの実行は不要です。",
     "```",
     output.slice(-4000),
@@ -256,6 +258,10 @@ export async function runBuild(brew: Brew, deps: BuildDeps): Promise<Brew> {
       batchDir = await prepareBatchDir(brew.id, deps.batch, deps.template);
       await clearBuildCheckpoint(brew.id, deps.batch);
     }
+    // 新規・repairは準備関数内で同期済み。既存バッチを使うresumeだけここで同期する。
+    if (deps.mode.kind === "resume") {
+      await syncDesignHandoffToBatch(brew.id, batchDir);
+    }
 
     if (deps.mode.kind === "improve") {
       await writeImprovementNotes(batchDir, deps.mode.instructions);
@@ -267,6 +273,19 @@ export async function runBuild(brew: Brew, deps: BuildDeps): Promise<Brew> {
 
     log(`[build] バッチ${deps.batch} のビルドを開始(${deps.mode.kind})`);
     session = await deps.engine.createSession({ cwd: batchDir, onLog: log });
+
+    if (deps.mode.kind === "resume" && checkpoint && checkpoint.phase !== "generating") {
+      current = withProgress(current, "preparing", `再開: デザイン仕様を確認 (${checkpoint.phase})`);
+      await deps.onProgress?.(current);
+      log("[build] 再開イントロを指示");
+      const resumeRes = await sendWithCancel(
+        session,
+        resumeIntroPrompt(checkpoint.completedTasks, checkpoint.totalTasks),
+        deps.cancel,
+      );
+      if (deps.cancel?.cancelled) return finishBatch(current, deps.batch, "cancelled", null);
+      if (!resumeRes.ok) return finishBatch(current, deps.batch, "failed", resumeRes.summary);
+    }
 
     const saveCheckpoint = async (
       patch: Omit<BuildCheckpoint, "version" | "updatedAt">,

@@ -3,6 +3,7 @@ import {
   DESIGN_FIDELITY_SENTENCE,
   INTRO_PROMPT,
   REPAIR_INTRO_PROMPT,
+  repairPrompt,
   resumeIntroPrompt,
 } from "@/lib/tap";
 
@@ -31,5 +32,9 @@ describe("ビルド系プロンプトのデザイン必須実装指示", () => {
     expect(DESIGN_FIDELITY_SENTENCE).toContain("design-mock.png");
     expect(DESIGN_FIDELITY_SENTENCE).toContain("正確な");
     expect(DESIGN_FIDELITY_SENTENCE).toContain("見た目");
+  });
+
+  it("検証失敗後の修理指示にも構造仕様の必読指示を含める", () => {
+    expect(repairPrompt(1, "type error")).toContain(DESIGN_FIDELITY_SENTENCE);
   });
 });

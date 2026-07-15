@@ -3,7 +3,7 @@ import { existsSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { createBrew, readBrew, recipeDir, tapDir, writeBrew } from "@/lib/store";
+import { createBrew, designDir, readBrew, recipeDir, tapDir, writeBrew } from "@/lib/store";
 import type { Brew } from "@/lib/store/types";
 import { normalizeStaleBatch, runBuild } from "@/lib/tap";
 import { createFakeBuildEngine } from "@/lib/tap/fake-engine";
@@ -65,6 +65,52 @@ describe("prepareRepairDir", () => {
     expect(shouldCopyRepairPath(root, path.join(root, "src", "a.ts"))).toBe(true);
     expect(shouldCopyRepairPath(root, path.join(root, "node_modules", "y"))).toBe(false);
     expect(shouldCopyRepairPath(root, path.join(root, "build.log"))).toBe(false);
+  });
+
+  it("修理バッチへ最新のPencil構造仕様をバックフィルする", async () => {
+    const brew = await readyBrew();
+    const src = tapDir(brew.id, 1);
+    await fs.mkdir(path.join(src, "docs", "recipe"), { recursive: true });
+    await fs.writeFile(path.join(src, "package.json"), "{}", "utf8");
+    await fs.mkdir(designDir(brew.id), { recursive: true });
+    await fs.writeFile(
+      path.join(designDir(brew.id), "mock.pen"),
+      JSON.stringify({
+        version: "2.14",
+        children: [{ type: "frame", id: "home", name: "Latest Home", children: [] }],
+        variables: {},
+      }),
+      "utf8",
+    );
+
+    const dest = await prepareRepairDir(brew.id, 1, 2);
+    expect(
+      await fs.readFile(path.join(dest, "docs", "recipe", "design-handoff.md"), "utf8"),
+    ).toContain("Latest Home");
+    await fs.access(path.join(dest, "docs", "recipe", "design-spec.json"));
+  });
+
+  it("最新デザインがPNGのみなら前バッチの古い構造仕様を残さない", async () => {
+    const brew = await readyBrew();
+    const srcDocs = path.join(tapDir(brew.id, 1), "docs", "recipe");
+    await fs.mkdir(srcDocs, { recursive: true });
+    await fs.writeFile(path.join(tapDir(brew.id, 1), "package.json"), "{}", "utf8");
+    await fs.writeFile(path.join(srcDocs, "design-spec.json"), '{"old":true}', "utf8");
+    await fs.writeFile(path.join(srcDocs, "design-handoff.md"), "# OLD", "utf8");
+    await fs.writeFile(path.join(srcDocs, "design-mock.png"), "old-image", "utf8");
+    await fs.mkdir(designDir(brew.id), { recursive: true });
+    await fs.writeFile(path.join(designDir(brew.id), "mock.png"), "new-image", "utf8");
+
+    const dest = await prepareRepairDir(brew.id, 1, 2);
+    expect(
+      await fs.readFile(path.join(dest, "docs", "recipe", "design-mock.png"), "utf8"),
+    ).toBe("new-image");
+    await expect(
+      fs.access(path.join(dest, "docs", "recipe", "design-spec.json")),
+    ).rejects.toThrow();
+    await expect(
+      fs.access(path.join(dest, "docs", "recipe", "design-handoff.md")),
+    ).rejects.toThrow();
   });
 });
 

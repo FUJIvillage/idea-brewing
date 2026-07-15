@@ -3,7 +3,7 @@ import os from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { RECIPE_FILES } from "@/lib/recipe";
-import { createBrew, recipeDir, tapDir } from "@/lib/store";
+import { createBrew, designDir, recipeDir, tapDir } from "@/lib/store";
 import type { Brew } from "@/lib/store/types";
 import { createFakeBuildEngine } from "@/lib/tap/fake-engine";
 import { runBuild } from "@/lib/tap";
@@ -98,5 +98,44 @@ describe("runBuild resume", () => {
     });
     expect(done.batches[0].status).toBe("failed");
     expect(done.batches[0].error).toMatch(/checkpoint|再開/);
+  });
+
+  it("verifyingからの再開でも構造仕様を同期し、エージェントへ必読指示を送る", async () => {
+    const brew = await setupBrew("## タスクA\n本文A");
+    await prepareBatchDir(brew.id, 1, "tap-fake");
+    await fs.mkdir(designDir(brew.id), { recursive: true });
+    await fs.writeFile(
+      path.join(designDir(brew.id), "mock.pen"),
+      JSON.stringify({
+        version: "2.14",
+        children: [{ type: "frame", id: "home", name: "Resume Home", children: [] }],
+        variables: {},
+      }),
+      "utf8",
+    );
+    await writeBuildCheckpoint(brew.id, 1, {
+      phase: "verifying",
+      completedTasks: 1,
+      totalTasks: 1,
+      repairRound: 0,
+    });
+    const engine = createFakeBuildEngine();
+
+    const done = await runBuild(brew, {
+      engine,
+      runner: createFakeRunner(),
+      template: "tap-fake",
+      batch: 1,
+      mode: { kind: "resume" },
+    });
+
+    expect(done.batches[0].status).toBe("succeeded");
+    expect(engine.prompts.some((prompt) => prompt.includes("design-handoff.md"))).toBe(true);
+    expect(
+      await fs.readFile(
+        path.join(tapDir(brew.id, 1), "docs", "recipe", "design-handoff.md"),
+        "utf8",
+      ),
+    ).toContain("Resume Home");
   });
 });

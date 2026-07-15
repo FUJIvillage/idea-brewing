@@ -59,9 +59,41 @@ describe("buildDesignHandoff", () => {
     expect(result.handoffMarkdown).toContain("design-mock.png");
   });
 
+  it("画面一覧は非reusableのトップレベルframeだけに限定する", () => {
+    const result = buildDesignHandoff(
+      JSON.stringify({
+        ...penDocument,
+        children: [
+          ...penDocument.children,
+          { type: "note", id: "memo", name: "Internal Note" },
+          { type: "frame", id: "library", name: "Component Library", reusable: true },
+        ],
+      }),
+    );
+    const screenSection = result.handoffMarkdown.split("## デザイントークン")[0];
+    expect(screenSection).toContain("Home");
+    expect(screenSection).not.toContain("Internal Note");
+    expect(screenSection).not.toContain("Component Library");
+    expect(result.handoffMarkdown).toContain("Component Library");
+  });
+
   it("不正JSONまたはchildrenがない文書を拒否する", () => {
     expect(() => buildDesignHandoff("not json")).toThrow("mock.pen");
     expect(() => buildDesignHandoff(JSON.stringify({ version: "2.14" }))).toThrow("children");
+  });
+
+  it("nullノードや不正な子childrenをパス付きエラーで拒否する", () => {
+    expect(() =>
+      buildDesignHandoff(JSON.stringify({ version: "2.14", children: [null] })),
+    ).toThrow("children[0]");
+    expect(() =>
+      buildDesignHandoff(
+        JSON.stringify({
+          version: "2.14",
+          children: [{ type: "frame", id: "x", children: "invalid" }],
+        }),
+      ),
+    ).toThrow("children[0].children");
   });
 
   it("成果物のファイル名を固定する", () => {
