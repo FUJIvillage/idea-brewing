@@ -194,31 +194,22 @@ describe("BrewWorkbench", () => {
     expect(html.match(/disabled=\"\"/g) ?? []).toHaveLength(0);
   });
 
-  it("熟成進捗中は熟成パネルを表示しタブを無効化する", () => {
-    const detail = "評価レポート生成中";
+  it("原料タブではマッシュアニメを常に表示する", () => {
     const html = renderToStaticMarkup(
       React.createElement(BrewWorkbench, {
         initial: {
           ...recipeReadyBrew(),
-          batches: [
-            {
-              number: 1,
-              status: "succeeded",
-              startedAt: "2026-01-01T00:00:00.000Z",
-              finishedAt: "2026-01-01T00:01:00.000Z",
-              error: null,
-              evaluation: null,
-              pub: null,
-            },
-          ],
-          maturationProgress: { phase: "evaluating", detail, batch: 1 },
+          stage: "ingredients",
+          sheet: null,
+          boil: { entries: [], auto: false, finished: false },
+          recipeGeneratedAt: null,
         },
+        initialTab: "ingredients",
       }),
     );
 
-    expect(html).toContain(detail);
-    expect(html).toContain("▶ 熟成");
-    expect(html).toContain("中断");
-    expect((html.match(/disabled=\"\"/g) ?? []).length).toBeGreaterThanOrEqual(5);
+    // 仕込み中だけでなく待機中も常に表示し、操作ボタン位置がずれないようにする
+    expect(html).toContain("/anim/mash-chill.gif");
+    expect(html).toContain("仕込み開始(マッシュ)");
   });
 });
