@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import type { Brew } from "@/lib/store/types";
+import { PixelAnim } from "./pixel-anim";
 import { useBrewAction } from "./use-brew-action";
 import { blip, confirmSound } from "@/components/ps1/sound";
 
@@ -99,6 +100,10 @@ export function RecipePanel({
           </p>
         )}
       </div>
+
+      {brew.recipeProgress && (
+        <PixelAnim src="/anim/ferment-chill.gif" alt="発酵(レシピ生成)中のアニメーション" />
+      )}
 
       {error && (
         <p className="m-0 text-[#ff8a8a]" aria-live="polite">

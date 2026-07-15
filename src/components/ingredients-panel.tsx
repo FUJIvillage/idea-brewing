@@ -3,6 +3,7 @@
 import { useRef, useState } from "react";
 import { confirmSound } from "@/components/ps1/sound";
 import type { Brew } from "@/lib/store/types";
+import { PixelAnim } from "./pixel-anim";
 
 const KIND_LABEL: Record<string, string> = {
   text: "テキスト",
@@ -26,6 +27,7 @@ export function IngredientsPanel({
   const [urls, setUrls] = useState("");
   const [files, setFiles] = useState<FileList | null>(null);
   const [busy, setBusy] = useState(false);
+  const [mashing, setMashing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
@@ -60,6 +62,7 @@ export function IngredientsPanel({
 
   async function mash() {
     setBusy(true);
+    setMashing(true);
     onBusyChange(true);
     setError(null);
     confirmSound();
@@ -73,6 +76,7 @@ export function IngredientsPanel({
       setError(err instanceof Error ? err.message : String(err));
     } finally {
       setBusy(false);
+      setMashing(false);
       onBusyChange(false);
     }
   }
@@ -157,8 +161,11 @@ export function IngredientsPanel({
         </p>
       )}
 
-      <div className="border-t-2 border-[#3a2a12] pt-4">
-        <button onClick={mash} disabled={busy} className="ps-btn text-[16px] tracking-[2px]">
+      <div className="flex flex-col gap-3 border-t-2 border-[#3a2a12] pt-4">
+        {mashing && (
+          <PixelAnim src="/anim/mash-chill.gif" alt="仕込み(マッシュ)中のアニメーション" />
+        )}
+        <button onClick={mash} disabled={busy} className="ps-btn w-fit text-[16px] tracking-[2px]">
           {busy
             ? "仕込み中..."
             : brew.sheet

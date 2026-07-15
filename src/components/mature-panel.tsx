@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import type { BatchEvaluation, BatchStatus, Brew, MaturationPhase } from "@/lib/store/types";
 import { latestSucceededBatch } from "@/lib/tap/batches";
+import { PixelAnim } from "./pixel-anim";
 import { useBrewAction } from "./use-brew-action";
 import { blip, confirmSound } from "@/components/ps1/sound";
 
@@ -148,10 +149,13 @@ export function MaturePanel({
   return (
     <div className="flex flex-col gap-4">
       {brew.maturationProgress && (
-        <p className="m-0 text-[#e0a83c]" aria-live="polite">
-          {PHASE_LABELS[brew.maturationProgress.phase]}(バッチ{brew.maturationProgress.batch}):{" "}
-          {brew.maturationProgress.detail}
-        </p>
+        <>
+          <PixelAnim src="/anim/mature-chill.gif" alt="熟成中のアニメーション" />
+          <p className="m-0 text-[#e0a83c]" aria-live="polite">
+            {PHASE_LABELS[brew.maturationProgress.phase]}(バッチ{brew.maturationProgress.batch}):{" "}
+            {brew.maturationProgress.detail}
+          </p>
+        </>
       )}
 
       <div className="flex flex-wrap gap-3">

@@ -67,6 +67,45 @@ describe("BrewWorkbench", () => {
 
     expect(html).toContain("モックアップを生成中");
     expect((html.match(/disabled=\"\"/g) ?? []).length).toBeGreaterThanOrEqual(5);
+    // 最初のプレビューが出るまではチルアニメを表示する
+    expect(html).toContain("/anim/design-chill.gif");
+  });
+
+  it("レシピ生成中は発酵アニメを表示する", () => {
+    const html = renderToStaticMarkup(
+      React.createElement(BrewWorkbench, {
+        initial: {
+          ...recipeReadyBrew(),
+          recipeProgress: { current: 2, total: 7, file: "01-requirements.md" },
+        },
+      }),
+    );
+
+    expect(html).toContain("/anim/ferment-chill.gif");
+  });
+
+  it("熟成進捗中は熟成アニメを表示する", () => {
+    const html = renderToStaticMarkup(
+      React.createElement(BrewWorkbench, {
+        initial: {
+          ...recipeReadyBrew(),
+          batches: [
+            {
+              number: 1,
+              status: "succeeded",
+              startedAt: "2026-01-01T00:00:00.000Z",
+              finishedAt: "2026-01-01T00:01:00.000Z",
+              error: null,
+              evaluation: null,
+              pub: null,
+            },
+          ],
+          maturationProgress: { phase: "evaluating", detail: "採点中", batch: 1 },
+        },
+      }),
+    );
+
+    expect(html).toContain("/anim/mature-chill.gif");
   });
 
   it("デザインモック成功時はモック画像と再生成ボタンを表示する", () => {

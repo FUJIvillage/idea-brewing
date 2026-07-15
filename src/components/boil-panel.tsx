@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { Brew, BoilEntry } from "@/lib/store/types";
 import { postBoilOrRecover } from "@/lib/boil/network";
+import { PixelAnim } from "@/components/pixel-anim";
 import { blip, confirmSound } from "@/components/ps1/sound";
 
 async function postBoil(
@@ -262,6 +263,8 @@ export function BoilPanel({
               <span className="ps-blink absolute right-3 bottom-2 text-[#f5a623]">▼</span>
             </section>
           )}
+
+          {busy && <PixelAnim src="/anim/boil-chill.gif" alt="煮沸中のアニメーション" />}
 
           <div className="flex gap-3">
             <button

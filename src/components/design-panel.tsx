@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import type { Brew } from "@/lib/store/types";
 import { confirmSound } from "@/components/ps1/sound";
+import { PixelAnim } from "./pixel-anim";
 import { useBrewAction } from "./use-brew-action";
 
 function formatCost(costUsd: number | null): string {
@@ -64,13 +65,11 @@ function GeneratingView({ brewId, onCancel }: { brewId: string; onCancel: () => 
           className="ps-design-mock-frame"
         />
       ) : (
-        <div
-          className="flex min-h-[180px] items-center justify-center border-2 border-dashed border-[#3a2a12] bg-[#0e0804] p-6 text-[14px]"
-          style={{ color: "rgba(255,220,160,.55)" }}
-          aria-live="polite"
-        >
-          キャンバス準備中…
-        </div>
+        // 最初の有効プレビューが出るまではチルアニメでつなぐ
+        <PixelAnim
+          src="/anim/design-chill.gif"
+          alt="デザイン生成中のアニメーション(キャンバス準備中)"
+        />
       )}
       <button onClick={onCancel} className="ps-btn-secondary w-fit">
         中断
