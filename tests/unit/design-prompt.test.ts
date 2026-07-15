@@ -7,7 +7,7 @@ describe("buildMockPrompt", () => {
     expect(p).toContain("高忠実度モックアップ");
     expect(p).toContain("デザイントークン");
     expect(p).toContain("装飾要素");
-    expect(p).toContain("メインフレームの外に要素を残さない");
+    expect(p).toContain("フレームの外に置いた部品");
   });
 
   it("新規生成: 画面一覧の複数画面を1キャンバスに並べる指示を含む", () => {
@@ -28,7 +28,7 @@ describe("buildMockPrompt", () => {
     const p = buildMockPrompt({ refine: true });
     expect(p).toContain("既存のモックアップ");
     expect(p).toContain("仕様との差分を修正して");
-    expect(p).toContain("メインフレームの外に要素を残さない");
+    expect(p).toContain("フレームの外に置いた部品");
   });
 
   it("差分修正: 指示があればそれを使う", () => {
