@@ -16,6 +16,7 @@ import {
   resolvePencilKey,
   resolvePencilModel,
 } from "./resolve";
+import { writeDesignHandoff } from "./handoff";
 
 export const DESIGN_TIMEOUT_MS = 15 * 60 * 1000;
 export const MOCK_PEN = "mock.pen";
@@ -246,6 +247,13 @@ export async function generateDesignMock(
   }
   if (!(await exists(path.join(dir, MOCK_PNG)))) {
     return fail("Pencil CLI は終了しましたが、mock.png が出力されませんでした。");
+  }
+  try {
+    await writeDesignHandoff(dir);
+  } catch (err) {
+    return fail(
+      `Pencilデザイン仕様の生成に失敗しました: ${err instanceof Error ? err.message : String(err)}`,
+    );
   }
 
   const usage = parsePencilUsage(

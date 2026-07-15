@@ -45,7 +45,8 @@ Cursor APIキーは設定画面に保存する代わりに、環境変数 `CURSO
 
 - 生成は1回あたり数分・$2前後かかります(モデルによる)。実行は常に手動で、熟成の自動ループには組み込まれません
 - 生成中は約12秒間隔で途中経過のプレビュー画像が表示されます(最初の有効フレームまでは「キャンバス準備中…」)
-- 生成したモックは熟成の評価で「デザイン忠実度」の採点基準になり、差分は改善指示として次バッチに反映されます。バッチには `docs/recipe/design-mock.png` として同梱されます
+- 生成したモックは熟成の評価で「デザイン忠実度」の採点基準になり、差分は改善指示として次バッチに反映されます
+- タップのビルドバッチには画像 `design-mock.png` に加え、Pencilの完全な構造仕様 `design-spec.json` と実装向け要約 `design-handoff.md` を同梱します。実装エージェントは寸法・余白・トークン・コンポーネント階層を仕様値として参照します
 - Pencil は早期アクセス中のクローズドソースサービスです。料金体系・CLI仕様は変わる可能性があります
 - フェイク構成(`IDEA_BREWING_FAKE_BUILD=1` またはプロバイダ `fake`)ではCLIを呼ばず、同梱の固定モックをコピーします(動作確認用)
 
@@ -79,7 +80,7 @@ data/
       brew.json                … そのブリューの全状態(工程・シート・バッチ・tokenUsage 等)
       ingredients/             … 投入した原料ファイル
       recipe/                  … 発酵で生成した実装資料(Markdown 7ファイル)
-      design/                  … デザイン工程のモック(mock.pen / mock.png / usage.json / design.log)
+      design/                  … デザイン工程のモック(mock.pen / mock.png)、構造仕様(design-spec.json / design-handoff.md)、usage.json / design.log
       taps/
         batch-<N>/             … タップ工程で生成したアプリ(Vite+React)+ tap.json / build.log
           evaluation.md        … 熟成の評価(実行時)
