@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildMockPrompt } from "@/lib/design/prompt";
+import { buildMockPrompt, MAX_MOCK_SCREENS } from "@/lib/design/prompt";
 
 describe("buildMockPrompt", () => {
   it("新規生成: 仕様準拠・装飾必須・ゴミ要素抑止を含む", () => {
@@ -8,6 +8,14 @@ describe("buildMockPrompt", () => {
     expect(p).toContain("デザイントークン");
     expect(p).toContain("装飾要素");
     expect(p).toContain("メインフレームの外に要素を残さない");
+  });
+
+  it("新規生成: 画面一覧の複数画面を1キャンバスに並べる指示を含む", () => {
+    const p = buildMockPrompt({ refine: false });
+    expect(p).toContain("画面一覧");
+    expect(p).toContain("それぞれ独立したフレーム");
+    expect(p).toContain(`最大${MAX_MOCK_SCREENS}画面`);
+    expect(p).toContain("画面が1つだけのサービスは1フレーム");
   });
 
   it("新規生成: 追加指示があれば末尾に含める", () => {

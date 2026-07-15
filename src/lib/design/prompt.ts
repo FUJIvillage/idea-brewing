@@ -9,6 +9,9 @@ export interface MockPromptOptions {
 const NO_STRAY_ELEMENTS =
   "メインフレームの外に要素を残さないでください。作業用の一時要素はすべて削除してから完了してください。";
 
+/** 1セッションで扱う画面数の上限(コストと生成時間の暴走防止) */
+export const MAX_MOCK_SCREENS = 6;
+
 /** Pencil CLI エージェントへ渡すプロンプト。レシピ本文は --prompt-file で添付する前提 */
 export function buildMockPrompt(opts: MockPromptOptions): string {
   const instruction = opts.instruction?.trim() ?? "";
@@ -20,7 +23,9 @@ export function buildMockPrompt(opts: MockPromptOptions): string {
     ].join("\n");
   }
   return [
-    "添付のスクリーン仕様(画面構成)とデザインシステム(色・タイポグラフィ・余白・コンポーネント方針)に厳密に従って、このWebアプリのメイン画面を1枚の高忠実度モックアップとしてデザインしてください。",
+    "添付のスクリーン仕様(画面構成)とデザインシステム(色・タイポグラフィ・余白・コンポーネント方針)に厳密に従って、このWebアプリの高忠実度モックアップをデザインしてください。",
+    `スクリーン仕様の「画面一覧」に定義された画面を、それぞれ独立したフレームとして1つのキャンバスに横に並べてください(画面名をフレーム名にする。最大${MAX_MOCK_SCREENS}画面。超える場合は主要な画面を優先する)。画面が1つだけのサービスは1フレームで構いません。`,
+    "モーダルやダイアログは、それを表示した状態の親画面フレームとして描いても構いません。",
     "デザイントークンのカラーコード・スペーシング・角丸・タイポグラフィをそのまま使ってください。",
     "「任意」「表示する場合」と書かれた装飾要素(円形進捗・バッジ・アイコン・アクセントバー等)も必ず描いてください。",
     NO_STRAY_ELEMENTS,

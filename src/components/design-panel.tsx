@@ -112,8 +112,9 @@ export function DesignPanel({
     <div className="flex flex-col gap-4">
       <p className="m-0 text-[14px]" style={{ color: "rgba(255,220,160,.55)" }}>
         レシピ(画面仕様+デザインシステム)から Pencil で高忠実度モックアップを生成します。
+        画面仕様に複数の画面があれば、最大6画面を1枚のキャンバスに並べて描きます。
         モックは熟成の評価で「デザイン忠実度」の採点基準になります。
-        所要目安は約5分、コストは1回 $2 前後です(モデルによる)。
+        所要とコストは画面数に応じて増えます(1画面なら約5分・$2前後が目安)。
       </p>
 
       {working && <GeneratingView brewId={brew.id} onCancel={() => void cancel()} />}

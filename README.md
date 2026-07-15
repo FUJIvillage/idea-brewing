@@ -39,7 +39,7 @@ Cursor APIキーは設定画面に保存する代わりに、環境変数 `CURSO
 
 ## Pencil CLI設定(デザイン工程・任意)
 
-レシピ完成後の「デザイン」タブでは、Pencil CLI(`@pencil.dev/cli`)で画面仕様とデザインシステムから高忠実度モックアップ(PNG)を生成できます。設定画面の「デザインエンジン(Pencil)」でCLIキーを設定してください([pencil.dev](https://www.pencil.dev/) の組織設定 → Developer Keys で発行。環境変数 `PENCIL_CLI_KEY` でも指定可)。
+レシピ完成後の「デザイン」タブでは、Pencil CLI(`@pencil.dev/cli`)で画面仕様とデザインシステムから高忠実度モックアップ(PNG)を生成できます。画面仕様に複数の画面が定義されている場合は、最大6画面を1枚のキャンバスにフレームとして並べて生成します(所要・コストは画面数に応じて増えます)。設定画面の「デザインエンジン(Pencil)」でCLIキーを設定してください([pencil.dev](https://www.pencil.dev/) の組織設定 → Developer Keys で発行。環境変数 `PENCIL_CLI_KEY` でも指定可)。
 
 デザインモデル(`pencilModel`)は任意です。空の場合はLLMプロバイダに合わせて自動選択します(OpenAI/OpenRouter → `gpt-5.4`、Google → `gemini-3.5-flash`、それ以外はCLI既定のClaude)。OpenAI/Google系モデルはLLMプロバイダのAPIキーをエージェント認証(`PENCIL_AGENT_API_KEY`)として使い、Claude系は `ANTHROPIC_API_KEY` かClaude Codeログインが別途必要です。
 
