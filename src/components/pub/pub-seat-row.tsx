@@ -2,10 +2,21 @@
 
 import { useEffect, useRef } from "react";
 import type { PubPersonaResult } from "@/lib/store/types";
-import { buildFigure, buildStool, guestSeed, moodFromResult, renderFigureInto } from "@/lib/pub/guest-visual";
+import {
+  buildGuestGrid,
+  buildStoolGrid,
+  drawGridInto,
+  GUEST_H,
+  GUEST_W,
+  guestPalette,
+  guestSeed,
+  moodFromResult,
+  STOOL_H,
+  STOOL_W,
+} from "@/lib/pub/guest-visual";
 import { cursorSound } from "@/components/ps1/sound";
 
-/** 客席チップの小さなローポリ肖像(静止1コマ) */
+/** 客席チップの小さなドット絵肖像(静止1コマ) */
 function GuestChip({ result }: { result: PubPersonaResult }) {
   const ref = useRef<HTMLCanvasElement>(null);
   useEffect(() => {
@@ -16,18 +27,26 @@ function GuestChip({ result }: { result: PubPersonaResult }) {
     ctx.imageSmoothingEnabled = false;
     ctx.clearRect(0, 0, cv.width, cv.height);
     const seed = guestSeed(result.persona.name);
-    const faces =
-      result.status === "aborted"
-        ? buildStool()
-        : buildFigure(seed, moodFromResult(result.status, result.overall));
-    renderFigureInto(ctx, faces, seed, 0.5, 21, 34, 44);
+    if (result.status === "aborted") {
+      drawGridInto(
+        ctx,
+        buildStoolGrid(),
+        guestPalette(seed),
+        Math.floor((GUEST_W - STOOL_W) / 2),
+        GUEST_H - STOOL_H - 2,
+        1,
+      );
+    } else {
+      const grid = buildGuestGrid(seed, moodFromResult(result.status, result.overall), 0);
+      drawGridInto(ctx, grid, guestPalette(seed), 0, 0, 1);
+    }
   }, [result]);
   return (
     <canvas
       ref={ref}
-      width={42}
-      height={52}
-      style={{ width: 52, height: 64, imageRendering: "pixelated" }}
+      width={GUEST_W}
+      height={GUEST_H}
+      style={{ width: 56, height: 68, imageRendering: "pixelated" }}
       aria-hidden
     />
   );

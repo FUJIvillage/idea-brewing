@@ -3,163 +3,71 @@
 import { useEffect, useRef } from "react";
 import type { PubPersonaResult } from "@/lib/store/types";
 import {
-  BAYER,
-  buildFigure,
-  buildStool,
+  buildGuestGrid,
+  buildStoolGrid,
   drawDrink,
+  drawGridInto,
+  GUEST_H,
+  GUEST_W,
+  guestPalette,
   guestSeed,
   guestTraits,
   moodFromResult,
-  renderFigureInto,
-  type Face,
+  STOOL_H,
+  STOOL_W,
+  type RGB,
 } from "@/lib/pub/guest-visual";
 
 const SCENE_W = 240;
 const SCENE_H = 150;
-const NEON = { x: 198, y: 16, w: 34, h: 15 };
-
-// PS1 グラデはディザで階調化する(スムーズは使わない)
-function ditherGlow(
-  c: CanvasRenderingContext2D,
-  cxp: number,
-  cyp: number,
-  rad: number,
-  inten: number,
-  ar: number,
-  ag: number,
-  ab: number,
-): void {
-  const region = Math.min(SCENE_H, Math.round(cyp + rad));
-  const img = c.getImageData(0, 0, SCENE_W, region);
-  const d = img.data;
-  for (let y = 0; y < region; y++) {
-    for (let x = 0; x < SCENE_W; x++) {
-      const dx = x - cxp;
-      const dy = y - cyp;
-      const v = (1 - Math.sqrt(dx * dx + dy * dy) / rad) * inten;
-      if (v <= 0) continue;
-      if (v > (BAYER[(y & 3) * 4 + (x & 3)] + 0.5) / 16) {
-        const i = (y * SCENE_W + x) * 4;
-        d[i] = Math.min(255, d[i] + ar);
-        d[i + 1] = Math.min(255, d[i + 1] + ag);
-        d[i + 2] = Math.min(255, d[i + 2] + ab);
-      }
-    }
-  }
-  c.putImageData(img, 0, 0);
-}
-
-function patron(c: CanvasRenderingContext2D, cx: number, cy: number, col: string): void {
-  c.fillStyle = col;
-  c.fillRect(cx - 7, cy, 14, 16);
-  c.fillRect(cx - 4, cy - 9, 9, 9);
-  c.fillRect(cx - 5, cy - 11, 11, 2);
-}
-
-/** 動かない背景(壁・棚・窓・ネオン枠・奥の常連)を一度だけ描いて使い回す */
-function buildBackBuf(): HTMLCanvasElement | null {
-  const bb = document.createElement("canvas");
-  bb.width = SCENE_W;
-  bb.height = SCENE_H;
-  const c = bb.getContext("2d");
-  if (!c) return null;
-  c.imageSmoothingEnabled = false;
-  c.fillStyle = "#080402";
-  c.fillRect(0, 0, SCENE_W, SCENE_H);
-  ditherGlow(c, SCENE_W / 2, 12, 78, 0.95, 120, 72, 14); // 暖色ランプ
-  ditherGlow(c, 18, 34, 46, 0.7, 20, 44, 86); // 窓の寒色ムーンライト
-  c.fillStyle = "#3a2a12";
-  c.fillRect(SCENE_W / 2 - 1, 0, 2, 8);
-  c.fillStyle = "#d98a12";
-  c.fillRect(SCENE_W / 2 - 5, 8, 10, 4);
-  c.fillStyle = "#ffd88a";
-  c.fillRect(SCENE_W / 2 - 4, 11, 8, 1);
-  const cols = ["#8a3a2a", "#3a6a3a", "#7a6a2a", "#4a3a7a", "#9a5a1a", "#3a5a6a", "#8a2a3a"];
-  for (let s = 0; s < 2; s++) {
-    const y = 24 + s * 22;
-    c.fillStyle = "#1a1008";
-    c.fillRect(16, y + 12, SCENE_W - 32, 2);
-    for (let i = 0; i < 9; i++) {
-      const bx = 26 + i * 22 + s * 9;
-      if (bx > SCENE_W - 22) continue;
-      const col = cols[(i + s * 3) % cols.length];
-      const bh = 9 + ((i * 7 + s * 5) % 4);
-      c.fillStyle = col;
-      c.fillRect(bx, y + 12 - bh, 3, bh);
-      c.fillStyle = "#080402";
-      c.fillRect(bx + 1, y + 12 - bh - 2, 1, 2);
-      c.fillStyle = "rgba(255,220,160,.22)";
-      c.fillRect(bx, y + 12 - bh, 1, bh);
-    }
-  }
-  for (let i = 0; i < 5; i++) {
-    const gx = 150 + i * 13;
-    c.fillStyle = "#2a3038";
-    c.fillRect(gx, 20, 1, 4);
-    c.fillRect(gx - 2, 24, 5, 1);
-    c.fillRect(gx - 1, 25, 3, 2);
-  }
-  c.fillStyle = "#0a1620";
-  c.fillRect(8, 20, 22, 28);
-  c.strokeStyle = "#2a3038";
-  c.lineWidth = 1;
-  c.strokeRect(8, 20, 22, 28);
-  c.fillStyle = "#1a2630";
-  c.fillRect(18, 20, 1, 28);
-  c.fillRect(8, 33, 22, 1);
-  c.strokeStyle = "#2a6a72";
-  c.lineWidth = 2;
-  c.strokeRect(NEON.x, NEON.y, NEON.w, NEON.h);
-  patron(c, 46, 96, "#160f09");
-  patron(c, 205, 100, "#130d08");
-  return bb;
-}
-
-function drawCounter(ctx: CanvasRenderingContext2D): void {
-  ctx.fillStyle = "#20140a";
-  ctx.fillRect(0, SCENE_H - 24, SCENE_W, 24);
-  ctx.fillStyle = "#3a2410";
-  ctx.fillRect(0, SCENE_H - 24, SCENE_W, 2);
-  ctx.fillStyle = "rgba(255,220,160,.12)";
-  ctx.fillRect(0, SCENE_H - 23, SCENE_W, 1);
-}
-
-function drawRain(ctx: CanvasRenderingContext2D, t: number): void {
-  ctx.fillStyle = "rgba(150,190,235,.35)";
-  for (let i = 0; i < 9; i++) {
-    const x = 10 + ((i * 5) % 18);
-    const y = 22 + ((t * 34 + i * 9) % 26);
-    ctx.fillRect(x, y, 1, 3);
-  }
-}
-
-function drawNeon(ctx: CanvasRenderingContext2D, t: number): void {
-  const on = ((t * 9) | 0) % 37 !== 0;
-  const a = on ? 0.85 : 0.35;
-  ctx.fillStyle = `rgba(90,208,224,${a * 0.5})`;
-  ctx.fillRect(NEON.x - 2, NEON.y - 2, NEON.w + 4, NEON.h + 4);
-  ctx.fillStyle = `rgba(150,235,245,${a})`;
-  ctx.fillRect(NEON.x + 4, NEON.y + 4, 2, NEON.h - 8);
-  ctx.fillRect(NEON.x + 4, NEON.y + 4, 10, 2);
-  ctx.fillRect(NEON.x + 4, NEON.y + Math.floor(NEON.h / 2) - 1, 8, 2);
-  ctx.fillRect(NEON.x + 18, NEON.y + 4, 2, NEON.h - 8);
-  ctx.fillRect(NEON.x + 26, NEON.y + 4, 2, NEON.h - 8);
-  ctx.fillRect(NEON.x + 18, NEON.y + NEON.h - 6, 10, 2);
-}
+// bg_pub_bar(public/pub/bar-bg.png)の metadata と一致させる
+const COUNTER_Y = 126;
+const FLAME = { x: 120, y: 21 };
+const GUEST_SCALE = 2;
 
 interface FigureState {
-  faces: Face[];
-  seed: number;
+  /** 3フレーム分(通常/呼吸/瞬き)を事前に組んでおく。客なし・空席時は null */
+  grids: [string[], string[], string[]] | null;
+  stool: boolean;
+  palette: Record<string, RGB>;
   drink: number;
-  active: boolean;
 }
 
 function figureStateFor(result: PubPersonaResult | null): FigureState {
-  if (!result) return { faces: [], seed: 0, drink: -1, active: false };
+  if (!result) return { grids: null, stool: false, palette: guestPalette(0), drink: -1 };
   const seed = guestSeed(result.persona.name);
-  if (result.status === "aborted") return { faces: buildStool(), seed, drink: -1, active: false };
+  if (result.status === "aborted") {
+    return { grids: null, stool: true, palette: guestPalette(seed), drink: -1 };
+  }
   const mood = moodFromResult(result.status, result.overall);
-  return { faces: buildFigure(seed, mood), seed, drink: guestTraits(seed).drink, active: true };
+  return {
+    grids: [
+      buildGuestGrid(seed, mood, 0),
+      buildGuestGrid(seed, mood, 1),
+      buildGuestGrid(seed, mood, 2),
+    ],
+    stool: false,
+    palette: guestPalette(seed),
+    drink: guestTraits(seed).drink,
+  };
+}
+
+/** ランタンの炎の明滅(背景に焼き込まれた基準の炎の上に描き足す) */
+function drawFlame(ctx: CanvasRenderingContext2D, t: number): void {
+  const phase = Math.floor(t * 3) % 3;
+  const px = (x: number, y: number, c: string) => {
+    ctx.fillStyle = c;
+    ctx.fillRect(x, y, 1, 1);
+  };
+  px(FLAME.x, FLAME.y, "#f5b94a");
+  px(FLAME.x + 1, FLAME.y, "#ef7d57");
+  px(FLAME.x, FLAME.y + 1, "#ffd88a");
+  px(FLAME.x + 1, FLAME.y + 1, "#f5b94a");
+  if (phase === 1) px(FLAME.x + 1, FLAME.y - 1, "#ef7d57");
+  if (phase === 2) {
+    px(FLAME.x, FLAME.y - 1, "#f5b94a");
+    px(FLAME.x + 1, FLAME.y - 1, "#ffd88a");
+  }
 }
 
 const MOOD_EMOJI: Record<string, string> = { happy: "♪", meh: "…", gone: "✕" };
@@ -173,10 +81,13 @@ export function PubBarScene({
 }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const figRef = useRef<FigureState>(figureStateFor(result));
+  // 瞬きの位相を客ごとにずらす
+  const seedRef = useRef<number>(result ? guestSeed(result.persona.name) : 0);
 
-  // 描画ループから最新の focus を読むための ref(レンダー中の書き込み不可なので effect で同期)
+  // 描画ループから最新の客を読むための ref(レンダー中の書き込み不可なので effect で同期)
   useEffect(() => {
     figRef.current = figureStateFor(result);
+    seedRef.current = result ? guestSeed(result.persona.name) : 0;
   }, [result]);
 
   useEffect(() => {
@@ -185,7 +96,14 @@ export function PubBarScene({
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
     ctx.imageSmoothingEnabled = false;
-    const back = buildBackBuf();
+
+    const bg = new Image();
+    let bgReady = false;
+    bg.onload = () => {
+      bgReady = true;
+    };
+    bg.src = "/pub/bar-bg.png";
+
     const reduce =
       typeof matchMedia === "function" && matchMedia("(prefers-reduced-motion: reduce)").matches;
     let running = true;
@@ -193,21 +111,54 @@ export function PubBarScene({
     let last = performance.now();
 
     const draw = () => {
-      if (back) ctx.drawImage(back, 0, 0);
+      if (bgReady) ctx.drawImage(bg, 0, 0);
       else {
         ctx.fillStyle = "#080402";
         ctx.fillRect(0, 0, SCENE_W, SCENE_H);
       }
-      drawRain(ctx, reduce ? 0 : t);
-      drawNeon(ctx, reduce ? 1 : t);
       const fig = figRef.current;
-      if (fig.faces.length > 0) {
-        renderFigureInto(ctx, fig.faces, fig.seed, fig.active ? t : 0.5, SCENE_W * 0.5, 92, 150);
+      if (fig.stool) {
+        // 空席のスツール: 座面がカウンターの少し上に見え、脚はカウンターの奥に隠れる
+        drawGridInto(
+          ctx,
+          buildStoolGrid(),
+          fig.palette,
+          SCENE_W / 2 - STOOL_W,
+          COUNTER_Y - STOOL_H * 2 + 22,
+          2,
+        );
+      } else if (fig.grids) {
+        // 呼吸(2秒周期)+ときどき瞬き。位相は客ごとにずらす
+        const blink = !reduce && (t + (seedRef.current % 7)) % 4.3 < 0.18;
+        const frame = blink ? 2 : t % 2 < 1 ? 0 : 1;
+        // 胸から上がカウンターの上に見える高さ(下端はカウンターの奥に少し沈む)
+        drawGridInto(
+          ctx,
+          fig.grids[reduce ? 0 : frame],
+          fig.palette,
+          SCENE_W / 2 - GUEST_W,
+          COUNTER_Y + 8 - GUEST_H * GUEST_SCALE,
+          GUEST_SCALE,
+        );
       }
-      drawCounter(ctx);
-      if (fig.active && fig.drink >= 0) {
+      // カウンター帯を背景から再ブリットして客の下半身を隠す(客はカウンターの奥)
+      if (bgReady) {
+        ctx.drawImage(
+          bg,
+          0,
+          COUNTER_Y,
+          SCENE_W,
+          SCENE_H - COUNTER_Y,
+          0,
+          COUNTER_Y,
+          SCENE_W,
+          SCENE_H - COUNTER_Y,
+        );
+      }
+      if (!fig.stool && fig.drink >= 0) {
         drawDrink(ctx, Math.round(SCENE_W * 0.62), SCENE_H - 23, 2, fig.drink);
       }
+      drawFlame(ctx, reduce ? 0 : t);
     };
 
     const loop = (now: number) => {
@@ -220,6 +171,7 @@ export function PubBarScene({
     };
     draw();
     if (!reduce) requestAnimationFrame(loop);
+    else bg.onload = () => draw(); // 静止でも背景ロード後に一度描き直す
 
     return () => {
       running = false;

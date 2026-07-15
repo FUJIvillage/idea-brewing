@@ -1,19 +1,15 @@
 /**
- * Pub工程のCoffee Talk風バー演出で使う、客(ペルソナ)のローポリ3D描画ロジック。
- * ps1-tank.tsx と同じ実時間フラットシェーディング方式を拡張し、PS1らしさとして
- * Bayer 4x4 オーダードディザ / 15bitカラー量子化 / 頂点ワブル / 二灯ライティングを足す。
+ * Pub工程のバー演出で使う、客(ペルソナ)のドット絵描画ロジック。
+ * 以前はローポリ3D(回転バスト)だったが、待ち工程アニメ「真夜中の醸造所」と
+ * 世界観を揃えるため本物のドット絵(整数グリッド・限定パレット)に置き換えた。
  *
  * ここは framework 非依存の純ロジック。React には依存しない。
- * seed/traits/mood の各関数は決定論的で、ユニットテスト対象。
- * canvas を触る関数(renderFigureInto など)はクライアントでのみ呼ばれる。
+ * seed/traits/mood/grid の各関数は決定論的で、ユニットテスト対象。
+ * canvas を触る関数(drawGridInto / drawDrink)はクライアントでのみ呼ばれる。
  */
 
 export type Mood = "happy" | "meh" | "gone";
 export type RGB = [number, number, number];
-export interface Face {
-  v: [number, number, number][];
-  tag: string;
-}
 export interface GuestTraits {
   hair: number; // 0 short / 1 bun / 2 ponytail / 3 cap
   glasses: boolean;
@@ -84,268 +80,208 @@ const ACCENT: RGB[] = [
   [120, 190, 120],
   [230, 200, 110],
 ];
-const STOOL: RGB[] = [
-  [90, 65, 24],
-  [58, 42, 18],
-];
-const BANDS = [0.34, 0.56, 0.78, 1];
-const RIM: RGB = [70, 120, 190]; // 窓からの寒色リム
-const NS = 9; // リング分割数
 
 export function colorFor(tag: string, seed: number): RGB {
   if (tag === "skin") return SKIN[seed % SKIN.length];
   if (tag === "hair" || tag === "hat") return HAIR[(seed * 3 + 1) % HAIR.length];
-  if (tag === "glass") return [24, 20, 14];
+  if (tag === "glass") return [196, 186, 164]; // 明るい金属フレーム(暗い目と分離して見せる)
   if (tag === "collar") return ACCENT[(seed * 5 + 1) % ACCENT.length];
   if (tag === "cloth") return CLOTH[(seed * 7 + 2) % CLOTH.length];
   if (tag === "eye") return [26, 20, 16];
   if (tag === "brow") return HAIR[(seed * 3 + 1) % HAIR.length];
   if (tag === "mouth") return [150, 72, 66];
-  if (tag === "stool") return STOOL[0];
-  if (tag === "stoolLeg") return STOOL[1];
+  if (tag === "stool") return [90, 65, 24];
+  if (tag === "stoolLeg") return [58, 42, 18];
   return [120, 100, 70];
 }
 
-// ---- ジオメトリ ----
+// ---- ドット絵グリッド ----
 
-function ringFaces(
-  faces: Face[],
-  y0: number,
-  y1: number,
-  r0: number,
-  r1: number,
-  tag: string,
-  ox = 0,
-  oz = 0,
-): void {
-  for (let i = 0; i < NS; i++) {
-    const a0 = (i / NS) * Math.PI * 2;
-    const a1 = ((i + 1) / NS) * Math.PI * 2;
-    faces.push({
-      v: [
-        [ox + Math.cos(a0) * r0, y0, oz + Math.sin(a0) * r0],
-        [ox + Math.cos(a1) * r0, y0, oz + Math.sin(a1) * r0],
-        [ox + Math.cos(a1) * r1, y1, oz + Math.sin(a1) * r1],
-        [ox + Math.cos(a0) * r1, y1, oz + Math.sin(a0) * r1],
-      ],
-      tag,
-    });
-  }
+export const GUEST_W = 28;
+export const GUEST_H = 34;
+export const STOOL_W = 20;
+export const STOOL_H = 26;
+
+/** グリッドの色キー → 実色(seed でパレットが決まる)。"." は透過 */
+export function guestPalette(seed: number): Record<string, RGB> {
+  return {
+    K: [15, 10, 6], // 輪郭
+    S: colorFor("skin", seed),
+    H: colorFor("hair", seed),
+    C: colorFor("cloth", seed),
+    A: colorFor("collar", seed),
+    E: colorFor("eye", seed),
+    M: colorFor("mouth", seed),
+    G: colorFor("glass", seed),
+    W: colorFor("stool", seed),
+    L: colorFor("stoolLeg", seed),
+  };
 }
 
-function addSphere(
-  faces: Face[],
-  cx: number,
-  cy: number,
-  cz: number,
-  r: number,
-  tag: string,
-  lb = 4,
-): void {
-  for (let k = 0; k < lb; k++) {
-    const l0 = -Math.PI / 2 + Math.PI * (k / lb);
-    const l1 = -Math.PI / 2 + Math.PI * ((k + 1) / lb);
-    ringFaces(faces, cy + Math.sin(l0) * r, cy + Math.sin(l1) * r, Math.cos(l0) * r, Math.cos(l1) * r, tag, cx, cz);
-  }
-}
-
-function addQuad(faces: Face[], cx: number, cy: number, cz: number, w: number, h: number, tag: string): void {
-  faces.push({
-    v: [
-      [cx - w, cy - h, cz],
-      [cx + w, cy - h, cz],
-      [cx + w, cy + h, cz],
-      [cx - w, cy + h, cz],
-    ],
-    tag,
-  });
-}
-
-/** 客のローポリ・バスト(胴+首+頭+髪型+顔+小道具のシード差分)を組み立てる */
-export function buildFigure(seed: number, mood: Mood): Face[] {
-  const f: Face[] = [];
+/** 客の1フレーム(0=通常 / 1=呼吸で1px上がる / 2=瞬き)をドット絵グリッドで返す純関数 */
+export function buildGuestGrid(seed: number, mood: Mood, frame = 0): string[] {
   const tr = guestTraits(seed);
-  const { sw, hr, hcy } = tr;
-  ringFaces(f, -0.95, -0.45, 0.46, 0.5, "cloth");
-  ringFaces(f, -0.45, -0.05, 0.5, sw, "cloth");
-  ringFaces(f, -0.05, 0.1, sw, 0.3, "collar");
-  ringFaces(f, 0.1, 0.3, 0.15, 0.15, "skin"); // neck
-  const lb = 5;
-  for (let k = 0; k < lb; k++) {
-    const l0 = -Math.PI / 2 + Math.PI * (k / lb);
-    const l1 = -Math.PI / 2 + Math.PI * ((k + 1) / lb);
-    ringFaces(
-      f,
-      hcy + Math.sin(l0) * hr,
-      hcy + Math.sin(l1) * hr,
-      Math.cos(l0) * hr,
-      Math.cos(l1) * hr,
-      k >= lb - 2 ? "hair" : "skin",
-    );
+  const g: string[][] = Array.from({ length: GUEST_H }, () => Array<string>(GUEST_W).fill("."));
+  const put = (x: number, y: number, c: string): void => {
+    if (x >= 0 && x < GUEST_W && y >= 0 && y < GUEST_H) g[y][x] = c;
+  };
+  const hline = (x0: number, x1: number, y: number, c: string): void => {
+    for (let x = x0; x <= x1; x++) put(x, y, c);
+  };
+
+  const cx = 14;
+  const up = frame === 1 ? 1 : 0; // 吸うと上半身が1px上がる
+  const hw = 7 + (seed % 3); // 胴の半幅(traits.sw と同じ3段階)
+  const hr = 5 + ((seed >> 2) % 2); // 頭の半径(traits.hr と同じ2段階)
+
+  // 胴(下端は固定、肩だけ呼吸で上下)
+  const shoulderY = 25 - up;
+  for (let y = shoulderY; y < GUEST_H; y++) {
+    const t = Math.min(1, (y - shoulderY) / 6);
+    const w = Math.round(hw * (0.72 + 0.28 * t));
+    hline(cx - w, cx + w, y, "C");
+    put(cx - w, y, "K");
+    put(cx + w, y, "K");
   }
-  // 髪型
+  hline(cx - Math.round(hw * 0.72), cx + Math.round(hw * 0.72), shoulderY - 1, "K");
+  // 襟(差し色)と首
+  hline(cx - 3, cx + 3, shoulderY, "A");
+  hline(cx - 2, cx + 2, shoulderY + 1, "A");
+  hline(cx - 1, cx + 1, shoulderY - 3, "S");
+  hline(cx - 1, cx + 1, shoulderY - 2, "S");
+
+  // 頭(ピクセル円+輪郭)。髪は上部を覆う
+  const headCy = shoulderY - 4 - hr;
+  for (let dy = -hr; dy <= hr; dy++) {
+    const w = Math.round(Math.sqrt(hr * hr - dy * dy) * 1.05);
+    const y = headCy + dy;
+    const isHairRow = dy < -hr * 0.2;
+    hline(cx - w, cx + w, y, isHairRow ? "H" : "S");
+    put(cx - w - 1, y, "K");
+    put(cx + w + 1, y, "K");
+  }
+  hline(cx - Math.round(hr * 0.6), cx + Math.round(hr * 0.6), headCy - hr - 1, "K");
+  hline(cx - Math.round(hr * 0.6), cx + Math.round(hr * 0.6), headCy + hr + 1, "K");
+  // もみあげ(髪の側面)
+  put(cx - hr, headCy, "H");
+  put(cx + hr, headCy, "H");
+
+  // 髪型の差分
   if (tr.hair === 1) {
-    addSphere(f, 0, hcy + hr * 0.55, -hr * 0.55, hr * 0.42, "hair", 4);
+    // お団子
+    for (let dy = -2; dy <= 0; dy++) {
+      const w = 2 - Math.abs(dy);
+      hline(cx - w, cx + w, headCy - hr - 2 + dy, "H");
+    }
   } else if (tr.hair === 2) {
-    for (let s = 0; s < 3; s++) addSphere(f, 0, hcy - 0.05 - s * 0.24, -hr * 0.72, hr * (0.3 - s * 0.05), "hair", 4);
+    // ポニーテール(右側に垂れる)
+    for (let y = headCy; y <= shoulderY - 1; y++) {
+      put(cx + hr + 1, y, "H");
+      put(cx + hr + 2, y, "H");
+    }
+    put(cx + hr + 1, shoulderY, "H");
   } else if (tr.hair === 3) {
-    ringFaces(f, hcy + hr * 0.62, hcy + hr * 0.98, hr * 1.02, hr * 0.5, "hat");
-    ringFaces(f, hcy + hr * 0.55, hcy + hr * 0.62, hr * 1.18, hr * 1.18, "hat", 0, 0.2);
-  } else {
-    for (let s = 0; s < 2; s++) ringFaces(f, hcy - 0.02 - s * 0.14, hcy + 0.1 - s * 0.14, hr * 0.9, hr * 0.7, "hair", 0, -hr * 0.35);
+    // 帽子(つば+クラウン)
+    hline(cx - hr - 2, cx + hr + 2, headCy - Math.round(hr * 0.4), "H");
+    for (let y = headCy - hr - 2; y < headCy - Math.round(hr * 0.4); y++) {
+      hline(cx - Math.round(hr * 0.8), cx + Math.round(hr * 0.8), y, "H");
+    }
   }
-  // 顔(前面に少し浮かせて配置。横を向くと自然に隠れる)
-  const ez = hr * 1.02;
-  const ey = hcy + hr * 0.1;
-  const ex = hr * 0.36;
-  const es = hr * 0.12;
-  addQuad(f, -ex, ey, ez, es * 0.9, es, "eye");
-  addQuad(f, ex, ey, ez, es * 0.9, es, "eye");
-  addQuad(f, -ex, ey + es * 1.7, ez, es * 1.1, es * 0.35, "brow");
-  addQuad(f, ex, ey + es * 1.7, ez, es * 1.1, es * 0.35, "brow");
-  const my = hcy - hr * 0.3;
-  const mw = mood === "happy" ? hr * 0.3 : hr * 0.18;
-  addQuad(f, 0, my, ez, mw, hr * 0.055, "mouth");
+
+  // 目・眉・口
+  const ey = headCy + 1;
+  const ex = Math.max(2, hr - 3) + 1;
+  if (frame === 2) {
+    // 瞬き(閉じ目)
+    hline(cx - ex - 1, cx - ex, ey + 1, "E");
+    hline(cx + ex, cx + ex + 1, ey + 1, "E");
+  } else {
+    for (const sx of [cx - ex - 1, cx + ex]) {
+      put(sx, ey, "E");
+      put(sx + 1, ey, "E");
+      put(sx, ey + 1, "E");
+      put(sx + 1, ey + 1, "E");
+    }
+  }
+  hline(cx - ex - 1, cx - ex + 1, ey - 2, "H");
+  hline(cx + ex - 1, cx + ex + 1, ey - 2, "H");
+  const my = headCy + hr - 1;
   if (mood === "happy") {
-    addQuad(f, -mw, my + hr * 0.07, ez, hr * 0.05, hr * 0.05, "mouth");
-    addQuad(f, mw, my + hr * 0.07, ez, hr * 0.05, hr * 0.05, "mouth");
+    // 笑顔(U字)+頬
+    put(cx - 2, my - 1, "M");
+    put(cx + 2, my - 1, "M");
+    hline(cx - 1, cx + 1, my, "M");
+    put(cx - ex - 2, my - 2, "M");
+    put(cx + ex + 2, my - 2, "M");
+  } else {
+    hline(cx - 1, cx + 1, my, "M");
   }
   if (tr.glasses) {
-    ringFaces(f, hcy + hr * 0.02, hcy + hr * 0.2, hr * 1.03, hr * 1.03, "glass");
+    // 細い縁(上下ライン+外側の縦だけ)にして、目を覆い隠さない
+    const lgx = cx - ex - 2;
+    const rgx = cx + ex - 1;
+    hline(lgx, lgx + 3, ey - 1, "G");
+    hline(lgx, lgx + 3, ey + 2, "G");
+    hline(rgx, rgx + 3, ey - 1, "G");
+    hline(rgx, rgx + 3, ey + 2, "G");
+    put(lgx, ey, "G");
+    put(lgx, ey + 1, "G");
+    put(rgx + 3, ey, "G");
+    put(rgx + 3, ey + 1, "G");
+    put(cx, ey, "G"); // ブリッジ
   }
-  return f;
+
+  return g.map((row) => row.join(""));
 }
 
-/** 中断した客の空きスツール */
-export function buildStool(): Face[] {
-  const f: Face[] = [];
-  ringFaces(f, -0.95, -0.3, 0.1, 0.1, "stoolLeg");
-  ringFaces(f, -0.3, -0.24, 0.42, 0.42, "stool");
-  ringFaces(f, -0.24, -0.2, 0.42, 0.36, "stool");
-  return f;
-}
-
-// ---- PS1 シグネチャ: 15bit量子化 + Bayer 4x4 ディザ ----
-
-export const BAYER = [0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5];
-export const q5 = (c: number): number => {
-  const v = c < 0 ? 0 : c > 255 ? 255 : c | 0;
-  return (v >> 3) << 3;
-};
-
-const ditherCache: Record<string, CanvasPattern | null> = {};
-function ditherPattern(ctx: CanvasRenderingContext2D, c0: number[], c1: number[], lvl: number): CanvasPattern | null {
-  const key = `${c0[0]},${c0[1]},${c0[2]}|${c1[0]},${c1[1]},${c1[2]}|${lvl}`;
-  const cached = ditherCache[key];
-  if (cached !== undefined) return cached;
-  const tile = document.createElement("canvas");
-  tile.width = 4;
-  tile.height = 4;
-  const tctx = tile.getContext("2d");
-  if (!tctx) return null;
-  const img = tctx.createImageData(4, 4);
-  for (let i = 0; i < 16; i++) {
-    const c = BAYER[i] < lvl ? c1 : c0;
-    img.data[i * 4] = c[0];
-    img.data[i * 4 + 1] = c[1];
-    img.data[i * 4 + 2] = c[2];
-    img.data[i * 4 + 3] = 255;
-  }
-  tctx.putImageData(img, 0, 0);
-  const pat = ctx.createPattern(tile, "repeat");
-  ditherCache[key] = pat;
-  return pat;
-}
-
-function mix(a: number[], b: number[], t: number): number[] {
-  return [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t];
-}
-
-/**
- * ローポリの客を ctx に描く(クリアはしない=背景の上に重ねる)。
- * cx,cy は画面上の中心、focal は焦点距離。回転角 t。
- */
-export function renderFigureInto(
-  ctx: CanvasRenderingContext2D,
-  faces: Face[],
-  seed: number,
-  t: number,
-  cx: number,
-  cy: number,
-  focal: number,
-): void {
-  const ct = Math.cos(t);
-  const st = Math.sin(t);
-  const tilt = 0.18;
-  const cT = Math.cos(tilt);
-  const sT = Math.sin(tilt);
-  const d = 3.4;
-  const lx = 0.45;
-  const ly = 0.68;
-  const lz = -0.55;
-  const ll = Math.sqrt(lx * lx + ly * ly + lz * lz);
-  const rx = -0.6;
-  const ry = 0.25;
-  const rz = 0.5;
-  const rl = Math.sqrt(rx * rx + ry * ry + rz * rz);
-  const xform = (p: number[]): [number, number, number] => {
-    const x = p[0] * ct + p[2] * st;
-    const z = -p[0] * st + p[2] * ct;
-    const y = p[1];
-    return [x, y * cT - z * sT, y * sT + z * cT];
+/** 中断した客の空きスツール(ドット絵グリッド) */
+export function buildStoolGrid(): string[] {
+  const g: string[][] = Array.from({ length: STOOL_H }, () => Array<string>(STOOL_W).fill("."));
+  const put = (x: number, y: number, c: string): void => {
+    if (x >= 0 && x < STOOL_W && y >= 0 && y < STOOL_H) g[y][x] = c;
   };
-  const proj = (v: [number, number, number]): [number, number] => [
-    Math.round(cx + (v[0] * focal) / (v[2] + d)),
-    Math.round(cy - (v[1] * focal) / (v[2] + d)),
-  ];
-  const polys: { pts: [number, number][]; base: RGB; shade: number; rim: number; depth: number }[] = [];
-  for (const face of faces) {
-    const pv = face.v.map(xform);
-    const e1 = [pv[1][0] - pv[0][0], pv[1][1] - pv[0][1], pv[1][2] - pv[0][2]];
-    const e2 = [pv[3][0] - pv[0][0], pv[3][1] - pv[0][1], pv[3][2] - pv[0][2]];
-    let nx = e1[1] * e2[2] - e1[2] * e2[1];
-    let ny = e1[2] * e2[0] - e1[0] * e2[2];
-    let nz = e1[0] * e2[1] - e1[1] * e2[0];
-    const nl = Math.sqrt(nx * nx + ny * ny + nz * nz) || 1;
-    nx /= nl;
-    ny /= nl;
-    nz /= nl;
-    if (nz > 0) {
-      nx = -nx;
-      ny = -ny;
-      nz = -nz;
-    }
-    const shade = Math.max(0.05, (nx * lx + ny * ly + nz * lz) / ll);
-    const rim = Math.max(0, (nx * rx + ny * ry + nz * rz) / rl);
-    polys.push({
-      pts: pv.map(proj),
-      base: colorFor(face.tag, seed),
-      shade,
-      rim,
-      depth: (pv[0][2] + pv[1][2] + pv[2][2] + pv[3][2]) / 4,
-    });
+  const hline = (x0: number, x1: number, y: number, c: string): void => {
+    for (let x = x0; x <= x1; x++) put(x, y, c);
+  };
+  // 座面
+  hline(2, 17, 6, "K");
+  hline(1, 18, 7, "W");
+  hline(1, 18, 8, "W");
+  hline(2, 17, 9, "K");
+  // 脚(ハの字)+貫
+  for (let y = 10; y < STOOL_H - 1; y++) {
+    const spread = Math.round((y - 10) / 6);
+    put(4 - spread, y, "L");
+    put(5 - spread, y, "L");
+    put(14 + spread, y, "L");
+    put(15 + spread, y, "L");
   }
-  polys.sort((a, b) => b.depth - a.depth);
-  for (const p of polys) {
-    ctx.beginPath();
-    ctx.moveTo(p.pts[0][0], p.pts[0][1]);
-    for (let i = 1; i < 4; i++) ctx.lineTo(p.pts[i][0], p.pts[i][1]);
-    ctx.closePath();
-    const bf = Math.min(3, p.shade * 3);
-    const lo = Math.floor(bf);
-    const hi = Math.min(3, lo + 1);
-    const frac = bf - lo;
-    const rimT = p.rim * p.rim * 0.55;
-    const c0 = mix(p.base.map((c) => c * BANDS[lo]), RIM, rimT).map(q5);
-    const c1 = mix(p.base.map((c) => c * BANDS[hi]), RIM, rimT).map(q5);
-    const lvl = Math.round(frac * 16);
-    const solid0 = `rgb(${c0[0]},${c0[1]},${c0[2]})`;
-    ctx.fillStyle =
-      lvl <= 0 ? solid0 : lvl >= 16 ? `rgb(${c1[0]},${c1[1]},${c1[2]})` : ditherPattern(ctx, c0, c1, lvl) ?? solid0;
-    ctx.strokeStyle = solid0;
-    ctx.lineWidth = 1;
-    ctx.fill();
-    ctx.stroke();
+  hline(5, 14, 17, "L");
+  hline(3, 16, STOOL_H - 1, "K");
+  return g.map((row) => row.join(""));
+}
+
+// ---- canvas 描画(クライアント専用) ----
+
+/** 色キーグリッドを fillRect で描く(クリアはしない=背景の上に重ねる) */
+export function drawGridInto(
+  ctx: CanvasRenderingContext2D,
+  grid: string[],
+  palette: Record<string, RGB>,
+  x: number,
+  y: number,
+  scale: number,
+): void {
+  for (let gy = 0; gy < grid.length; gy++) {
+    const row = grid[gy];
+    for (let gx = 0; gx < row.length; gx++) {
+      const key = row[gx];
+      if (key === ".") continue;
+      const c = palette[key];
+      if (!c) continue;
+      ctx.fillStyle = `rgb(${c[0]},${c[1]},${c[2]})`;
+      ctx.fillRect(x + gx * scale, y + gy * scale, scale, scale);
+    }
   }
 }
 
