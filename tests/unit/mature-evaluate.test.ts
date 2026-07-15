@@ -30,6 +30,7 @@ const materials: EvaluationMaterials = {
   codeDigest: "code",
   process: "process",
   previousEvaluation: null,
+  mockImage: null,
 };
 
 describe("evaluateBatch", () => {
@@ -76,6 +77,46 @@ describe("evaluateBatch", () => {
     const first = await evaluateBatch(client, materials, []);
     const second = await evaluateBatch(client, materials, []);
     expect(first.overall).toBeLessThan(second.overall);
+  });
+
+  it("モックがあれば1枚目に載せ、システムにデザイン忠実度の指示を足す", async () => {
+    const inner = createFakeClient();
+    const seen: GenerateOptions[] = [];
+    const spy: LlmClient = {
+      async generateObject<T>(schema: z.ZodType<T>, opts: GenerateOptions): Promise<T> {
+        seen.push(opts);
+        return inner.generateObject(schema, opts);
+      },
+      generateText: (opts) => inner.generateText(opts),
+    };
+    const mock = { data: Buffer.from("mock-png"), mimeType: "image/png" as const };
+    const shot = { data: Buffer.from("shot-png"), mimeType: "image/png" as const };
+
+    const ev = await evaluateBatch(spy, { ...materials, mockImage: mock }, [shot]);
+
+    expect(ev.screenshotsUsed).toBe(true);
+    expect(seen).toHaveLength(1);
+    expect(seen[0].images?.[0]).toBe(mock);
+    expect(seen[0].images?.[1]).toBe(shot);
+    expect(seen[0].system).toContain("デザイン忠実度");
+    expect(seen[0].prompt).toContain("1枚目はデザインモック(目標)");
+  });
+
+  it("モックがなければシステムとプロンプトは従来どおり", async () => {
+    const inner = createFakeClient();
+    const seen: GenerateOptions[] = [];
+    const spy: LlmClient = {
+      async generateObject<T>(schema: z.ZodType<T>, opts: GenerateOptions): Promise<T> {
+        seen.push(opts);
+        return inner.generateObject(schema, opts);
+      },
+      generateText: (opts) => inner.generateText(opts),
+    };
+
+    await evaluateBatch(spy, materials, []);
+
+    expect(seen[0].system).not.toContain("デザイン忠実度");
+    expect(seen[0].prompt).not.toContain("デザインモック");
   });
 });
 

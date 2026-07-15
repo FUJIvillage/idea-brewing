@@ -66,6 +66,13 @@ test("原料投入からタップ提供までのハッピーパス", async ({ pa
       expect(existsSync(path.join(brewsDir, brewId, "recipe", f))).toBe(true);
     }
 
+    // 5.5. デザイン(任意工程・フェイクは固定モックを即時コピー)
+    await page.getByRole("button", { name: "デザイン", exact: true }).click();
+    await page.getByRole("button", { name: /モックを生成/ }).click();
+    await expect(page.getByAltText("デザインモックアップ")).toBeVisible({ timeout: 30_000 });
+    await expect(page.getByRole("button", { name: /再生成/ })).toBeVisible();
+    expect(existsSync(path.join(brewsDir, brewId, "design", "mock.png"))).toBe(true);
+
     // 6. ビルド(タップ・フェイクエンジン)
     await page.getByRole("button", { name: "タップ", exact: true }).click();
     await page.getByRole("button", { name: "ビルド開始(1stバッチ)" }).click();
@@ -75,6 +82,12 @@ test("原料投入からタップ提供までのハッピーパス", async ({ pa
     ).toBeVisible();
     expect(existsSync(path.join(brewsDir, brewId, "taps", "batch-1", "tap.json"))).toBe(true);
     expect(existsSync(path.join(brewsDir, brewId, "taps", "batch-1", "build.log"))).toBe(true);
+    // デザインモックがバッチに同梱される
+    expect(
+      existsSync(
+        path.join(brewsDir, brewId, "taps", "batch-1", "docs", "recipe", "design-mock.png"),
+      ),
+    ).toBe(true);
 
     // 7. 注ぐ(devサーバー起動)
     tapServerStartRequested = true;
@@ -156,6 +169,7 @@ test("原料投入からタップ提供までのハッピーパス", async ({ pa
       await page.request.post(`/api/brews/${brewId}/tap/cancel`).catch(() => undefined);
       await page.request.post(`/api/brews/${brewId}/mature/cancel`).catch(() => undefined);
       await page.request.post(`/api/brews/${brewId}/pub/cancel`).catch(() => undefined);
+      await page.request.post(`/api/brews/${brewId}/design/cancel`).catch(() => undefined);
     }
     if (brewId && tapServerStartRequested) {
       await page.request

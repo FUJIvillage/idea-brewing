@@ -5,6 +5,7 @@ export type WorkbenchTab =
   | "sheet"
   | "boil"
   | "recipe"
+  | "design"
   | "tap"
   | "mature"
   | "pub";
@@ -15,6 +16,7 @@ export function defaultTabForBrew(brew: Brew): WorkbenchTab {
   if (brew.maturationProgress !== null) return "mature";
   if (brew.buildProgress !== null) return "tap";
   if (brew.recipeProgress !== null) return "recipe";
+  if (brew.designMock?.status === "generating") return "design";
 
   switch (brew.stage) {
     case "built":
@@ -59,6 +61,7 @@ export function parseTabParam(raw: string | null | undefined): WorkbenchTab | nu
     "sheet",
     "boil",
     "recipe",
+    "design",
     "tap",
     "mature",
     "pub",

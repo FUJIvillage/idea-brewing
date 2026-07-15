@@ -1,6 +1,6 @@
 import { promises as fs } from "node:fs";
 import path from "node:path";
-import { recipeDir, tapDir } from "@/lib/store";
+import { designDir, recipeDir, tapDir } from "@/lib/store";
 import { RECIPE_FILES } from "@/lib/recipe";
 
 export type TemplateId = "tap-vite" | "tap-fake";
@@ -44,6 +44,16 @@ export async function prepareBatchDir(
       if ((err as NodeJS.ErrnoException).code !== "ENOENT") throw err;
       // 存在しないレシピファイルはスキップ(呼び出し側でレシピ生成済みを検証している)
     }
+  }
+  // デザイン工程のモックがあれば同梱する(改善指示から参照できるようにする)
+  try {
+    await fs.copyFile(
+      path.join(designDir(brewId), "mock.png"),
+      path.join(docsDir, "design-mock.png"),
+    );
+  } catch (err) {
+    if ((err as NodeJS.ErrnoException).code !== "ENOENT") throw err;
+    // モック未生成なら同梱しない(デザイン工程は任意)
   }
   return dest;
 }

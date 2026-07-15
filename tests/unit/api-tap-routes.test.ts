@@ -96,6 +96,8 @@ describe("tap build route", () => {
       cursorModel: "composer-2.5",
       cursorEffort: "",
       cursorFast: "",
+      pencilCliKey: "",
+      pencilModel: "",
       effort: "",
       boilMaxQuestions: 20,
     });

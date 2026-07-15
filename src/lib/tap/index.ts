@@ -41,16 +41,21 @@ export interface BuildDeps {
   onProgress?: (brew: Brew) => Promise<void> | void;
 }
 
-const INTRO_PROMPT = [
+// デザイン仕様の装飾要素が「任意」を口実に省略され、最小実装で止まるのを防ぐ(全ビルド系プロンプトに同梱)
+export const DESIGN_FIDELITY_SENTENCE =
+  "docs/recipe/03-design-system.md はデザイン仕様です。「任意」「表示する場合」と書かれた装飾要素(円形進捗・バッジ・アイコン・アクセントバー等)も原則実装し、最小実装で済ませないでください。";
+
+export const INTRO_PROMPT = [
   "あなたはこの作業ディレクトリに Web サービスを実装するエンジニアです。",
   "docs/recipe/ ディレクトリにあるレシピ(00〜06 の Markdown)をすべて読んでください。",
   "このディレクトリは Vite + React + TypeScript + Tailwind CSS のひな形です。この構成は変更せず、この上にレシピのサービスを実装します。",
+  DESIGN_FIDELITY_SENTENCE,
   "依存パッケージの追加は package.json の編集のみで行い、npm install は実行しないでください(検証工程で実行します)。",
   "dev サーバーの起動やビルドコマンドの実行もしないでください。",
   "まだコードは書かず、レシピを読んで実装方針を5行以内で要約してください。",
 ].join("\n");
 
-function resumeIntroPrompt(completedTasks: number, totalTasks: number | null): string {
+export function resumeIntroPrompt(completedTasks: number, totalTasks: number | null): string {
   const doneLabel =
     totalTasks === null
       ? "これまでの実装作業"
@@ -60,6 +65,7 @@ function resumeIntroPrompt(completedTasks: number, totalTasks: number | null): s
     "docs/recipe/ のレシピ(00〜06)を必要に応じて読み、既存コードを確認してください。",
     `${doneLabel}は完了済みです。完了済みの成果を削除・破壊せず、続きだけを実装してください。`,
     "このディレクトリは Vite + React + TypeScript + Tailwind CSS です。構成は変更しないでください。",
+    DESIGN_FIDELITY_SENTENCE,
     "依存パッケージの追加は package.json の編集のみで行い、npm install は実行しないでください。",
     "dev サーバーの起動やビルドコマンドの実行もしないでください。",
     "まだ追加実装はせず、再開方針を5行以内で要約してください。",
@@ -88,10 +94,11 @@ function repairPrompt(round: number, output: string): string {
 const IMPROVE_NOTES_SENTENCE =
   "docs/recipe/07-improvement-notes.md に前バッチの自己評価から得た改善指示があります。実装ではこの指示を必ず反映してください。";
 
-const REPAIR_INTRO_PROMPT = [
+export const REPAIR_INTRO_PROMPT = [
   "あなたはこの作業ディレクトリの Web サービスを改善するエンジニアです。",
   "docs/recipe/ のレシピ(00〜06 の Markdown)と docs/recipe/07-improvement-notes.md の改善指示をすべて読んでください。",
   "このディレクトリには前バッチで実装済みのコードがあります。構成(Vite + React + TypeScript + Tailwind CSS)は変更せず、改善指示に従って既存コードを修正します。",
+  DESIGN_FIDELITY_SENTENCE,
   "依存パッケージの追加は package.json の編集のみで行い、npm install は実行しないでください(検証工程で実行します)。",
   "dev サーバーの起動やビルドコマンドの実行もしないでください。",
   "まだコードは書かず、改善方針を5行以内で要約してください。",

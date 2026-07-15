@@ -2,7 +2,7 @@ import { promises as fs } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { createBrew, recipeDir, tapDir, writeBrew } from "@/lib/store";
+import { createBrew, designDir, recipeDir, tapDir, writeBrew } from "@/lib/store";
 import type { Brew } from "@/lib/store/types";
 import { buildCodeDigest, collectMaterials, boilDump } from "@/lib/mature/materials";
 
@@ -127,5 +127,53 @@ describe("collectMaterials", () => {
     expect(materials.codeDigest).toContain("v2");
     expect(materials.process).toContain("煮沸での質疑応答");
     expect(materials.previousEvaluation?.summary).toBe("前回総評");
+    expect(materials.mockImage).toBeNull(); // デザイン工程未実行なら null
+  });
+
+  it("デザインモック成功済みなら mockImage を読み込む", async () => {
+    const brew = await createBrew("モック付き");
+    await batchWithFiles(brew);
+    await fs.mkdir(recipeDir(brew.id), { recursive: true });
+    await fs.writeFile(
+      path.join(recipeDir(brew.id), "06-evaluation-criteria.md"),
+      "# 自己評価基準",
+      "utf8",
+    );
+    await fs.mkdir(designDir(brew.id), { recursive: true });
+    await fs.writeFile(path.join(designDir(brew.id), "mock.png"), Buffer.from("mock-bytes"));
+    const withMock: Brew = await writeBrew({
+      ...brew,
+      designMock: {
+        status: "succeeded",
+        generatedAt: "2026-07-15T00:00:00.000Z",
+        error: null,
+        model: "fake",
+        costUsd: 0,
+        durationMs: 1,
+      },
+    });
+
+    const materials = await collectMaterials(withMock, 1);
+
+    expect(materials.mockImage).not.toBeNull();
+    expect(materials.mockImage?.mimeType).toBe("image/png");
+    expect(Buffer.from(materials.mockImage!.data).toString()).toBe("mock-bytes");
+  });
+
+  it("designMock が succeeded 以外なら mock.png があっても読み込まない", async () => {
+    const brew = await createBrew("モック失敗");
+    await batchWithFiles(brew);
+    await fs.mkdir(recipeDir(brew.id), { recursive: true });
+    await fs.writeFile(
+      path.join(recipeDir(brew.id), "06-evaluation-criteria.md"),
+      "# 自己評価基準",
+      "utf8",
+    );
+    await fs.mkdir(designDir(brew.id), { recursive: true });
+    await fs.writeFile(path.join(designDir(brew.id), "mock.png"), Buffer.from("stale"));
+
+    const materials = await collectMaterials(brew, 1);
+
+    expect(materials.mockImage).toBeNull();
   });
 });

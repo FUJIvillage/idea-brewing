@@ -309,6 +309,46 @@ export default function SettingsPage() {
         </div>
 
         <div className="border-t-2 border-[#3a2a12] pt-4">
+          <h2 className="m-0 text-[17px] font-normal tracking-[2px] text-[#f5b94a]">
+            ◆ デザインエンジン(Pencil)
+          </h2>
+          <p className="mt-1 text-[13px]" style={{ color: "rgba(255,220,160,.55)" }}>
+            デザイン工程(モックアップ生成)で使う Pencil CLI の設定です。使わない場合は未設定で構いません。
+          </p>
+          <div className="mt-3">
+            <label htmlFor="pencilCliKey" className="ps-label">
+              ▸ Pencil CLIキー
+            </label>
+            <input
+              id="pencilCliKey"
+              type="password"
+              autoComplete="off"
+              value={s.pencilCliKey}
+              onChange={(e) => setSettings({ ...s, pencilCliKey: e.target.value })}
+              placeholder="pencil_cli_..."
+              className="ps-input"
+            />
+            <p className="mt-1 text-[12px]" style={{ color: "rgba(255,220,160,.4)" }}>
+              空の場合は環境変数 PENCIL_CLI_KEY を使います。pencil.dev の組織設定(Developer
+              Keys)で発行できます。
+            </p>
+          </div>
+          <div className="mt-3">
+            <label htmlFor="pencilModel" className="ps-label">
+              ▸ デザインモデル名
+            </label>
+            <input
+              id="pencilModel"
+              type="text"
+              value={s.pencilModel}
+              onChange={(e) => setSettings({ ...s, pencilModel: e.target.value })}
+              placeholder="未指定(CLI既定)"
+              className="ps-input"
+            />
+          </div>
+        </div>
+
+        <div className="border-t-2 border-[#3a2a12] pt-4">
           <h2 className="m-0 mb-3 text-[17px] font-normal tracking-[2px] text-[#f5b94a]">
             ◆ 画面演出
           </h2>

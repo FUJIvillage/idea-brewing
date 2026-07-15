@@ -169,6 +169,20 @@ export interface PubProgress {
   batch: number;
 }
 
+export type DesignMockStatus = "generating" | "succeeded" | "failed" | "cancelled";
+
+/** デザイン工程(Pencil モック生成)の状態。ファイル実体は data/brews/<ID>/design/ */
+export interface DesignMockRecord {
+  status: DesignMockStatus;
+  /** 成功時の生成完了日時(ISO)。それ以外は null */
+  generatedAt: string | null;
+  error: string | null;
+  /** 実際に使われたモデル(usage.json 由来。不明なら空) */
+  model: string;
+  costUsd: number | null;
+  durationMs: number | null;
+}
+
 export type BrewStage = "ingredients" | "boiling" | "fermenting" | "done" | "built";
 
 export interface Brew {
@@ -187,6 +201,7 @@ export interface Brew {
   buildProgress: BuildProgress | null;
   maturationProgress: MaturationProgress | null;
   pubProgress: PubProgress | null;
+  designMock: DesignMockRecord | null;
 }
 
 export type ProviderId = "openai" | "google" | "ollama" | "openrouter" | "fake";
@@ -206,6 +221,10 @@ export interface Settings {
   cursorEffort: string;
   /** タップ工程の Cursor モデル fast ("true" | "false")。空なら未指定 */
   cursorFast: string;
+  /** Pencil CLI(デザイン工程)のAPIキー。空なら環境変数 PENCIL_CLI_KEY にフォールバック */
+  pencilCliKey: string;
+  /** デザイン工程で使うモデルID(pencil --model)。空なら CLI 既定 */
+  pencilModel: string;
   /** 煮沸の質問上限(1〜100)。既定 20 */
   boilMaxQuestions: number;
 }

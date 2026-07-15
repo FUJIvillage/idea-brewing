@@ -12,6 +12,7 @@ import { IngredientsPanel } from "./ingredients-panel";
 import { SheetPanel } from "./sheet-panel";
 import { BoilPanel } from "./boil-panel";
 import { RecipePanel } from "./recipe-panel";
+import { DesignPanel } from "./design-panel";
 import { TapPanel } from "./tap-panel";
 import { MaturePanel } from "./mature-panel";
 import { PubPanel } from "./pub-panel";
@@ -22,6 +23,7 @@ const TABS = [
   { id: "sheet", label: "ブリューシート" },
   { id: "boil", label: "煮沸" },
   { id: "recipe", label: "レシピ" },
+  { id: "design", label: "デザイン" },
   { id: "tap", label: "タップ" },
   { id: "mature", label: "熟成" },
   { id: "pub", label: "Pub" },
@@ -61,11 +63,13 @@ export function BrewWorkbench({
     if (res.ok) setBrew(await res.json());
   }, [initial.id]);
 
+  const designGenerating = brew.designMock?.status === "generating";
   const enabled: Record<WorkbenchTab, boolean> = {
     ingredients: true,
     sheet: brew.sheet !== null,
     boil: brew.sheet !== null,
     recipe: brew.boil.finished,
+    design: brew.recipeGeneratedAt !== null,
     tap: brew.recipeGeneratedAt !== null,
     mature: brew.batches.some((b) => b.status === "succeeded"),
     pub: brew.batches.some((b) => b.status === "succeeded"),
@@ -75,7 +79,8 @@ export function BrewWorkbench({
     brew.recipeProgress !== null ||
     brew.buildProgress !== null ||
     brew.maturationProgress !== null ||
-    brew.pubProgress !== null;
+    brew.pubProgress !== null ||
+    designGenerating;
   const visibleTab: WorkbenchTab =
     brew.pubProgress !== null
       ? "pub"
@@ -85,7 +90,9 @@ export function BrewWorkbench({
           ? "tap"
           : brew.recipeProgress !== null
             ? "recipe"
-            : tab;
+            : designGenerating
+              ? "design"
+              : tab;
 
   // キーボードショートカット(下のkeydownリスナー)から最新値を読むためのref。
   // レンダー中のref書き込みは不可なので、毎レンダー後のeffectで同期する
@@ -194,6 +201,14 @@ export function BrewWorkbench({
         )}
         {visibleTab === "recipe" && (
           <RecipePanel
+            brew={brew}
+            onUpdate={setBrew}
+            refresh={refresh}
+            onBusyChange={setBusy}
+          />
+        )}
+        {visibleTab === "design" && (
+          <DesignPanel
             brew={brew}
             onUpdate={setBrew}
             refresh={refresh}

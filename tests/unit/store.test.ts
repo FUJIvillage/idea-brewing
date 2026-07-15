@@ -30,6 +30,8 @@ test("設定の既定値に Cursor 用フィールドが入る", async () => {
   expect(s.cursorEffort).toBe("");
   expect(s.cursorFast).toBe("");
   expect(s.effort).toBe("");
+  expect(s.pencilCliKey).toBe("");
+  expect(s.pencilModel).toBe("");
   expect(s.boilMaxQuestions).toBe(20);
 });
 
@@ -44,6 +46,8 @@ test("設定の保存と読み出し", async () => {
     cursorModel: "composer-2.5",
     cursorEffort: "max",
     cursorFast: "true",
+    pencilCliKey: "",
+    pencilModel: "",
     boilMaxQuestions: 35,
   });
   const s = await readSettings();
@@ -96,6 +100,16 @@ test("旧スキーマの brew.json に batches と buildProgress が補完され
   expect(loaded.buildProgress).toBeNull();
 });
 
+test("旧スキーマの brew.json に designMock が null 補完される", async () => {
+  const brew = await createBrew("旧データ2");
+  const file = path.join(brewDir(brew.id), "brew.json");
+  const raw = JSON.parse(await fs.readFile(file, "utf8")) as Record<string, unknown>;
+  delete raw.designMock;
+  await fs.writeFile(file, JSON.stringify(raw), "utf8");
+  const loaded = await readBrew(brew.id);
+  expect(loaded.designMock).toBeNull();
+});
+
 test("旧形式 settings.json でも Cursor フィールドが補完される", async () => {
   const old = {
     provider: "ollama",
@@ -112,5 +126,7 @@ test("旧形式 settings.json でも Cursor フィールドが補完される", 
   expect(s.cursorEffort).toBe("");
   expect(s.cursorFast).toBe("");
   expect(s.effort).toBe("");
+  expect(s.pencilCliKey).toBe("");
+  expect(s.pencilModel).toBe("");
   expect(s.boilMaxQuestions).toBe(20);
 });

@@ -30,6 +30,14 @@ const EVALUATE_SYSTEM = [
   "軽微な修正で改善できるなら strategy は repair、構造的な作り直しが必要なら rebuild を選びます。",
 ].join("\n");
 
+export const DESIGN_FIDELITY_AXIS = "デザイン忠実度";
+
+const MOCK_SYSTEM_SENTENCE = [
+  `デザインモックが与えられた場合、観点「${DESIGN_FIDELITY_AXIS}」を必ず axes に含めます。`,
+  "実画面がモックのレイアウト・配色・タイポグラフィ・装飾要素(進捗リング・バッジ・アイコン等)をどこまで再現しているかを採点し、",
+  "欠けている装飾要素・色ズレ・配置ズレなどの差分は improvements に具体的に列挙します。",
+].join("");
+
 function buildEvaluatePrompt(materials: EvaluationMaterials): string {
   const sections = [
     "## 採点ルーブリック",
@@ -39,6 +47,12 @@ function buildEvaluatePrompt(materials: EvaluationMaterials): string {
     "## 生成過程",
     materials.process,
   ];
+  if (materials.mockImage) {
+    sections.push(
+      "## 画像について",
+      "1枚目はデザインモック(目標)、2枚目以降は実画面のスクリーンショットです。",
+    );
+  }
   if (materials.previousEvaluation) {
     sections.push(
       "## 前回の評価(改善指示が反映されたかも確認すること)",
@@ -53,17 +67,21 @@ export async function evaluateBatch(
   materials: EvaluationMaterials,
   screenshots: LlmImage[],
 ): Promise<BatchEvaluation> {
+  // 画像の並びはプロンプトの「## 画像について」と一致させる(1枚目=モック、以降=実画面)
+  const images = materials.mockImage ? [materials.mockImage, ...screenshots] : screenshots;
   const opts: GenerateOptions = {
     tag: "evaluate",
-    system: EVALUATE_SYSTEM,
+    system: materials.mockImage
+      ? `${EVALUATE_SYSTEM}\n${MOCK_SYSTEM_SENTENCE}`
+      : EVALUATE_SYSTEM,
     prompt: buildEvaluatePrompt(materials),
   };
 
   let raw: z.infer<typeof evaluationSchema> | null = null;
-  let screenshotsUsed = screenshots.length > 0;
+  let screenshotsUsed = images.length > 0;
   if (screenshotsUsed) {
     try {
-      raw = await client.generateObject(evaluationSchema, { ...opts, images: screenshots });
+      raw = await client.generateObject(evaluationSchema, { ...opts, images });
     } catch {
       screenshotsUsed = false; // vision 非対応モデルの可能性。画像なしで1回だけ再試行する
     }

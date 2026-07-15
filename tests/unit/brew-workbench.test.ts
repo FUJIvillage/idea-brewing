@@ -30,6 +30,7 @@ function recipeReadyBrew(): Brew {
     buildProgress: null,
     maturationProgress: null,
     pubProgress: null,
+    designMock: null,
   };
 }
 
@@ -43,7 +44,52 @@ describe("BrewWorkbench", () => {
     expect(html).toContain("ブリューシート");
     expect(html).toContain("煮沸");
     expect(html).toContain("レシピ");
+    expect(html).toContain("デザイン");
     expect(html).toContain("タップ");
+  });
+
+  it("デザインモック生成中はデザインパネルを表示しタブを無効化する", () => {
+    const html = renderToStaticMarkup(
+      React.createElement(BrewWorkbench, {
+        initial: {
+          ...recipeReadyBrew(),
+          designMock: {
+            status: "generating",
+            generatedAt: null,
+            error: null,
+            model: "",
+            costUsd: null,
+            durationMs: null,
+          },
+        },
+      }),
+    );
+
+    expect(html).toContain("モックアップを生成中");
+    expect((html.match(/disabled=\"\"/g) ?? []).length).toBeGreaterThanOrEqual(5);
+  });
+
+  it("デザインモック成功時はモック画像と再生成ボタンを表示する", () => {
+    const html = renderToStaticMarkup(
+      React.createElement(BrewWorkbench, {
+        initial: {
+          ...recipeReadyBrew(),
+          designMock: {
+            status: "succeeded",
+            generatedAt: "2026-07-15T00:00:00.000Z",
+            error: null,
+            model: "claude-opus-4-6",
+            costUsd: 2.18,
+            durationMs: 304180,
+          },
+        },
+        initialTab: "design",
+      }),
+    );
+
+    expect(html).toContain("/design/mock?t=");
+    expect(html).toContain("再生成");
+    expect(html).toContain("claude-opus-4-6");
   });
 
   it("リモートビルド進捗がある間はタブを無効化する", () => {
