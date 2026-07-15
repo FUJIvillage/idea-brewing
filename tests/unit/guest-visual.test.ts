@@ -32,7 +32,13 @@ describe("guestTraits", () => {
     for (let seed = 0; seed < 200; seed++) {
       const t = guestTraits(seed);
       expect(t.hair).toBeGreaterThanOrEqual(0);
-      expect(t.hair).toBeLessThanOrEqual(3);
+      expect(t.hair).toBeLessThanOrEqual(7);
+      expect(t.facial).toBeGreaterThanOrEqual(0);
+      expect(t.facial).toBeLessThanOrEqual(3);
+      expect(t.eyeStyle).toBeGreaterThanOrEqual(0);
+      expect(t.eyeStyle).toBeLessThanOrEqual(1);
+      expect(t.accessory).toBeGreaterThanOrEqual(0);
+      expect(t.accessory).toBeLessThanOrEqual(2);
       expect(t.drink).toBeGreaterThanOrEqual(0);
       expect(t.drink).toBeLessThanOrEqual(2);
       expect(typeof t.glasses).toBe("boolean");
@@ -86,11 +92,15 @@ describe("buildGuestGrid(ドット絵)", () => {
     expect(happy).toBeGreaterThan(meh);
   });
 
-  it("瞬きフレームは目のドットが減る", () => {
-    const open = countKey(buildGuestGrid(42, "meh", 0), "E");
-    const blink = countKey(buildGuestGrid(42, "meh", 2), "E");
+  it("瞬きフレームは目のドットが減る(丸目)/ 細目でも行が変わる", () => {
+    const round = [...Array(100).keys()].find((s) => guestTraits(s).eyeStyle === 0)!;
+    const open = countKey(buildGuestGrid(round, "meh", 0), "E");
+    const blink = countKey(buildGuestGrid(round, "meh", 2), "E");
     expect(blink).toBeLessThan(open);
     expect(blink).toBeGreaterThan(0);
+
+    const narrow = [...Array(100).keys()].find((s) => guestTraits(s).eyeStyle === 1)!;
+    expect(buildGuestGrid(narrow, "meh", 2)).not.toEqual(buildGuestGrid(narrow, "meh", 0));
   });
 
   it("呼吸フレームはグリッドが変わる(1px上がる)", () => {
@@ -98,9 +108,30 @@ describe("buildGuestGrid(ドット絵)", () => {
   });
 
   it("髪型のシード差分でグリッドが変わる", () => {
-    // seed % 4 が髪型。0..3 で互いに異なる見た目になる
-    const grids = [0, 1, 2, 3].map((h) => buildGuestGrid(h, "meh").join("\n"));
-    expect(new Set(grids).size).toBe(4);
+    // seed % 8 が髪型。0..7 で互いに異なる見た目になる
+    const grids = [0, 1, 2, 3, 4, 5, 6, 7].map((h) => buildGuestGrid(h, "meh").join("\n"));
+    expect(new Set(grids).size).toBe(8);
+  });
+
+  it("目の形: 細目シードは丸目より目のドットが少ない", () => {
+    const round = [...Array(100).keys()].find((s) => guestTraits(s).eyeStyle === 0)!;
+    const narrow = [...Array(100).keys()].find((s) => guestTraits(s).eyeStyle === 1)!;
+    expect(countKey(buildGuestGrid(narrow, "meh", 0), "E")).toBeLessThan(
+      countKey(buildGuestGrid(round, "meh", 0), "E"),
+    );
+  });
+
+  it("ネクタイのシードは差し色ドットが増える", () => {
+    const tie = [...Array(100).keys()].find((s) => guestTraits(s).accessory === 2)!;
+    const none = [...Array(100).keys()].find((s) => guestTraits(s).accessory === 0)!;
+    expect(countKey(buildGuestGrid(tie, "meh"), "A")).toBeGreaterThan(
+      countKey(buildGuestGrid(none, "meh"), "A"),
+    );
+  });
+
+  it("組み合わせの多様性: 64シードで十分な種類が生まれる", () => {
+    const grids = new Set([...Array(64).keys()].map((s) => buildGuestGrid(s, "meh").join("\n")));
+    expect(grids.size).toBeGreaterThanOrEqual(48);
   });
 
   it("眼鏡のシードでは G キーが使われる", () => {

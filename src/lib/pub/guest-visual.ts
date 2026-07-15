@@ -11,8 +11,11 @@
 export type Mood = "happy" | "meh" | "gone";
 export type RGB = [number, number, number];
 export interface GuestTraits {
-  hair: number; // 0 short / 1 bun / 2 ponytail / 3 cap
+  hair: number; // 0 short / 1 bun / 2 ponytail / 3 cap / 4 long / 5 hood / 6 spiky / 7 buzz
   glasses: boolean;
+  facial: number; // 0-1 なし / 2 口ひげ / 3 あごひげ
+  eyeStyle: number; // 0 丸目 / 1 細目
+  accessory: number; // 0 なし / 1 イヤリング / 2 ネクタイ
   drink: number; // 0 beer / 1 coffee / 2 wine
   sw: number; // 肩幅
   hr: number; // 頭の半径
@@ -33,8 +36,11 @@ export function guestSeed(name: string): number {
 
 export function guestTraits(seed: number): GuestTraits {
   return {
-    hair: seed % 4,
+    hair: seed % 8,
     glasses: (seed >> 1) % 2 === 0,
+    facial: (seed >> 3) % 4,
+    eyeStyle: (seed >> 5) % 2,
+    accessory: (seed >> 4) % 3,
     drink: seed % 3,
     sw: 0.58 + (seed % 3) * 0.055,
     hr: 0.4 + ((seed >> 2) % 2) * 0.045,
@@ -150,21 +156,24 @@ export function buildGuestGrid(seed: number, mood: Mood, frame = 0): string[] {
   hline(cx - 1, cx + 1, shoulderY - 3, "S");
   hline(cx - 1, cx + 1, shoulderY - 2, "S");
 
-  // 頭(ピクセル円+輪郭)。髪は上部を覆う
+  // 頭(ピクセル円+輪郭)。髪の生え際は髪型で変わる
   const headCy = shoulderY - 4 - hr;
+  // 生え際のしきい値: 通常は上部40%、刈り上げはてっぺんだけ、フードは髪を描かない
+  const hairline = tr.hair === 7 ? -hr * 0.55 : tr.hair === 5 ? -hr - 9 : -hr * 0.2;
   for (let dy = -hr; dy <= hr; dy++) {
     const w = Math.round(Math.sqrt(hr * hr - dy * dy) * 1.05);
     const y = headCy + dy;
-    const isHairRow = dy < -hr * 0.2;
-    hline(cx - w, cx + w, y, isHairRow ? "H" : "S");
+    hline(cx - w, cx + w, y, dy < hairline ? "H" : "S");
     put(cx - w - 1, y, "K");
     put(cx + w + 1, y, "K");
   }
   hline(cx - Math.round(hr * 0.6), cx + Math.round(hr * 0.6), headCy - hr - 1, "K");
   hline(cx - Math.round(hr * 0.6), cx + Math.round(hr * 0.6), headCy + hr + 1, "K");
-  // もみあげ(髪の側面)
-  put(cx - hr, headCy, "H");
-  put(cx + hr, headCy, "H");
+  // もみあげ(髪の側面)。刈り上げとフードでは描かない
+  if (tr.hair !== 5 && tr.hair !== 7) {
+    put(cx - hr, headCy, "H");
+    put(cx + hr, headCy, "H");
+  }
 
   // 髪型の差分
   if (tr.hair === 1) {
@@ -186,6 +195,42 @@ export function buildGuestGrid(seed: number, mood: Mood, frame = 0): string[] {
     for (let y = headCy - hr - 2; y < headCy - Math.round(hr * 0.4); y++) {
       hline(cx - Math.round(hr * 0.8), cx + Math.round(hr * 0.8), y, "H");
     }
+  } else if (tr.hair === 4) {
+    // ロング(両サイドに肩まで垂れる)
+    for (let y = headCy - 1; y <= shoulderY; y++) {
+      put(cx - hr - 1, y, "H");
+      put(cx - hr, y, "H");
+      put(cx + hr, y, "H");
+      put(cx + hr + 1, y, "H");
+    }
+    hline(cx - hr - 1, cx + hr + 1, headCy - hr, "H");
+  } else if (tr.hair === 5) {
+    // フード(服と同じ色。頭頂と側面を覆い、顔だけのぞく)
+    for (let dy = -hr - 2; dy <= Math.round(hr * 0.7); dy++) {
+      const y = headCy + dy;
+      const w = Math.round(Math.sqrt(Math.max(0, (hr + 2) * (hr + 2) - dy * dy)));
+      if (dy < -hr * 0.35) {
+        hline(cx - w, cx + w, y, "C");
+      } else {
+        put(cx - w, y, "C");
+        put(cx - w + 1, y, "C");
+        put(cx + w - 1, y, "C");
+        put(cx + w, y, "C");
+      }
+      put(cx - w - 1, y, "K");
+      put(cx + w + 1, y, "K");
+    }
+  } else if (tr.hair === 6) {
+    // ツンツン(頭頂にギザギザ)
+    for (const [dx, h] of [
+      [-4, 1],
+      [-2, 2],
+      [0, 3],
+      [2, 2],
+      [4, 1],
+    ] as const) {
+      for (let i = 0; i < h; i++) put(cx + dx, headCy - hr - 1 - i, "H");
+    }
   }
 
   // 目・眉・口
@@ -195,7 +240,12 @@ export function buildGuestGrid(seed: number, mood: Mood, frame = 0): string[] {
     // 瞬き(閉じ目)
     hline(cx - ex - 1, cx - ex, ey + 1, "E");
     hline(cx + ex, cx + ex + 1, ey + 1, "E");
+  } else if (tr.eyeStyle === 1) {
+    // 細目(横1列)
+    hline(cx - ex - 1, cx - ex, ey, "E");
+    hline(cx + ex, cx + ex + 1, ey, "E");
   } else {
+    // 丸目(2x2)
     for (const sx of [cx - ex - 1, cx + ex]) {
       put(sx, ey, "E");
       put(sx + 1, ey, "E");
@@ -206,6 +256,15 @@ export function buildGuestGrid(seed: number, mood: Mood, frame = 0): string[] {
   hline(cx - ex - 1, cx - ex + 1, ey - 2, "H");
   hline(cx + ex - 1, cx + ex + 1, ey - 2, "H");
   const my = headCy + hr - 1;
+  // ひげ(口より先に描き、口が上書きする)
+  if (tr.facial === 2) {
+    // 口ひげ
+    hline(cx - 2, cx + 2, my - 1, "H");
+  } else if (tr.facial === 3) {
+    // あごひげ(あごを覆って1px下まで)
+    hline(cx - 3, cx + 3, my + 1, "H");
+    hline(cx - 2, cx + 2, my + 2, "H");
+  }
   if (mood === "happy") {
     // 笑顔(U字)+頬
     put(cx - 2, my - 1, "M");
@@ -215,6 +274,18 @@ export function buildGuestGrid(seed: number, mood: Mood, frame = 0): string[] {
     put(cx + ex + 2, my - 2, "M");
   } else {
     hline(cx - 1, cx + 1, my, "M");
+  }
+  // アクセサリー
+  if (tr.accessory === 1) {
+    // イヤリング(両耳の下に差し色)
+    put(cx - hr - 1, headCy + 2, "A");
+    put(cx + hr + 1, headCy + 2, "A");
+  } else if (tr.accessory === 2) {
+    // ネクタイ(襟から胸へ)
+    hline(cx - 1, cx + 1, shoulderY + 2, "A");
+    for (let y = shoulderY + 3; y <= shoulderY + 6; y++) put(cx, y, "A");
+    put(cx - 1, shoulderY + 4, "A");
+    put(cx + 1, shoulderY + 4, "A");
   }
   if (tr.glasses) {
     // 細い縁(上下ライン+外側の縦だけ)にして、目を覆い隠さない
