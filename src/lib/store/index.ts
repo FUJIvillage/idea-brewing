@@ -27,6 +27,10 @@ export function tapDir(id: string, batch: number): string {
   return path.join(brewDir(id), "taps", `batch-${batch}`);
 }
 
+export function designDir(id: string): string {
+  return path.join(brewDir(id), "design");
+}
+
 const DEFAULT_SETTINGS: Settings = {
   provider: "openai",
   apiKey: "",
@@ -84,6 +88,7 @@ export async function createBrew(name: string): Promise<Brew> {
     buildProgress: null,
     maturationProgress: null,
     pubProgress: null,
+    designMock: null,
   };
   await fs.mkdir(path.join(brewDir(brew.id), "ingredients"), { recursive: true });
   return writeBrew(brew);
@@ -110,6 +115,7 @@ export async function readBrew(id: string): Promise<Brew> {
     buildProgress: parsed.buildProgress ?? null,
     maturationProgress: parsed.maturationProgress ?? null,
     pubProgress: parsed.pubProgress ?? null,
+    designMock: parsed.designMock ?? null,
   };
 }
 

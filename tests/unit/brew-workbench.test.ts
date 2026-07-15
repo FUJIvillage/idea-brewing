@@ -30,6 +30,7 @@ function recipeReadyBrew(): Brew {
     buildProgress: null,
     maturationProgress: null,
     pubProgress: null,
+    designMock: null,
   };
 }
 
