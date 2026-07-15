@@ -6,7 +6,11 @@ import type { CancelToken } from "@/lib/tap/build-state";
 import { isFakeMode } from "@/lib/tap/resolve";
 import { runPencil } from "./pencil-cli";
 import { buildMockPrompt } from "./prompt";
-import { resolvePencilKey } from "./resolve";
+import {
+  resolvePencilAgentApiKey,
+  resolvePencilKey,
+  resolvePencilModel,
+} from "./resolve";
 
 export const DESIGN_TIMEOUT_MS = 15 * 60 * 1000;
 export const MOCK_PEN = "mock.pen";
@@ -48,7 +52,7 @@ export interface PencilArgsOptions {
   prompt: string;
   /** 差分修正モード(既存 mock.pen があるときのみ true にする) */
   refine: boolean;
-  /** settings.pencilModel。空なら CLI 既定 */
+  /** resolvePencilModel 済みのモデルID。空なら --model を付けず CLI 既定 */
   model: string;
 }
 
@@ -159,22 +163,28 @@ export async function generateDesignMock(
   if (isFakeMode(settings)) return generateFakeMock(dir, startedAt);
 
   const key = resolvePencilKey(settings);
+  const model = resolvePencilModel(settings);
+  const agentApiKey = resolvePencilAgentApiKey(settings, model);
   const refine = await exists(path.join(dir, MOCK_PEN));
   const args = buildPencilArgs({
     dir,
     recipe: recipeDir(brew.id),
     prompt: buildMockPrompt({ refine, instruction: opts.instruction }),
     refine,
-    model: settings.pencilModel,
+    model,
   });
 
   const logPath = path.join(dir, DESIGN_LOG);
   const fail = async (message: string): Promise<DesignMockRecord> => {
     const tail = await readLogTail(logPath);
+    const authHint =
+      /authentication_failed|Not logged in|Please run \/login/i.test(tail)
+        ? "\nヒント: Pencil CLIキーとは別に、デザインモデル側のエージェント認証が必要です。Claude 既定なら ANTHROPIC_API_KEY(または Claude Code ログイン)、OpenAI なら設定の APIキー + gpt 系モデル、Google なら Gemini 系モデルを使ってください。"
+        : "";
     return {
       status: "failed",
       generatedAt: null,
-      error: tail ? `${message}\n--- design.log 末尾 ---\n${tail}` : message,
+      error: (tail ? `${message}\n--- design.log 末尾 ---\n${tail}` : message) + authHint,
       model: "",
       costUsd: null,
       durationMs: Date.now() - startedAt,
@@ -183,7 +193,14 @@ export async function generateDesignMock(
 
   let result;
   try {
-    result = await runPencil({ args, key, logPath, timeoutMs: DESIGN_TIMEOUT_MS, token: opts.token });
+    result = await runPencil({
+      args,
+      key,
+      agentApiKey,
+      logPath,
+      timeoutMs: DESIGN_TIMEOUT_MS,
+      token: opts.token,
+    });
   } catch (err) {
     return fail(`Pencil CLI の起動に失敗しました: ${err instanceof Error ? err.message : String(err)}`);
   }

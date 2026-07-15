@@ -51,6 +51,8 @@ export interface RunPencilOptions {
   args: string[];
   /** PENCIL_CLI_KEY として子プロセスにのみ渡す(ログには書かない) */
   key: string;
+  /** PENCIL_AGENT_API_KEY(下位エージェント用)。空なら渡さない */
+  agentApiKey?: string;
   logPath: string;
   timeoutMs: number;
   token?: CancelToken;
@@ -60,8 +62,11 @@ export interface RunPencilOptions {
 export async function runPencil(opts: RunPencilOptions): Promise<PencilRunResult> {
   const entry = resolvePencilEntry();
   const log = createWriteStream(opts.logPath, { flags: "w" });
+  const env: NodeJS.ProcessEnv = { ...process.env, PENCIL_CLI_KEY: opts.key };
+  const agentKey = opts.agentApiKey?.trim();
+  if (agentKey) env.PENCIL_AGENT_API_KEY = agentKey;
   const child = spawn(process.execPath, [entry, ...opts.args], {
-    env: { ...process.env, PENCIL_CLI_KEY: opts.key },
+    env,
     stdio: ["ignore", "pipe", "pipe"],
     windowsHide: true,
   });
