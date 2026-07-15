@@ -44,7 +44,7 @@ export async function generatePersonas(
   count: number,
 ): Promise<PubPersona[]> {
   const prompt = buildPersonaPrompt(brew, count);
-  const raw = await client.generateObject(personasSchema, {
+  const { value: raw } = await client.generateObject(personasSchema, {
     tag: "pub-persona",
     system: PERSONA_SYSTEM,
     prompt,

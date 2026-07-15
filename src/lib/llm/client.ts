@@ -1,4 +1,5 @@
 import type { z } from "zod";
+import type { TokenCounts } from "@/lib/llm/usage";
 
 export type LlmTag =
   | "mash"
@@ -24,7 +25,12 @@ export interface GenerateOptions {
   images?: LlmImage[];
 }
 
+export interface LlmResult<T> {
+  value: T;
+  usage: TokenCounts;
+}
+
 export interface LlmClient {
-  generateObject<T>(schema: z.ZodType<T>, opts: GenerateOptions): Promise<T>;
-  generateText(opts: GenerateOptions): Promise<string>;
+  generateObject<T>(schema: z.ZodType<T>, opts: GenerateOptions): Promise<LlmResult<T>>;
+  generateText(opts: GenerateOptions): Promise<LlmResult<string>>;
 }

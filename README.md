@@ -61,6 +61,8 @@ Cursor APIキーは設定画面に保存する代わりに、環境変数 `CURSO
 
 各工程の待ち時間には、ドット絵のループアニメ「真夜中の醸造所」シリーズが流れます([PixelForge](https://github.com/FUJIvillage/pixelforge)で制作。仕込み=マッシュ桶、煮沸=沸騰ケトル、レシピ生成=羽ペンの机、デザイン=イーゼル、タップビルド=醸造ケトル、熟成=砂時計)。Pub のバーVN演出も同じ世界観のドット絵です(背景は PixelForge 製、客はペルソナ名から決定論的に生成されるドット絵)。
 
+ブリュー詳細画面のヘッダーには、各工程で消費した LLM トークン(入力 / 出力 / 合計)とその全体合計が累積表示されます(タップ・デザインはエンジン側でトークンが取れる場合のみ)。消費情報は `brew.json` の `tokenUsage` に保存されます。
+
 成果物は `data/brews/<ID>/recipe/` に Markdown として保存され、エクスプローラーから直接読めます。
 タップ工程の生成物は `data/brews/<ID>/taps/batch-1/` に Vite + React + TypeScript + Tailwind のアプリとして出力されます。ビルド後は `npm install --ignore-scripts` / `npx tsc --noEmit` / `npx vite build` で検証し、失敗時は最大2回の修理ラウンドが自動で走ります。ログは `data/brews/<ID>/taps/batch-1/build.log` に保存されます。
 
@@ -74,7 +76,7 @@ data/
   personas.json                … 保存済みの常連客(上限20件)
   brews/
     <ID>/
-      brew.json                … そのブリューの全状態(工程・シート・バッチ等)
+      brew.json                … そのブリューの全状態(工程・シート・バッチ・tokenUsage 等)
       ingredients/             … 投入した原料ファイル
       recipe/                  … 発酵で生成した実装資料(Markdown 7ファイル)
       design/                  … デザイン工程のモック(mock.pen / mock.png / usage.json / design.log)

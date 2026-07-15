@@ -22,12 +22,15 @@ async function mashedBrew() {
 
 test("nextQuestion は質問エントリを追加して返す", async () => {
   const { brew, fake } = await mashedBrew();
+  expect(brew.tokenUsage?.byStage.mash).toEqual({ input: 11, output: 22, total: 33 });
   const { brew: next, entry } = await nextQuestion(brew, fake);
   expect(entry).not.toBeNull();
   expect(entry!.question).toContain("フェイク質問");
   expect(entry!.options.some((o) => o.recommended)).toBe(true);
   expect(next.boil.entries).toHaveLength(1);
   expect(next.boil.finished).toBe(false);
+  expect(next.tokenUsage?.byStage.boil).toEqual({ input: 11, output: 22, total: 33 });
+  expect(next.tokenUsage?.byStage.mash).toEqual({ input: 11, output: 22, total: 33 });
 });
 
 test("applyAnswer で回答が記録されシートが更新される", async () => {

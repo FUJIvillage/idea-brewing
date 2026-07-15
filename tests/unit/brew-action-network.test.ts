@@ -23,6 +23,7 @@ function fakeBrew(partial: Partial<Brew> = {}): Brew {
     maturationProgress: null,
     pubProgress: null,
     designMock: null,
+    tokenUsage: null,
     ...partial,
   };
 }

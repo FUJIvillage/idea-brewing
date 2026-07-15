@@ -16,6 +16,7 @@ import { DesignPanel } from "./design-panel";
 import { TapPanel } from "./tap-panel";
 import { MaturePanel } from "./mature-panel";
 import { PubPanel } from "./pub-panel";
+import { TokenUsageBar } from "./token-usage-bar";
 import { latestSucceededBatch } from "@/lib/tap/batches";
 
 const TABS = [
@@ -153,6 +154,8 @@ export function BrewWorkbench({
           {badge.label}
         </span>
       </div>
+
+      <TokenUsageBar brew={brew} />
 
       <nav className="mt-[18px] flex flex-wrap items-end gap-1 border-b-2 border-[#8a6428]">
         <span

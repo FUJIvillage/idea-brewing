@@ -89,6 +89,7 @@ export async function createBrew(name: string): Promise<Brew> {
     maturationProgress: null,
     pubProgress: null,
     designMock: null,
+    tokenUsage: null,
   };
   await fs.mkdir(path.join(brewDir(brew.id), "ingredients"), { recursive: true });
   return writeBrew(brew);
@@ -116,6 +117,7 @@ export async function readBrew(id: string): Promise<Brew> {
     maturationProgress: parsed.maturationProgress ?? null,
     pubProgress: parsed.pubProgress ?? null,
     designMock: parsed.designMock ?? null,
+    tokenUsage: parsed.tokenUsage ?? null,
   };
 }
 

@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { z } from "zod";
-import type { GenerateOptions, LlmClient } from "@/lib/llm/client";
+import type { LlmClient } from "@/lib/llm/client";
 import { createFakeClient } from "@/lib/llm/fake-client";
 import { createFakePubDriver } from "@/lib/pub/fake-driver";
 import { MAX_SESSION_STEPS, alignTaskResults, runPersonaSession } from "@/lib/pub/session";
@@ -18,9 +17,14 @@ const persona: PubPersona = {
 function stubClient(overrides: Partial<Record<string, () => unknown>>): LlmClient {
   const base = createFakeClient();
   return {
-    async generateObject<T>(schema: z.ZodType<T>, opts: GenerateOptions): Promise<T> {
+    async generateObject(schema, opts) {
       const over = overrides[opts.tag];
-      if (over) return schema.parse(over());
+      if (over) {
+        return {
+          value: schema.parse(over()),
+          usage: { input: 0, output: 0, total: 0 },
+        };
+      }
       return base.generateObject(schema, opts);
     },
     generateText: (opts) => base.generateText(opts),

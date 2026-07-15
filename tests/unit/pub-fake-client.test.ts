@@ -35,11 +35,11 @@ const feedbackSchema = z.object({
 describe("fake client の pub タグ", () => {
   it("pub-persona はプロンプトの人数指定どおりに返す", async () => {
     const client = createFakeClient();
-    const res = await client.generateObject(personasSchema, {
+    const res = (await client.generateObject(personasSchema, {
       tag: "pub-persona",
       system: "s",
       prompt: "人数: 3\n\n## コンセプト\nテスト",
-    });
+    })).value;
     expect(res.personas).toHaveLength(3);
     expect(res.personas[0].goals.length).toBeGreaterThan(0);
   });
@@ -47,9 +47,9 @@ describe("fake client の pub タグ", () => {
   it("pub-action は click → finish を繰り返す", async () => {
     const client = createFakeClient();
     const opts = { tag: "pub-action", system: "s", prompt: "p" } as const;
-    const a1 = await client.generateObject(actionSchema, opts);
-    const a2 = await client.generateObject(actionSchema, opts);
-    const a3 = await client.generateObject(actionSchema, opts);
+    const a1 = (await client.generateObject(actionSchema, opts)).value;
+    const a2 = (await client.generateObject(actionSchema, opts)).value;
+    const a3 = (await client.generateObject(actionSchema, opts)).value;
     expect(a1.kind).toBe("click");
     expect(a1.target).toBe(1);
     expect(a2.kind).toBe("finish");
@@ -59,8 +59,8 @@ describe("fake client の pub タグ", () => {
   it("pub-feedback は1人目が4点台、2人目以降は3点台", async () => {
     const client = createFakeClient();
     const opts = { tag: "pub-feedback", system: "s", prompt: "p" } as const;
-    const f1 = await client.generateObject(feedbackSchema, opts);
-    const f2 = await client.generateObject(feedbackSchema, opts);
+    const f1 = (await client.generateObject(feedbackSchema, opts)).value;
+    const f2 = (await client.generateObject(feedbackSchema, opts)).value;
     expect(f1.scores.purpose).toBe(5);
     expect(f2.scores.purpose).toBe(4);
     expect(f2.scores.usability).toBe(3);
@@ -68,7 +68,8 @@ describe("fake client の pub タグ", () => {
 
   it("pub-summary は generateText で固定文を返す", async () => {
     const client = createFakeClient();
-    const text = await client.generateText({ tag: "pub-summary", system: "s", prompt: "p" });
+    const text = (await client.generateText({ tag: "pub-summary", system: "s", prompt: "p" }))
+      .value;
     expect(text).toContain("フェイク総括");
   });
 });
