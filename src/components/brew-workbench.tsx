@@ -60,7 +60,10 @@ export function BrewWorkbench({
 
   const refresh = useCallback(async () => {
     const res = await fetch(`/api/brews/${initial.id}`);
-    if (res.ok) setBrew(await res.json());
+    if (!res.ok) return;
+    const next = (await res.json()) as Brew;
+    setBrew(next);
+    return next;
   }, [initial.id]);
 
   const designGenerating = brew.designMock?.status === "generating";

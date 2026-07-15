@@ -2,6 +2,10 @@
 
 import { useEffect, useRef, useState } from "react";
 import type { Brew } from "@/lib/store/types";
+import {
+  recoverLongJobFetchError,
+  type BrewActionBase,
+} from "@/lib/brew-action-network";
 
 type ErrorBody = { error?: string };
 
@@ -20,10 +24,11 @@ export function useBrewAction({
   onTick,
 }: {
   brewId: string;
-  base: "tap" | "mature" | "pub" | "recipe" | "design";
+  base: BrewActionBase;
   running: boolean;
   onUpdate: (b: Brew) => void;
-  refresh: () => Promise<void>;
+  /** 可能なら最新 Brew を返す(通信切断からの回復判定に使う) */
+  refresh: () => Promise<Brew | void>;
   onBusyChange: (busy: boolean) => void;
   /** ポーリング1秒ごとの追加処理(タップパネルのログ追従など)。useCallback等で安定させること */
   onTick?: () => void;
@@ -37,9 +42,16 @@ export function useBrewAction({
     if (!running || busy) return;
     const timer = setInterval(() => {
       void refresh();
-      onTick?.();
     }, 1000);
-    return () => clearInterval(timer);
+    const tickTimer = onTick
+      ? setInterval(() => {
+          onTick();
+        }, 1000)
+      : null;
+    return () => {
+      clearInterval(timer);
+      if (tickTimer) clearInterval(tickTimer);
+    };
   }, [running, busy, refresh, onTick]);
 
   /** 実行系 POST(pathSuffixが空ならbase自体に投げる)。busy 解除の直前に onSettled(成功時は更新後の Brew、失敗時は null)を呼ぶ */
@@ -58,6 +70,7 @@ export function useBrewAction({
       onTick?.();
     }, 1000);
     let updatedBrew: Brew | null = null;
+    let caught: unknown = null;
     try {
       const path = pathSuffix ? `${base}/${pathSuffix}` : base;
       const res = await fetch(`/api/brews/${brewId}/${path}`, {
@@ -66,7 +79,6 @@ export function useBrewAction({
           ? { headers: { "content-type": "application/json" }, body: JSON.stringify(body) }
           : {}),
       });
-      clearInterval(timer);
       const json = (await res.json()) as Brew | ErrorBody;
       if (!res.ok) {
         throw new Error("error" in json && json.error ? json.error : "エラーが発生しました。");
@@ -74,13 +86,17 @@ export function useBrewAction({
       updatedBrew = json as Brew;
       onUpdate(updatedBrew);
     } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
+      caught = err;
     } finally {
       clearInterval(timer);
+      let latest: Brew | null | undefined = updatedBrew;
       try {
-        await refresh();
+        latest = (await refresh()) ?? latest;
       } catch {
         // refreshが失敗してもbusy解除は必ず行う(タブが永久ロックされるのを防ぐ)
+      }
+      if (caught) {
+        setError(recoverLongJobFetchError(caught, base, latest));
       }
       try {
         await onSettled?.(updatedBrew);

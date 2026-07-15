@@ -87,7 +87,7 @@ export function DesignPanel({
 }: {
   brew: Brew;
   onUpdate: (b: Brew) => void;
-  refresh: () => Promise<void>;
+  refresh: () => Promise<Brew | void>;
   onBusyChange: (busy: boolean) => void;
 }) {
   const [instruction, setInstruction] = useState("");

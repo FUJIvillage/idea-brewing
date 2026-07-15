@@ -31,7 +31,7 @@ export function PubPanel({
 }: {
   brew: Brew;
   onUpdate: (b: Brew) => void;
-  refresh: () => Promise<void>;
+  refresh: () => Promise<Brew | void>;
   onBusyChange: (busy: boolean) => void;
 }) {
   const [autoCount, setAutoCount] = useState("3");
