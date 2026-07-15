@@ -6,7 +6,7 @@ import type { Brew } from "@/lib/store/types";
 type ErrorBody = { error?: string };
 
 /**
- * 実行系パネル(tap / mature / pub / recipe)共通の POST・中断・busy 管理フック。
+ * 実行系パネル(tap / mature / pub / recipe / design)共通の POST・中断・busy 管理フック。
  * `/api/brews/{brewId}/{base}/...` に対する post/cancel と、
  * リモート進行中(running)の 1 秒ポーリングを一元化する。
  */
@@ -20,7 +20,7 @@ export function useBrewAction({
   onTick,
 }: {
   brewId: string;
-  base: "tap" | "mature" | "pub" | "recipe";
+  base: "tap" | "mature" | "pub" | "recipe" | "design";
   running: boolean;
   onUpdate: (b: Brew) => void;
   refresh: () => Promise<void>;
