@@ -54,3 +54,5 @@ templates/**/dist/
 
 # claude code のローカル個人設定(共有しない)
 .claude/settings.local.json
+
+.superpowers/
