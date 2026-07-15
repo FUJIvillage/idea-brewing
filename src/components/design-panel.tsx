@@ -15,6 +15,71 @@ function formatDuration(durationMs: number | null): string {
   return sec >= 60 ? `${Math.floor(sec / 60)}分${sec % 60}秒` : `${sec}秒`;
 }
 
+/**
+ * 生成中の経過時間とライブプレビュー。working の間だけマウントされ、
+ * アンマウントで状態が破棄されるため、再生成時のリセット用 setState が要らない
+ * (エフェクト内の同期 setState は react-hooks/set-state-in-effect で禁止)
+ */
+function GeneratingView({ brewId, onCancel }: { brewId: string; onCancel: () => void }) {
+  const [elapsedSec, setElapsedSec] = useState(0);
+  // null = 有効なプレビューフレーム未取得(プレースホルダ表示)
+  const [previewTick, setPreviewTick] = useState<number | null>(null);
+
+  useEffect(() => {
+    const startedAt = Date.now(); // マウント時点を起点にする(このビューは生成中のみマウントされる)
+    const timer = setInterval(() => {
+      setElapsedSec(Math.round((Date.now() - startedAt) / 1000));
+    }, 1000);
+    return () => clearInterval(timer);
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    const poll = async () => {
+      try {
+        const res = await fetch(`/api/brews/${brewId}/design/preview`, { cache: "no-store" });
+        if (!cancelled && res.ok) setPreviewTick(Date.now());
+      } catch {
+        // プレビュー取得失敗はプレースホルダ(または前回フレーム)継続
+      }
+    };
+    void poll();
+    const timer = setInterval(() => void poll(), 2500);
+    return () => {
+      cancelled = true;
+      clearInterval(timer);
+    };
+  }, [brewId]);
+
+  return (
+    <div className="flex flex-col gap-3">
+      <p className="m-0 text-[#e0a83c]" aria-live="polite">
+        モックアップを生成中…(経過 {Math.floor(elapsedSec / 60)}分{elapsedSec % 60}秒)
+      </p>
+      {previewTick !== null ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={`/api/brews/${brewId}/design/preview?t=${previewTick}`}
+          alt="デザインモックアップ（生成中プレビュー）"
+          className="max-w-full border-2 border-[#3a2a12]"
+          style={{ background: "#040201" }}
+        />
+      ) : (
+        <div
+          className="flex min-h-[180px] items-center justify-center border-2 border-dashed border-[#3a2a12] bg-[#0e0804] p-6 text-[14px]"
+          style={{ color: "rgba(255,220,160,.55)" }}
+          aria-live="polite"
+        >
+          キャンバス準備中…
+        </div>
+      )}
+      <button onClick={onCancel} className="ps-btn-secondary w-fit">
+        中断
+      </button>
+    </div>
+  );
+}
+
 export function DesignPanel({
   brew,
   onUpdate,
@@ -27,9 +92,6 @@ export function DesignPanel({
   onBusyChange: (busy: boolean) => void;
 }) {
   const [instruction, setInstruction] = useState("");
-  const [elapsedSec, setElapsedSec] = useState(0);
-  const [previewReady, setPreviewReady] = useState(false);
-  const [previewTick, setPreviewTick] = useState(0);
 
   const mock = brew.designMock;
   const running = mock?.status === "generating";
@@ -43,47 +105,8 @@ export function DesignPanel({
   });
   const working = busy || running;
 
-  useEffect(() => {
-    if (!working) {
-      setPreviewReady(false);
-      return;
-    }
-    let cancelled = false;
-    const poll = async () => {
-      try {
-        const res = await fetch(`/api/brews/${brew.id}/design/preview`, { cache: "no-store" });
-        if (cancelled) return;
-        if (res.ok) {
-          setPreviewReady(true);
-          setPreviewTick(Date.now());
-        }
-      } catch {
-        // プレビュー取得失敗はプレースホルダ継続
-      }
-    };
-    void poll();
-    const timer = setInterval(() => void poll(), 2500);
-    return () => {
-      cancelled = true;
-      clearInterval(timer);
-    };
-  }, [working, brew.id]);
-
-  useEffect(() => {
-    if (!working) return;
-    const startedAt = Date.now() - elapsedSec * 1000;
-    const timer = setInterval(() => {
-      setElapsedSec(Math.round((Date.now() - startedAt) / 1000));
-    }, 1000);
-    return () => clearInterval(timer);
-    // 経過タイマーは working の切り替わり時だけ再作成する(elapsedSec 依存にすると毎秒作り直しになる)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [working]);
-
   function generate() {
     confirmSound();
-    setElapsedSec(0);
-    setPreviewReady(false);
     void post("generate", instruction.trim() ? { instruction: instruction.trim() } : {});
   }
 
@@ -95,33 +118,7 @@ export function DesignPanel({
         所要目安は約5分、コストは1回 $2 前後です(モデルによる)。
       </p>
 
-      {working && (
-        <div className="flex flex-col gap-3">
-          <p className="m-0 text-[#e0a83c]" aria-live="polite">
-            モックアップを生成中…(経過 {Math.floor(elapsedSec / 60)}分{elapsedSec % 60}秒)
-          </p>
-          {previewReady ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={`/api/brews/${brew.id}/design/preview?t=${previewTick}`}
-              alt="デザインモックアップ（生成中プレビュー）"
-              className="max-w-full border-2 border-[#3a2a12]"
-              style={{ background: "#040201" }}
-            />
-          ) : (
-            <div
-              className="flex min-h-[180px] items-center justify-center border-2 border-dashed border-[#3a2a12] bg-[#0e0804] p-6 text-[14px]"
-              style={{ color: "rgba(255,220,160,.55)" }}
-              aria-live="polite"
-            >
-              キャンバス準備中…
-            </div>
-          )}
-          <button onClick={() => void cancel()} className="ps-btn-secondary w-fit">
-            中断
-          </button>
-        </div>
-      )}
+      {working && <GeneratingView brewId={brew.id} onCancel={() => void cancel()} />}
 
       {!working && mock?.status === "succeeded" && (
         <div className="flex flex-col gap-3">

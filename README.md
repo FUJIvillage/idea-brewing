@@ -39,9 +39,12 @@ Cursor APIキーは設定画面に保存する代わりに、環境変数 `CURSO
 
 ## Pencil CLI設定(デザイン工程・任意)
 
-レシピ完成後の「デザイン」タブでは、Pencil CLI(`@pencil.dev/cli`)で画面仕様とデザインシステムから高忠実度モックアップ(PNG)を生成できます。設定画面の「デザインエンジン(Pencil)」でCLIキーを設定してください([pencil.dev](https://www.pencil.dev/) の組織設定 → Developer Keys で発行。環境変数 `PENCIL_CLI_KEY` でも指定可)。任意でモデルID(`pencilModel`)も指定できます(空ならCLI既定)。
+レシピ完成後の「デザイン」タブでは、Pencil CLI(`@pencil.dev/cli`)で画面仕様とデザインシステムから高忠実度モックアップ(PNG)を生成できます。設定画面の「デザインエンジン(Pencil)」でCLIキーを設定してください([pencil.dev](https://www.pencil.dev/) の組織設定 → Developer Keys で発行。環境変数 `PENCIL_CLI_KEY` でも指定可)。
+
+デザインモデル(`pencilModel`)は任意です。空の場合はLLMプロバイダに合わせて自動選択します(OpenAI/OpenRouter → `gpt-5.4`、Google → `gemini-3.5-flash`、それ以外はCLI既定のClaude)。OpenAI/Google系モデルはLLMプロバイダのAPIキーをエージェント認証(`PENCIL_AGENT_API_KEY`)として使い、Claude系は `ANTHROPIC_API_KEY` かClaude Codeログインが別途必要です。
 
 - 生成は1回あたり数分・$2前後かかります(モデルによる)。実行は常に手動で、熟成の自動ループには組み込まれません
+- 生成中は約12秒間隔で途中経過のプレビュー画像が表示されます(最初の有効フレームまでは「キャンバス準備中…」)
 - 生成したモックは熟成の評価で「デザイン忠実度」の採点基準になり、差分は改善指示として次バッチに反映されます。バッチには `docs/recipe/design-mock.png` として同梱されます
 - Pencil は早期アクセス中のクローズドソースサービスです。料金体系・CLI仕様は変わる可能性があります
 - フェイク構成(`IDEA_BREWING_FAKE_BUILD=1` またはプロバイダ `fake`)ではCLIを呼ばず、同梱の固定モックをコピーします(動作確認用)
