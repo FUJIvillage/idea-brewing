@@ -1,4 +1,5 @@
 import type { BuildEngine, BuildSession } from "./engine";
+import { createStreamLogBuffer } from "./stream-log-buffer";
 
 export interface CursorEngineOptions {
   apiKey: string;
@@ -137,13 +138,19 @@ export function createCursorEngine(opts: CursorEngineOptions): BuildEngine {
             }
 
             if (run.supports("stream")) {
-              for await (const event of run.stream()) {
-                if (event.type !== "assistant") continue;
-                for (const block of event.message.content) {
-                  if (block.type === "text" && typeof block.text === "string" && block.text.trim()) {
-                    onLog(block.text);
+              // SDKは数文字ずつストリームするため、行/アイドル単位にまとめてから書く
+              const streamLog = createStreamLogBuffer(onLog);
+              try {
+                for await (const event of run.stream()) {
+                  if (event.type !== "assistant") continue;
+                  for (const block of event.message.content) {
+                    if (block.type === "text" && typeof block.text === "string") {
+                      streamLog.push(block.text);
+                    }
                   }
                 }
+              } finally {
+                streamLog.flush();
               }
             } else {
               onLog(`[cursor] stream未対応: ${run.unsupportedReason("stream") ?? "unknown"}`);
